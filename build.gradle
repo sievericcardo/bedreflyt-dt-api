@@ -74,7 +74,9 @@ dependencies {
     compileOnly("jakarta.servlet:jakarta.servlet-api:6.1.0")
     implementation("jakarta.xml.bind:jakarta.xml.bind-api:4.0.2")
     // SMOL
-    implementation 'com.github.smolang:SemanticObjects:-8c57e63cb9-1'
+    implementation("com.github.smolang:SemanticObjects:8c57e63cb9") {
+        exclude group: 'org.slf4j', module: 'slf4j-simple'
+    }
 }
 
 tasks.test {
