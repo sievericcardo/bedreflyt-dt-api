@@ -7,7 +7,9 @@ plugins {
 
 group = 'no.uio'
 version = '0.1'
-archivesBaseName = 'bedreflyt-api'
+base {
+    archivesName = 'bedreflyt-api'
+}
 
 repositories {
     mavenCentral()
@@ -35,12 +37,35 @@ ext {
 dependencies {
     testImplementation("org.jetbrains.kotlin:kotlin-test")
     testImplementation("com.h2database:h2:2.3.232")
+    // Logger
+    implementation("org.slf4j:jul-to-slf4j:${sl4jVersion}")
+    implementation("org.slf4j:slf4j-api:${sl4jVersion}")
+    implementation("org.slf4j:slf4j-simple:${sl4jVersion}")
+    // SMOL
+    implementation("com.github.smolang:SemanticObjects:8c57e63cb9") {
+        exclude group: 'org.slf4j', module: 'slf4j-simple'
+    }
     // Spring Boot
-    testImplementation("org.springframework.boot:spring-boot-starter-test:${springBootVersion}")
-    implementation("org.springframework.boot:spring-boot-starter-data-jpa:${springBootVersion}")
-    implementation("org.springframework.boot:spring-boot-starter-web:${springBootVersion}")
-    implementation("org.springframework.boot:spring-boot-starter-security:${springBootVersion}")
-    implementation("org.springframework.boot:spring-boot-configuration-processor:${springBootVersion}")
+    testImplementation("org.springframework.boot:spring-boot-starter-test:${springBootVersion}") {
+        exclude group: "ch.qos.logback", module: "logback-classic"
+        exclude group: "ch.qos.logback", module: "logback-core"
+    }
+    implementation("org.springframework.boot:spring-boot-starter-data-jpa:${springBootVersion}") {
+        exclude group: "ch.qos.logback", module: "logback-classic"
+        exclude group: "ch.qos.logback", module: "logback-core"
+    }
+    implementation("org.springframework.boot:spring-boot-starter-web:${springBootVersion}") {
+        exclude group: "ch.qos.logback", module: "logback-classic"
+        exclude group: "ch.qos.logback", module: "logback-core"
+    }
+    implementation("org.springframework.boot:spring-boot-starter-security:${springBootVersion}") {
+        exclude group: "ch.qos.logback", module: "logback-classic"
+        exclude group: "ch.qos.logback", module: "logback-core"
+    }
+    implementation("org.springframework.boot:spring-boot-configuration-processor:${springBootVersion}") {
+        exclude group: "ch.qos.logback", module: "logback-classic"
+        exclude group: "ch.qos.logback", module: "logback-core"
+    }
     // PosgreSQL
     implementation("org.postgresql:postgresql:${postgresVersion}")
     // Jackson
@@ -49,8 +74,6 @@ dependencies {
     implementation("org.jetbrains.kotlin:kotlin-reflect")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
     // JPA
-//    implementation("org.hibernate.javax.persistence:hibernate-jpa-2.1-api:1.0.2.Final")
-//    implementation("jakarta.persistence:jakarta.persistence-api:3.2.0")
     implementation("org.hibernate.orm:hibernate-core:${hibernateVersion}")
     // DevTools
     runtimeOnly("org.springframework.boot:spring-boot-devtools:${springBootVersion}")
@@ -64,19 +87,10 @@ dependencies {
     // Lombok
     implementation("org.projectlombok:lombok:${lombokVersion}")
     annotationProcessor("org.projectlombok:lombok:${lombokVersion}")
-    // Logger
-    implementation("ch.qos.logback:logback-classic:${logbackVersion}")
-    implementation("ch.qos.logback:logback-core:${logbackVersion}")
-    implementation("org.slf4j:slf4j-api:${sl4jVersion}")
-    implementation("org.slf4j:slf4j-simple:${sl4jVersion}")
     // Commons
     implementation('org.apache.commons:commons-text:1.12.0')
     compileOnly("jakarta.servlet:jakarta.servlet-api:6.1.0")
     implementation("jakarta.xml.bind:jakarta.xml.bind-api:4.0.2")
-    // SMOL
-    implementation("com.github.smolang:SemanticObjects:8c57e63cb9") {
-        exclude group: 'org.slf4j', module: 'slf4j-simple'
-    }
 }
 
 tasks.test {
