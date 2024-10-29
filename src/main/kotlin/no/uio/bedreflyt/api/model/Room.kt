@@ -10,6 +10,7 @@ import jakarta.persistence.Table
 class Room {
     @Id
     var id: Long? = null
+
     @Column(name = "room_description", unique = true)
     var roomDescription : String = ""
 }
