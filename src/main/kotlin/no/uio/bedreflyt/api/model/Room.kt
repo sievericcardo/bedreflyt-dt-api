@@ -9,6 +9,7 @@ import jakarta.persistence.Table
 @Table(name = "room")
 class Room {
     @Id
+    @Column(name = "id")
     var id: Long? = null
 
     @Column(name = "room_description", unique = true)

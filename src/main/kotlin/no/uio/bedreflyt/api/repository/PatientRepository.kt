@@ -4,7 +4,5 @@ import no.uio.bedreflyt.api.model.Patient
 import org.springframework.data.jpa.repository.JpaRepository
 
 interface PatientRepository : JpaRepository<Patient?, String?> {
-    fun findByPatientId(patientId: String?): Patient? {
-        return null
-    }
+    fun findByPatientId(patientId: String): Patient
 }

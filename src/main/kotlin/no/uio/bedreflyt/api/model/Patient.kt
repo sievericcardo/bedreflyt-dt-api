@@ -10,6 +10,7 @@ enum class Gender {
 @Table(name = "patient")
 class Patient {
     @Id
+    @Column(name = "id")
     var patientId : String = ""
 
     @Enumerated(EnumType.STRING)

@@ -9,7 +9,7 @@ import org.springframework.stereotype.Service
 class PatientService @Autowired constructor(
     private val patientRepository: PatientRepository
 ) {
-    fun getPatient(patientId: String): Patient {
-        return patientRepository.findByPatientId(patientId) ?: throw IllegalArgumentException("Patient not found")
+    fun findByPatientId(patientId: String): Patient {
+        return patientRepository.findByPatientId(patientId)
     }
 }

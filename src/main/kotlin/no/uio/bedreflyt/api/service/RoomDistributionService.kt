@@ -9,7 +9,7 @@ import org.springframework.stereotype.Service
 class RoomDistributionService @Autowired constructor(
     private val roomDistributionRepository: RoomDistributionRepository
 ) {
-    fun getRoomDistribution(roomDescription: String): RoomDistribution {
-        return roomDistributionRepository.findByRoomDescription(roomDescription) ?: throw IllegalArgumentException("Room distribution not found")
+    fun findByRoom_RoomDescription(roomDescription: String): List<RoomDistribution> {
+        return roomDistributionRepository.findByRoom_RoomDescription(roomDescription)
     }
 }

@@ -6,9 +6,13 @@ import jakarta.persistence.*
 @Table(name = "patient_status")
 class PatientStatus {
     @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "id")
+    var id: Long? = null
+
     @OneToOne
-    @JoinColumn(name = "patient_id", referencedColumnName = "patient_id")
-    var patientId : String = ""
+    @JoinColumn(name = "patient_id", referencedColumnName = "id")
+    var patientId : Patient? = null
 
     @Column(name = "infectious")
     var infectious : Boolean = false
