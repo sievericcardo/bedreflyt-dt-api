@@ -1,9 +1,9 @@
 package no.uio.bedreflyt.api.service
 
-import no.uio.bedreflyt.api.config.DatabaseContextHolder
 import no.uio.bedreflyt.api.config.DynamicDataSourceConfig
 import no.uio.bedreflyt.api.model.Patient
-import no.uio.bedreflyt.api.repository.PatientRepository
+import no.uio.bedreflyt.api.model.Scenario
+import no.uio.bedreflyt.api.repository.ScenarioRepository
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.orm.jpa.JpaTransactionManager
 import org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean
@@ -12,35 +12,45 @@ import org.springframework.stereotype.Service
 import javax.sql.DataSource
 
 @Service
-class PatientService @Autowired constructor(
-    private val patientRepository: PatientRepository,
+class ScenarioService @Autowired constructor(
+    private val scenarioRepository: ScenarioRepository,
     private val sqliteDataSource: DataSource,
     private val dynamicDataSourceConfig: DynamicDataSourceConfig
 ) {
-    fun findAll(): MutableList<Patient?> {
-        return patientRepository.findAll()
+    fun findAll(): MutableList<Scenario?> {
+        return scenarioRepository.findAll()
     }
 
-    fun findByPatientId(patientId: String, sqliteDbUrl: String? = null): Patient {
+    fun findByBatch (batch: Int, sqliteDbUrl: String? = null): Scenario {
         if (sqliteDbUrl != null) {
-            DatabaseContextHolder.setDatabaseType("sqlite")
             dynamicDataSourceConfig.setSqliteDatabaseUrl(sqliteDataSource, sqliteDbUrl)
             configureEntityManagerFactory(sqliteDataSource)
-        } else {
-            DatabaseContextHolder.setDatabaseType("postgres")
         }
-        return patientRepository.findByPatientId(patientId)
+        return scenarioRepository.findByBatch(batch)
     }
 
-    fun savePatient(patient: Patient, sqliteDbUrl: String? = null): Patient {
+    fun findByPatientId(patientId: Patient, sqliteDbUrl: String? = null): Scenario {
         if (sqliteDbUrl != null) {
-            DatabaseContextHolder.setDatabaseType("sqlite")
             dynamicDataSourceConfig.setSqliteDatabaseUrl(sqliteDataSource, sqliteDbUrl)
             configureEntityManagerFactory(sqliteDataSource)
-        } else {
-            DatabaseContextHolder.setDatabaseType("postgres")
         }
-        return patientRepository.save(patient)
+        return scenarioRepository.findByPatientId(patientId)
+    }
+
+    fun findByTreatmentName(treatmentName: String, sqliteDbUrl: String? = null): Scenario {
+        if (sqliteDbUrl != null) {
+            dynamicDataSourceConfig.setSqliteDatabaseUrl(sqliteDataSource, sqliteDbUrl)
+            configureEntityManagerFactory(sqliteDataSource)
+        }
+        return scenarioRepository.findByTreatmentName(treatmentName)
+    }
+
+    fun saveScenario(scenario: Scenario, sqliteDbUrl: String? = null): Scenario {
+        if (sqliteDbUrl != null) {
+            dynamicDataSourceConfig.setSqliteDatabaseUrl(sqliteDataSource, sqliteDbUrl)
+            configureEntityManagerFactory(sqliteDataSource)
+        }
+        return scenarioRepository.save(scenario)
     }
 
     private fun configureEntityManagerFactory(dataSource: DataSource) {
@@ -48,7 +58,7 @@ class PatientService @Autowired constructor(
         emFactory.dataSource = dataSource
         emFactory.setPackagesToScan("no.uio.bedreflyt.api.model")
         emFactory.jpaVendorAdapter = HibernateJpaVendorAdapter().apply {
-            setDatabasePlatform("org.hibernate.dialect.SQLiteDialect")
+            setDatabasePlatform("org.hibernate.community.dialect.SQLiteDialect")
         }
         emFactory.afterPropertiesSet()
         val transactionManager = JpaTransactionManager()

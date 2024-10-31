@@ -7,11 +7,11 @@ import jakarta.persistence.Table
 
 @Entity
 @Table(name = "room")
-class Room {
+class Room (
     @Id
     @Column(name = "id")
-    var id: Long? = null
+    var id: Long? = null,
 
     @Column(name = "room_description", unique = true)
     var roomDescription : String = ""
-}
+)

@@ -9,5 +9,6 @@ import org.springframework.context.annotation.ComponentScan
 open class API
 
 fun main(args: Array<String>) {
+    Runtime.getRuntime().exec("java -jar bedreflyt.jar")
     SpringApplication.run(API::class.java, *args)
 }

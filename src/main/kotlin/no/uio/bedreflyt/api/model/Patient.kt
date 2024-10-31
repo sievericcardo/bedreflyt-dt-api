@@ -8,15 +8,15 @@ enum class Gender {
 
 @Entity
 @Table(name = "patient")
-class Patient {
+class Patient (
     @Id
     @Column(name = "id")
-    var patientId : String = ""
+    var patientId : String = "",
 
     @Enumerated(EnumType.STRING)
     @Column(name = "gender")
-    var gender : Gender? = null
-
+    var gender : Gender? = null,
+) {
     @get:Transient
     val isMale: Boolean
         get() = gender == Gender.MALE
