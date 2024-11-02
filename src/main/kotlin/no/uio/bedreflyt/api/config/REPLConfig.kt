@@ -1,16 +1,20 @@
 package no.uio.bedreflyt.api.config
 
+import jakarta.annotation.PostConstruct
 import no.uio.microobject.main.Settings
 import no.uio.microobject.main.ReasonerMode
 import no.uio.microobject.runtime.REPL
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
+import org.springframework.context.annotation.Lazy
 
 @Configuration
 open class REPLConfig {
 
-    @Bean
-    open fun settings(): Settings {
+    private lateinit var repl: REPL
+
+    @PostConstruct
+    fun initRepl() {
         val verbose = true
         val materialize = false
         val liftedStateOutputPath = System.getenv("LIFTED_STATE_OUTPUT_PATH") ?: ""
@@ -23,7 +27,7 @@ open class REPLConfig {
         val domainPrefixUri = System.getenv("DOMAIN_PREFIX_URI") ?: ""
         val reasoner = ReasonerMode.off
 
-        return Settings(
+        val settings = Settings(
             verbose,
             materialize,
             liftedStateOutputPath,
@@ -37,14 +41,16 @@ open class REPLConfig {
             useQueryType,
             reasoner
         )
+
+        val smolPath = System.getenv("SMOL_PATH") ?: "Bedreflyt.smol"
+        repl = REPL(settings)
+        repl.command("verbose", "true")
+        repl.command("read", smolPath)
+        repl.command("auto", "")
     }
 
     @Bean
-    open fun repl(settings: Settings): REPL {
-        val smolPath = System.getenv("SMOL_PATH") ?: "Bedreflyt.smol"
-        val repl = REPL(settings)
-        repl.command("verbose", "true")
-        repl.command("reada", smolPath)
+    open fun repl(): REPL {
         return repl
     }
 }
