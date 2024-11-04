@@ -20,4 +20,8 @@ class RoomService @Autowired constructor(
     fun saveRoom(room: Room): Room {
         return roomRepository.save(room)
     }
+
+    fun deleteRoom(room: Room) {
+        roomRepository.delete(room)
+    }
 }

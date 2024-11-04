@@ -24,4 +24,8 @@ class PatientService @Autowired constructor(
     fun savePatient(patient: Patient): Patient {
         return patientRepository.save(patient)
     }
+
+    fun deletePatient(patient: Patient) {
+        patientRepository.delete(patient)
+    }
 }

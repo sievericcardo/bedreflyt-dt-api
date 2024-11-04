@@ -13,11 +13,19 @@ class RoomDistributionService @Autowired constructor(
         return roomDistributionRepository.findAll()
     }
 
+    fun findByRoomNumber(roomNumber: Long): RoomDistribution {
+        return roomDistributionRepository.findByRoomNumber(roomNumber)
+    }
+
     fun findByRoom_RoomDescription(roomDescription: String): List<RoomDistribution> {
         return roomDistributionRepository.findByRoom_RoomDescription(roomDescription)
     }
 
     fun saveRoomDistribution(roomDistribution: RoomDistribution): RoomDistribution {
         return roomDistributionRepository.save(roomDistribution)
+    }
+
+    fun deleteRoomDistribution(roomDistribution: RoomDistribution) {
+        roomDistributionRepository.delete(roomDistribution)
     }
 }
