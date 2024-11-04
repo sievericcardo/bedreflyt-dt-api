@@ -1,19 +1,114 @@
 plugins {
     id 'org.jetbrains.kotlin.jvm' version '1.9.23'
+    id 'com.github.johnrengelman.shadow' version '8.1.1'
+    id 'org.springframework.boot' version '3.3.0'
+    id 'io.spring.dependency-management' version '1.1.5'
 }
 
 group = 'no.uio'
-version = '1.0-SNAPSHOT'
+version = '0.1'
+base {
+    archivesName = 'bedreflyt-api'
+}
 
 repositories {
     mavenCentral()
+    maven { url 'https://jitpack.io' }
+}
+
+java {
+    toolchain {
+        languageVersion.set(JavaLanguageVersion.of(17))
+    }
+}
+
+ext {
+    springBootVersion = '3.3.5'
+    springDocVersion = '2.6.0'
+    jacksonVersion = '2.18.0'
+    lombokVersion = '1.18.34'
+    logbackVersion = '1.5.6'
+    sl4jVersion = '2.0.16'
+    jwtVersion = '0.12.6'
+    postgresVersion = '42.7.4'
+    hibernateVersion = '6.6.1.Final'
+}
+
+configurations.configureEach {
+    resolutionStrategy {
+        force "com.fasterxml.jackson.core:jackson-databind:${jacksonVersion}"
+        force "com.fasterxml.jackson.core:jackson-core:${jacksonVersion}"
+        force "com.fasterxml.jackson.core:jackson-annotations:${jacksonVersion}"
+    }
 }
 
 dependencies {
-    testImplementation 'org.jetbrains.kotlin:kotlin-test'
+    testImplementation("org.jetbrains.kotlin:kotlin-test")
+    testImplementation("com.h2database:h2:2.3.232")
+    // Logger
+    implementation("org.slf4j:jul-to-slf4j:${sl4jVersion}")
+    implementation("org.slf4j:slf4j-api:${sl4jVersion}")
+    implementation("org.slf4j:slf4j-simple:${sl4jVersion}")
+    // SMOL
+    implementation("com.github.smolang:SemanticObjects:8c57e63cb9") {
+        exclude group: 'org.slf4j', module: 'slf4j-simple'
+    }
+    // Spring Boot
+    testImplementation("org.springframework.boot:spring-boot-starter-test:${springBootVersion}") {
+        exclude group: "ch.qos.logback", module: "logback-classic"
+        exclude group: "ch.qos.logback", module: "logback-core"
+    }
+    implementation("org.springframework.boot:spring-boot-starter-data-jpa:${springBootVersion}") {
+        exclude group: "ch.qos.logback", module: "logback-classic"
+        exclude group: "ch.qos.logback", module: "logback-core"
+    }
+    implementation("org.springframework.boot:spring-boot-starter-web:${springBootVersion}") {
+        exclude group: "ch.qos.logback", module: "logback-classic"
+        exclude group: "ch.qos.logback", module: "logback-core"
+    }
+    implementation("org.springframework.boot:spring-boot-starter-security:${springBootVersion}") {
+        exclude group: "ch.qos.logback", module: "logback-classic"
+        exclude group: "ch.qos.logback", module: "logback-core"
+    }
+    implementation("org.springframework.boot:spring-boot-configuration-processor:${springBootVersion}") {
+        exclude group: "ch.qos.logback", module: "logback-classic"
+        exclude group: "ch.qos.logback", module: "logback-core"
+    }
+    // PosgreSQL
+    implementation("org.postgresql:postgresql:${postgresVersion}")
+    // SQLite
+    implementation("org.xerial:sqlite-jdbc:3.47.0.0")
+    // Jackson
+    implementation("com.fasterxml.jackson.core:jackson-core:${jacksonVersion}")
+    implementation("com.fasterxml.jackson.core:jackson-annotations:${jacksonVersion}")
+    implementation("com.fasterxml.jackson.module:jackson-module-kotlin:${jacksonVersion}")
+    implementation("com.fasterxml.jackson.core:jackson-databind:${jacksonVersion}")
+    implementation("org.jetbrains.kotlin:kotlin-reflect")
+    // JPA
+    implementation("org.hibernate.orm:hibernate-core:${hibernateVersion}")
+    implementation("org.hibernate.orm:hibernate-community-dialects:${hibernateVersion}")
+    // DevTools
+    runtimeOnly("org.springframework.boot:spring-boot-devtools:${springBootVersion}")
+    implementation("org.bouncycastle:bcprov-jdk18on:1.78.1")
+    // Swagger
+    implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:${springDocVersion}")
+    // JWT
+    implementation("io.jsonwebtoken:jjwt-api:${jwtVersion}")
+    implementation("io.jsonwebtoken:jjwt-impl:${jwtVersion}")
+    implementation("io.jsonwebtoken:jjwt-jackson:${jwtVersion}")
+    // Lombok
+    implementation("org.projectlombok:lombok:${lombokVersion}")
+    annotationProcessor("org.projectlombok:lombok:${lombokVersion}")
+    // Commons
+    implementation('org.apache.commons:commons-text:1.12.0')
+    compileOnly("jakarta.servlet:jakarta.servlet-api:6.1.0")
+    implementation("jakarta.xml.bind:jakarta.xml.bind-api:4.0.2")
+    // Kotlinx
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.9.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
 }
 
-test {
+tasks.test {
     useJUnitPlatform()
 }
 kotlin {

@@ -1,0 +1,8 @@
+class A()
+end
+
+main
+    A a = new A();
+    print("SMOL started");
+    breakpoint;
+end
