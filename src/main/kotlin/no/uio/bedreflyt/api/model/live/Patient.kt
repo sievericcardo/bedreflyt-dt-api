@@ -57,7 +57,7 @@ class Patient (
     var postOperationBedtimeHoursCategory : Int = 0,
 
     @Column(name = "lengh_stay_days_category")
-    var lenghStayDaysCategory : Int = 0,
+    var lengthStayDaysCategory : Int = 0,
 
     @Column(name = "care_id")
     var careId : String = "",
