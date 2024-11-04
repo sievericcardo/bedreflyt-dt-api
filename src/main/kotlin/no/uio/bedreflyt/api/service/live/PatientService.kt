@@ -13,9 +13,9 @@ class PatientService @Autowired constructor(
         return patientRepository.findAll()
     }
 
-//    fun findTopNPatients(n: Int): List<Patient> {
-//        return patientRepository.findTopNPatients(n)
-//    }
+    fun findTop20Patients(): List<Patient> {
+        return patientRepository.findTop20ByOrderByPatientIdDesc()
+    }
 
     fun findByPatientId(patientId: String): Patient {
         return patientRepository.findByPatientId(patientId)
