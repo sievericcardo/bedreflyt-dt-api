@@ -80,7 +80,97 @@ class PatientController (
             infectious = patientRequest.infectious
         )
 
+        patientService.savePatient(patient)
+
         return ResponseEntity.ok("Patient created")
+    }
+
+    @Operation(summary = "Update a patient")
+    @ApiResponses(value = [
+        ApiResponse(responseCode = "200", description = "Patient updated"),
+        ApiResponse(responseCode = "400", description = "Invalid patient"),
+        ApiResponse(responseCode = "401", description = "Unauthorized"),
+        ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
+        ApiResponse(responseCode = "500", description = "Internal server error")
+    ])
+    @PostMapping("/update")
+    fun updatePatient(@SwaggerRequestBody(description = "Request to update a patient") @RequestBody patientRequest: PatientRequest) : ResponseEntity<String> {
+        log.info("Updating patient")
+
+        if (patientRequest.patientId.isEmpty()) {
+            return ResponseEntity.badRequest().body("Patient information are required")
+        }
+
+        val patient = Patient(
+            patientId = patientRequest.patientId,
+            operationId = patientRequest.operationId,
+            operationStart = patientRequest.operationStart,
+            operationEnd = patientRequest.operationEnd,
+            operationLengthDays = patientRequest.operationLengthDays,
+            acute = patientRequest.acute,
+            age = patientRequest.age,
+            oslo = patientRequest.oslo,
+            mainDiagnosisCode = patientRequest.mainDiagnosisCode,
+            mainDiagnosisName = patientRequest.mainDiagnosisName,
+            acuteCategory = patientRequest.acuteCategory,
+            careCategory = patientRequest.careCategory,
+            monitoringCategory = patientRequest.monitoringCategory,
+            postOperationBedtimeHoursCategory = patientRequest.postOperationBedtimeHoursCategory,
+            lengthStayDaysCategory = patientRequest.lengthStayDaysCategory,
+            careId = patientRequest.careId,
+            infectious = patientRequest.infectious
+        )
+
+        patientService.updatePatient(patient)
+
+        return ResponseEntity.ok("Patient updated")
+    }
+
+    @Operation(summary = "Delete a patient")
+    @ApiResponses(value = [
+        ApiResponse(responseCode = "200", description = "Patient deleted"),
+        ApiResponse(responseCode = "400", description = "Invalid patient"),
+        ApiResponse(responseCode = "401", description = "Unauthorized"),
+        ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
+        ApiResponse(responseCode = "500", description = "Internal server error")
+    ])
+    @PostMapping("/delete")
+    fun deletePatient(@SwaggerRequestBody(description = "Request to delete a patient") @RequestBody patientRequest: PatientRequest) : ResponseEntity<String> {
+        log.info("Deleting patient")
+
+        if (patientRequest.patientId.isEmpty()) {
+            return ResponseEntity.badRequest().body("Patient information are required")
+        }
+
+        val patient = patientService.findByPatientId(patientRequest.patientId)
+        if (patient == null) {
+            return ResponseEntity.badRequest().body("Patient not found")
+        }
+
+        patientService.deletePatient(patient)
+
+        return ResponseEntity.ok("Patient deleted")
+    }
+
+    @Operation(summary = "Get patient by patientId")
+    @ApiResponses(value = [
+        ApiResponse(responseCode = "200", description = "Patient found"),
+        ApiResponse(responseCode = "400", description = "Invalid patient"),
+        ApiResponse(responseCode = "401", description = "Unauthorized"),
+        ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
+        ApiResponse(responseCode = "500", description = "Internal server error")
+    ])
+    @GetMapping("/get")
+    fun getPatient(@SwaggerRequestBody(description = "Request to get a patient by patientId") @RequestBody patientRequest: PatientRequest) : ResponseEntity<Patient> {
+        log.info("Getting patient")
+
+        if (patientRequest.patientId.isEmpty()) {
+            return ResponseEntity.badRequest().build()
+        }
+
+        val patient = patientService.findByPatientId(patientRequest.patientId)
+
+        return ResponseEntity.ok(patient)
     }
 
     @Operation(summary = "Get all patients")
