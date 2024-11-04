@@ -5,5 +5,5 @@ import org.springframework.data.jpa.repository.JpaRepository
 
 interface PatientRepository : JpaRepository<Patient?, String?> {
     fun findByPatientId(patientId: String): Patient
-    fun findTopNByOrderByPatientIdDesc(n: Int): List<Patient>
+//    fun findTopNPatients(n: Int): List<Patient>
 }

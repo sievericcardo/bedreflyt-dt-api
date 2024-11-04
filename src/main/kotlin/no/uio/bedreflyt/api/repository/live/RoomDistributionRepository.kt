@@ -4,5 +4,5 @@ import no.uio.bedreflyt.api.model.live.RoomDistribution
 import org.springframework.data.jpa.repository.JpaRepository
 
 interface RoomDistributionRepository : JpaRepository<RoomDistribution?, String?> {
-    fun findByRoomDescription(roomDescription: String): RoomDistribution
+    fun findByRoom_RoomDescription(roomDescription: String): List<RoomDistribution>
 }
