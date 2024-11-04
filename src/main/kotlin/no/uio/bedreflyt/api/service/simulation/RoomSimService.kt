@@ -13,7 +13,7 @@ class RoomSimService @Autowired constructor(
         return roomSimRepository.findAll()
     }
 
-    fun findByRoomDescription(roomDescription: String, sqliteDbUrl: String? = null): RoomSim {
+    fun findByRoomDescription(roomDescription: String): RoomSim {
         return roomSimRepository.findByRoomDescription(roomDescription)
     }
 
