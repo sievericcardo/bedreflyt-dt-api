@@ -15,7 +15,7 @@ class ScenarioSim (
 
     @OneToOne
     @JoinColumn(name = "patientId", referencedColumnName = "id")
-    var patientId: Patient? = null,
+    var patientId: PatientSim? = null,
 
     @Column(name = "tratmentName")
     var treatmentName: String = ""

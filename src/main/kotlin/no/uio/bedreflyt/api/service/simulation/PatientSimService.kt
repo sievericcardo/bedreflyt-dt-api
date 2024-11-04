@@ -2,7 +2,7 @@ package no.uio.bedreflyt.api.service.simulation
 
 import no.uio.bedreflyt.api.config.DatabaseContextHolder
 import no.uio.bedreflyt.api.config.DynamicDataSourceConfig
-import no.uio.bedreflyt.api.model.simulation.Patient
+import no.uio.bedreflyt.api.model.simulation.PatientSim
 import no.uio.bedreflyt.api.repository.simulation.PatientSimRepository
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.orm.jpa.JpaTransactionManager
@@ -17,11 +17,11 @@ class PatientSimService @Autowired constructor(
     private val sqliteDataSource: DataSource,
     private val dynamicDataSourceConfig: DynamicDataSourceConfig
 ) {
-    fun findAll(): MutableList<Patient?> {
+    fun findAll(): MutableList<PatientSim?> {
         return patientSimRepository.findAll()
     }
 
-    fun findByPatientId(patientId: String, sqliteDbUrl: String? = null): Patient {
+    fun findByPatientId(patientId: String, sqliteDbUrl: String? = null): PatientSim {
         if (sqliteDbUrl != null) {
             DatabaseContextHolder.setDatabaseType("sqlite")
             dynamicDataSourceConfig.setSqliteDatabaseUrl(sqliteDataSource, sqliteDbUrl)
@@ -32,7 +32,7 @@ class PatientSimService @Autowired constructor(
         return patientSimRepository.findByPatientId(patientId)
     }
 
-    fun savePatient(patient: Patient, sqliteDbUrl: String? = null): Patient {
+    fun savePatient(patient: PatientSim, sqliteDbUrl: String? = null): PatientSim {
         if (sqliteDbUrl != null) {
             DatabaseContextHolder.setDatabaseType("sqlite")
             dynamicDataSourceConfig.setSqliteDatabaseUrl(sqliteDataSource, sqliteDbUrl)

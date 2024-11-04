@@ -13,7 +13,7 @@ class RoomDistributionSim (
 
     @ManyToOne
     @JoinColumn(name = "bed_category", referencedColumnName = "id")
-    var room: Room? = null,
+    var room: RoomSim? = null,
 
     @Column(name = "capacity")
     var capacity : Int = 0,

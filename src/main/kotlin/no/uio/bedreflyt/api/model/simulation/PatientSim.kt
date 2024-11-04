@@ -8,7 +8,7 @@ enum class Gender {
 
 @Entity
 @Table(name = "patient")
-class Patient (
+class PatientSim (
     @Id
     @Column(name = "id")
     var patientId : String = "",

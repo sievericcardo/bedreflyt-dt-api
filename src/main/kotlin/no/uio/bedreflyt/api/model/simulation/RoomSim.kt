@@ -7,7 +7,7 @@ import jakarta.persistence.Table
 
 @Entity
 @Table(name = "room")
-class Room (
+class RoomSim (
     @Id
     @Column(name = "id")
     var id: Long? = null,

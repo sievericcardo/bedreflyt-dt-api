@@ -12,12 +12,12 @@ class PatientStatusSim (
 
     @OneToOne
     @JoinColumn(name = "patient_id", referencedColumnName = "id")
-    var patientId : Patient? = null,
+    var patientId : PatientSim? = null,
 
     @Column(name = "infectious")
     var infectious : Boolean = false,
 
     @OneToOne
     @JoinColumn(name = "room_number", referencedColumnName = "id")
-    var room: Room? = null
+    var room: RoomSim? = null
 )

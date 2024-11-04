@@ -1,7 +1,7 @@
 package no.uio.bedreflyt.api.service.simulation
 
 import no.uio.bedreflyt.api.config.DynamicDataSourceConfig
-import no.uio.bedreflyt.api.model.simulation.Room
+import no.uio.bedreflyt.api.model.simulation.RoomSim
 import no.uio.bedreflyt.api.repository.simulation.RoomSimRepository
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.orm.jpa.JpaTransactionManager
@@ -16,11 +16,11 @@ class RoomSimService @Autowired constructor(
     private val sqliteDataSource: DataSource,
     private val dynamicDataSourceConfig: DynamicDataSourceConfig
 ) {
-    fun findAll() : MutableList<Room?> {
+    fun findAll() : MutableList<RoomSim?> {
         return roomSimRepository.findAll()
     }
 
-    fun findByRoomDescription(roomDescription: String, sqliteDbUrl: String? = null): Room {
+    fun findByRoomDescription(roomDescription: String, sqliteDbUrl: String? = null): RoomSim {
         if (sqliteDbUrl != null) {
             dynamicDataSourceConfig.setSqliteDatabaseUrl(sqliteDataSource, sqliteDbUrl)
             configureEntityManagerFactory(sqliteDataSource)
@@ -28,7 +28,7 @@ class RoomSimService @Autowired constructor(
         return roomSimRepository.findByRoomDescription(roomDescription)
     }
 
-    fun saveRoom(room: Room, sqliteDbUrl: String? = null): Room {
+    fun saveRoom(room: RoomSim, sqliteDbUrl: String? = null): RoomSim {
         if (sqliteDbUrl != null) {
             dynamicDataSourceConfig.setSqliteDatabaseUrl(sqliteDataSource, sqliteDbUrl)
             configureEntityManagerFactory(sqliteDataSource)

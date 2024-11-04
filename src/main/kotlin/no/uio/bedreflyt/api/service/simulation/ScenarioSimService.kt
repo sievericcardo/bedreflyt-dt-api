@@ -1,7 +1,7 @@
 package no.uio.bedreflyt.api.service.simulation
 
 import no.uio.bedreflyt.api.config.DynamicDataSourceConfig
-import no.uio.bedreflyt.api.model.simulation.Patient
+import no.uio.bedreflyt.api.model.simulation.PatientSim
 import no.uio.bedreflyt.api.model.simulation.ScenarioSim
 import no.uio.bedreflyt.api.repository.simulation.ScenarioSimRepository
 import org.springframework.beans.factory.annotation.Autowired
@@ -29,7 +29,7 @@ class ScenarioSimService @Autowired constructor(
         return scenarioSimRepository.findByBatch(batch)
     }
 
-    fun findByPatientId(patientId: Patient, sqliteDbUrl: String? = null): ScenarioSim {
+    fun findByPatientId(patientId: PatientSim, sqliteDbUrl: String? = null): ScenarioSim {
         if (sqliteDbUrl != null) {
             dynamicDataSourceConfig.setSqliteDatabaseUrl(sqliteDataSource, sqliteDbUrl)
             configureEntityManagerFactory(sqliteDataSource)
