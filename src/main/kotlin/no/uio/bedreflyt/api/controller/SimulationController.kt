@@ -6,8 +6,9 @@ import org.springframework.web.bind.annotation.RestController
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.responses.ApiResponses
-import no.uio.bedreflyt.api.model.Scenario
-import no.uio.bedreflyt.api.service.*
+import no.uio.bedreflyt.api.config.REPLConfig
+import no.uio.bedreflyt.api.model.simulation.ScenarioSim
+import no.uio.bedreflyt.api.service.simulation.*
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.RequestBody
 import io.swagger.v3.oas.annotations.parameters.RequestBody as SwaggerRequestBody
@@ -22,14 +23,27 @@ data class ScenarioRequest(
 @RestController
 @RequestMapping("/api/simulation")
 class SimulationController (
-    private val patientService: PatientService,
-    private val patientStatusService: PatientStatusService,
-    private val scenarioService: ScenarioService,
-    private val roomService: RoomService,
-    private val roomDistributionService: RoomDistributionService
+    private val replConfig: REPLConfig,
+    private val patientSimService: PatientSimService,
+    private val patientStatusSimService: PatientStatusSimService,
+    private val scenarioSimService: ScenarioSimService,
+    private val roomSimService: RoomSimService,
+    private val roomDistributionSimService: RoomDistributionSimService
 ) {
 
     private val log : Logger = Logger.getLogger(HomeController::class.java.name)
+
+    @PostMapping("/smol")
+    fun smol() : ResponseEntity<String> {
+        val smolPath = System.getenv("SMOL_PATH") ?: "Bedreflyt.smol"
+
+        // get the repl from the config
+        val repl = replConfig.repl()
+        repl.command("read", smolPath)
+        repl.command("auto", "")
+
+        return ResponseEntity.ok("SMOL file read")
+    }
 
     @Operation(summary = "Simulate a scenario")
     @ApiResponses(value = [
@@ -44,44 +58,44 @@ class SimulationController (
         log.info("Simulating scenario")
         val roomDbUrl = "jdbc:sqlite:roomData.db"
 
-        val rooms = roomService.findAll()
+        val rooms = roomSimService.findAll()
         rooms.forEach { room ->
             if (room != null) {
-                roomService.saveRoom(room, roomDbUrl)
+                roomSimService.saveRoom(room)
             }
         }
 
-        val roomDistributions = roomDistributionService.findAll()
+        val roomDistributions = roomDistributionSimService.findAll()
         roomDistributions.forEach { roomDistribution ->
             if (roomDistribution != null) {
-                roomDistributionService.saveRoomDistribution(roomDistribution, roomDbUrl)
+                roomDistributionSimService.saveRoomDistribution(roomDistribution)
             }
         }
 
         val scenarioDbUrl = "jdbc:sqlite:scData.db"
 
-        val patients = patientService.findAll()
+        val patients = patientSimService.findAll()
         patients.forEach { patient ->
             if (patient != null) {
-                patientService.savePatient(patient, scenarioDbUrl)
+                patientSimService.savePatientSim(patient)
             }
         }
 
-        val patientStatuses = patientStatusService.findAll()
+        val patientStatuses = patientStatusSimService.findAll()
         patientStatuses.forEach { patientStatus ->
             if (patientStatus != null) {
-                patientStatusService.savePatientStatus(patientStatus, scenarioDbUrl)
+                patientStatusSimService.savePatientStatus(patientStatus)
             }
         }
 
         scenario.forEach { scenarioRequest ->
-            val patient = patientService.findByPatientId(scenarioRequest.patientId!!, scenarioDbUrl)
-            val newScenario = Scenario(
+            val patient = patientSimService.findByPatientId(scenarioRequest.patientId!!)
+            val newScenarioSim = ScenarioSim(
                 batch = scenarioRequest.batch,
                 patientId = patient,
                 treatmentName = scenarioRequest.treatmentName!!
             )
-            scenarioService.saveScenario(newScenario, scenarioDbUrl)
+            scenarioSimService.saveScenario(newScenarioSim, scenarioDbUrl)
         }
 
         return ResponseEntity.ok("Scenario simulated")
