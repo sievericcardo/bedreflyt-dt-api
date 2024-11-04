@@ -1,8 +1,9 @@
-package no.uio.bedreflyt.api.service
+package no.uio.bedreflyt.api.service.simulation
 
 import no.uio.bedreflyt.api.config.DynamicDataSourceConfig
-import no.uio.bedreflyt.api.model.Room
-import no.uio.bedreflyt.api.repository.RoomRepository
+import no.uio.bedreflyt.api.model.simulation.Patient
+import no.uio.bedreflyt.api.model.simulation.ScenarioSim
+import no.uio.bedreflyt.api.repository.simulation.ScenarioSimRepository
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.orm.jpa.JpaTransactionManager
 import org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean
@@ -11,29 +12,45 @@ import org.springframework.stereotype.Service
 import javax.sql.DataSource
 
 @Service
-class RoomService @Autowired constructor(
-    private val roomRepository: RoomRepository,
+class ScenarioSimService @Autowired constructor(
+    private val scenarioSimRepository: ScenarioSimRepository,
     private val sqliteDataSource: DataSource,
     private val dynamicDataSourceConfig: DynamicDataSourceConfig
 ) {
-    fun findAll() : MutableList<Room?> {
-        return roomRepository.findAll()
+    fun findAll(): MutableList<ScenarioSim?> {
+        return scenarioSimRepository.findAll()
     }
 
-    fun findByRoomDescription(roomDescription: String, sqliteDbUrl: String? = null): Room {
+    fun findByBatch (batch: Int, sqliteDbUrl: String? = null): ScenarioSim {
         if (sqliteDbUrl != null) {
             dynamicDataSourceConfig.setSqliteDatabaseUrl(sqliteDataSource, sqliteDbUrl)
             configureEntityManagerFactory(sqliteDataSource)
         }
-        return roomRepository.findByRoomDescription(roomDescription)
+        return scenarioSimRepository.findByBatch(batch)
     }
 
-    fun saveRoom(room: Room, sqliteDbUrl: String? = null): Room {
+    fun findByPatientId(patientId: Patient, sqliteDbUrl: String? = null): ScenarioSim {
         if (sqliteDbUrl != null) {
             dynamicDataSourceConfig.setSqliteDatabaseUrl(sqliteDataSource, sqliteDbUrl)
             configureEntityManagerFactory(sqliteDataSource)
         }
-        return roomRepository.save(room)
+        return scenarioSimRepository.findByPatientId(patientId)
+    }
+
+    fun findByTreatmentName(treatmentName: String, sqliteDbUrl: String? = null): ScenarioSim {
+        if (sqliteDbUrl != null) {
+            dynamicDataSourceConfig.setSqliteDatabaseUrl(sqliteDataSource, sqliteDbUrl)
+            configureEntityManagerFactory(sqliteDataSource)
+        }
+        return scenarioSimRepository.findByTreatmentName(treatmentName)
+    }
+
+    fun saveScenario(scenarioSim: ScenarioSim, sqliteDbUrl: String? = null): ScenarioSim {
+        if (sqliteDbUrl != null) {
+            dynamicDataSourceConfig.setSqliteDatabaseUrl(sqliteDataSource, sqliteDbUrl)
+            configureEntityManagerFactory(sqliteDataSource)
+        }
+        return scenarioSimRepository.save(scenarioSim)
     }
 
     private fun configureEntityManagerFactory(dataSource: DataSource) {

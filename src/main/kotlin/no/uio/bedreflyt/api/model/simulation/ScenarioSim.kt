@@ -1,11 +1,10 @@
-package no.uio.bedreflyt.api.model
+package no.uio.bedreflyt.api.model.simulation
 
 import jakarta.persistence.*
-import jakarta.persistence.Transient
 
 @Entity
 @Table(name = "scenario")
-class Scenario (
+class ScenarioSim (
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "id")

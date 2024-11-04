@@ -1,9 +1,8 @@
-package no.uio.bedreflyt.api.service
+package no.uio.bedreflyt.api.service.simulation
 
 import no.uio.bedreflyt.api.config.DynamicDataSourceConfig
-import no.uio.bedreflyt.api.model.Patient
-import no.uio.bedreflyt.api.model.PatientStatus
-import no.uio.bedreflyt.api.repository.PatientStatusRepository
+import no.uio.bedreflyt.api.model.simulation.RoomDistributionSim
+import no.uio.bedreflyt.api.repository.simulation.RoomDistributionSimRepository
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.orm.jpa.JpaTransactionManager
 import org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean
@@ -12,29 +11,29 @@ import org.springframework.stereotype.Service
 import javax.sql.DataSource
 
 @Service
-class PatientStatusService @Autowired constructor(
-    private val patientStatusRepository: PatientStatusRepository,
+class RoomDistributionSimService @Autowired constructor(
+    private val roomDistributionSimRepository: RoomDistributionSimRepository,
     private val sqliteDataSource: DataSource,
     private val dynamicDataSourceConfig: DynamicDataSourceConfig
 ) {
-    fun findAll() : MutableList<PatientStatus?> {
-        return patientStatusRepository.findAll()
+    fun findAll(): MutableList<RoomDistributionSim?> {
+        return roomDistributionSimRepository.findAll()
     }
 
-    fun findByPatientId(patientId: Patient, sqliteDbUrl: String? = null): PatientStatus {
+    fun findByRoom_RoomDescription(roomDescription: String, sqliteDbUrl: String? = null): List<RoomDistributionSim> {
         if (sqliteDbUrl != null) {
             dynamicDataSourceConfig.setSqliteDatabaseUrl(sqliteDataSource, sqliteDbUrl)
             configureEntityManagerFactory(sqliteDataSource)
         }
-        return patientStatusRepository.findByPatientId(patientId)
+        return roomDistributionSimRepository.findByRoom_RoomDescription(roomDescription)
     }
 
-    fun savePatientStatus(patientStatus: PatientStatus, sqliteDbUrl: String? = null): PatientStatus {
+    fun saveRoomDistribution(roomDistributionSim: RoomDistributionSim, sqliteDbUrl: String? = null): RoomDistributionSim {
         if (sqliteDbUrl != null) {
             dynamicDataSourceConfig.setSqliteDatabaseUrl(sqliteDataSource, sqliteDbUrl)
             configureEntityManagerFactory(sqliteDataSource)
         }
-        return patientStatusRepository.save(patientStatus)
+        return roomDistributionSimRepository.save(roomDistributionSim)
     }
 
     private fun configureEntityManagerFactory(dataSource: DataSource) {

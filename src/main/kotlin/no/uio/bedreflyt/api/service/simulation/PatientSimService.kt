@@ -1,8 +1,9 @@
-package no.uio.bedreflyt.api.service
+package no.uio.bedreflyt.api.service.simulation
 
+import no.uio.bedreflyt.api.config.DatabaseContextHolder
 import no.uio.bedreflyt.api.config.DynamicDataSourceConfig
-import no.uio.bedreflyt.api.model.RoomDistribution
-import no.uio.bedreflyt.api.repository.RoomDistributionRepository
+import no.uio.bedreflyt.api.model.simulation.Patient
+import no.uio.bedreflyt.api.repository.simulation.PatientSimRepository
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.orm.jpa.JpaTransactionManager
 import org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean
@@ -11,29 +12,35 @@ import org.springframework.stereotype.Service
 import javax.sql.DataSource
 
 @Service
-class RoomDistributionService @Autowired constructor(
-    private val roomDistributionRepository: RoomDistributionRepository,
+class PatientSimService @Autowired constructor(
+    private val patientSimRepository: PatientSimRepository,
     private val sqliteDataSource: DataSource,
     private val dynamicDataSourceConfig: DynamicDataSourceConfig
 ) {
-    fun findAll(): MutableList<RoomDistribution?> {
-        return roomDistributionRepository.findAll()
+    fun findAll(): MutableList<Patient?> {
+        return patientSimRepository.findAll()
     }
 
-    fun findByRoom_RoomDescription(roomDescription: String, sqliteDbUrl: String? = null): List<RoomDistribution> {
+    fun findByPatientId(patientId: String, sqliteDbUrl: String? = null): Patient {
         if (sqliteDbUrl != null) {
+            DatabaseContextHolder.setDatabaseType("sqlite")
             dynamicDataSourceConfig.setSqliteDatabaseUrl(sqliteDataSource, sqliteDbUrl)
             configureEntityManagerFactory(sqliteDataSource)
+        } else {
+            DatabaseContextHolder.setDatabaseType("postgres")
         }
-        return roomDistributionRepository.findByRoom_RoomDescription(roomDescription)
+        return patientSimRepository.findByPatientId(patientId)
     }
 
-    fun saveRoomDistribution(roomDistribution: RoomDistribution, sqliteDbUrl: String? = null): RoomDistribution {
+    fun savePatient(patient: Patient, sqliteDbUrl: String? = null): Patient {
         if (sqliteDbUrl != null) {
+            DatabaseContextHolder.setDatabaseType("sqlite")
             dynamicDataSourceConfig.setSqliteDatabaseUrl(sqliteDataSource, sqliteDbUrl)
             configureEntityManagerFactory(sqliteDataSource)
+        } else {
+            DatabaseContextHolder.setDatabaseType("postgres")
         }
-        return roomDistributionRepository.save(roomDistribution)
+        return patientSimRepository.save(patient)
     }
 
     private fun configureEntityManagerFactory(dataSource: DataSource) {
@@ -41,7 +48,7 @@ class RoomDistributionService @Autowired constructor(
         emFactory.dataSource = dataSource
         emFactory.setPackagesToScan("no.uio.bedreflyt.api.model")
         emFactory.jpaVendorAdapter = HibernateJpaVendorAdapter().apply {
-            setDatabasePlatform("org.hibernate.community.dialect.SQLiteDialect")
+            setDatabasePlatform("org.hibernate.dialect.SQLiteDialect")
         }
         emFactory.afterPropertiesSet()
         val transactionManager = JpaTransactionManager()

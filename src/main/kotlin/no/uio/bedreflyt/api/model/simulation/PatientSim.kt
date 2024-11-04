@@ -1,4 +1,4 @@
-package no.uio.bedreflyt.api.model
+package no.uio.bedreflyt.api.model.simulation
 
 import jakarta.persistence.*
 
@@ -16,6 +16,9 @@ class Patient (
     @Enumerated(EnumType.STRING)
     @Column(name = "gender")
     var gender : Gender? = null,
+
+    @Column(name = "gender_model")
+    var genderModel : Boolean = false
 ) {
     @get:Transient
     val isMale: Boolean

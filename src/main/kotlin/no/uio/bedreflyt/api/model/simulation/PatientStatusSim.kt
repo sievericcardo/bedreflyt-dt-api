@@ -1,10 +1,10 @@
-package no.uio.bedreflyt.api.model
+package no.uio.bedreflyt.api.model.simulation
 
 import jakarta.persistence.*
 
 @Entity
 @Table(name = "patient_status")
-class PatientStatus (
+class PatientStatusSim (
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "id")

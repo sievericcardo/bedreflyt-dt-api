@@ -1,4 +1,4 @@
-package no.uio.bedreflyt.api.model
+package no.uio.bedreflyt.api.model.simulation
 
 import jakarta.persistence.Column
 import jakarta.persistence.Entity

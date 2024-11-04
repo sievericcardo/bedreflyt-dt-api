@@ -1,10 +1,10 @@
-package no.uio.bedreflyt.api.model
+package no.uio.bedreflyt.api.model.simulation
 
 import jakarta.persistence.*
 
 @Entity
 @Table(name = "room_distribution")
-class RoomDistribution (
+class RoomDistributionSim (
     @Id
     var roomNumber : Int = 0,
 
