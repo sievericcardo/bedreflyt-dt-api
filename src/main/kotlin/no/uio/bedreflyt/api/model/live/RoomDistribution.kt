@@ -8,6 +8,9 @@ class RoomDistribution (
     @Id
     var roomNumber : Long = 0,
 
+    @Column(name = "room_number_model")
+    var roomNumberModel : Long = 0,
+
     @ManyToOne
     @JoinColumn(name = "bed_category", referencedColumnName = "id")
     var room: Room? = null,

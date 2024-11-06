@@ -13,6 +13,10 @@ class RoomService @Autowired constructor(
         return roomRepository.findAll()
     }
 
+    fun findById(id: Long): Room {
+        return roomRepository.findById(id)
+    }
+
     fun findByRoomDescription(roomDescription: String): Room {
         return roomRepository.findByRoomDescription(roomDescription)
     }
