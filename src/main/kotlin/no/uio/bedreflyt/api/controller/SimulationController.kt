@@ -168,7 +168,7 @@ class SimulationController (
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
     @PostMapping("/scenario")
-    fun simulateScenario (@SwaggerRequestBody(description = "Request to sign in a new user") @RequestBody scenario: List<ScenarioRequest>): ResponseEntity<String> {
+    fun simulateScenario (@SwaggerRequestBody(description = "Request to sign in a new user") @RequestBody scenario: List<ScenarioRequest>): ResponseEntity<List<String>> {
         log.info("Simulating scenario")
 
         val roomDbUrl = "roomData.db"
@@ -208,7 +208,7 @@ class SimulationController (
                     try {
                         patientService.findByPatientId(patientId)
                     } catch (e: EmptyResultDataAccessException) {
-                        return ResponseEntity.badRequest().body("Patient not found")
+                        return ResponseEntity.badRequest().body(listOf("Patient not found"))
                     }
 
                     databaseService.insertScenario(
@@ -245,18 +245,21 @@ class SimulationController (
                 groupedInformation.add(currentGroup)
             }
 
+            val scenarios = mutableListOf<String>()
+
             groupedInformation.forEach { group ->
                 group.forEach() { patient ->
                     val solveData = invokeSolver(patient)
+                    scenarios.add(solveData)
                     log.info(solveData)
                 }
             }
+
+            return ResponseEntity.ok(scenarios)
         } catch (e: Exception) {
             "Error executing JAR: ${e.message}"
             log.log(Level.SEVERE, "Error executing JAR", e)
-            return ResponseEntity.internalServerError().body("Error executing JAR")
+            return ResponseEntity.internalServerError().body(listOf("Error executing JAR"))
         }
-
-        return ResponseEntity.ok("Scenario simulated")
     }
 }
