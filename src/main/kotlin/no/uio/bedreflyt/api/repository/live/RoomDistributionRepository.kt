@@ -5,5 +5,5 @@ import org.springframework.data.jpa.repository.JpaRepository
 
 interface RoomDistributionRepository : JpaRepository<RoomDistribution?, String?> {
     fun findByRoomNumber (roomNumber: Long): RoomDistribution
-    fun findByRoom_RoomDescription(roomDescription: String): List<RoomDistribution>
+    fun findByRoom_Id(roomId: Long): List<RoomDistribution>
 }
