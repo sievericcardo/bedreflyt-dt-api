@@ -54,10 +54,10 @@ class PatientController (
     ])
     @PostMapping("/create")
     fun createPatient(@SwaggerRequestBody(description = "Request to add a new patient") @RequestBody patientRequest: PatientRequest) : ResponseEntity<String> {
-        log.info("Creating patient")
+        log.info("Creating patient $patientRequest")
 
         if (patientRequest.patientId.isEmpty()) {
-            return ResponseEntity.badRequest().body("Patient information are required")
+            return ResponseEntity.badRequest().body("Patient id is required")
         }
 
         val patient = Patient(
@@ -67,6 +67,7 @@ class PatientController (
             operationEnd = patientRequest.operationEnd,
             operationLengthDays = patientRequest.operationLengthDays,
             acute = patientRequest.acute,
+            gender = patientRequest.gender,
             age = patientRequest.age,
             oslo = patientRequest.oslo,
             mainDiagnosisCode = patientRequest.mainDiagnosisCode,
@@ -142,12 +143,14 @@ class PatientController (
             return ResponseEntity.badRequest().body("Patient information are required")
         }
 
-        val patient = patientService.findByPatientId(patientRequest.patientId)
-        if (patient == null) {
+        val patients = patientService.findByPatientId(patientRequest.patientId)
+        if (patients == null) {
             return ResponseEntity.badRequest().body("Patient not found")
         }
 
-        patientService.deletePatient(patient)
+        patients.forEach() { patient ->
+            patientService.deletePatient(patient)
+        }
 
         return ResponseEntity.ok("Patient deleted")
     }
@@ -161,7 +164,7 @@ class PatientController (
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
     @GetMapping("/get")
-    fun getPatient(@SwaggerRequestBody(description = "Request to get a patient by patientId") @RequestBody patientRequest: PatientRequest) : ResponseEntity<Patient> {
+    fun getPatient(@SwaggerRequestBody(description = "Request to get a patient by patientId") @RequestBody patientRequest: PatientRequest) : ResponseEntity<List<Patient>> {
         log.info("Getting patient")
 
         if (patientRequest.patientId.isEmpty()) {

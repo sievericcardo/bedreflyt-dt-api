@@ -7,11 +7,8 @@ import no.uio.bedreflyt.api.model.live.Room
 import no.uio.bedreflyt.api.model.live.RoomDistribution
 import no.uio.bedreflyt.api.service.live.RoomDistributionService
 import no.uio.bedreflyt.api.service.live.RoomService
-import org.springframework.web.bind.annotation.PostMapping
-import org.springframework.web.bind.annotation.RequestBody
+import org.springframework.web.bind.annotation.*
 import io.swagger.v3.oas.annotations.parameters.RequestBody as SwaggerRequestBody
-import org.springframework.web.bind.annotation.RequestMapping
-import org.springframework.web.bind.annotation.RestController
 import java.util.logging.Logger
 
 data class RoomRequest (
@@ -21,6 +18,7 @@ data class RoomRequest (
 
 data class RoomDistributionRequest (
     val roomNumber: Long,
+    val roomNumberModel: Long,
     val roomCategory: Long,
     val roomCapacity: Int,
     val bathroom: Boolean
@@ -73,13 +71,14 @@ class RoomController (
     fun createRoomDistribution(@SwaggerRequestBody(description = "Request to add a new room distribution") @RequestBody roomDistributionRequest: RoomDistributionRequest) : String {
         log.info("Creating room distribution")
 
-        val room = roomService.findByRoomDescription(roomDistributionRequest.roomNumber.toString())
+        val room = roomService.findById(roomDistributionRequest.roomCategory)
         if (room == null) {
             return "Room not found"
         }
 
         val roomDistribution = RoomDistribution(
             roomNumber = roomDistributionRequest.roomNumber,
+            roomNumberModel = roomDistributionRequest.roomNumberModel,
             room = room,
             capacity = roomDistributionRequest.roomCapacity,
             bathroom = roomDistributionRequest.bathroom
@@ -146,7 +145,7 @@ class RoomController (
         ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
-    @PostMapping("/all")
+    @GetMapping("/all")
     fun getAllRooms() : MutableList<Room?> {
         log.info("Getting all rooms")
 
@@ -161,7 +160,7 @@ class RoomController (
         ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
-    @PostMapping("/allDistributions")
+    @GetMapping("/allDistributions")
     fun getAllRoomDistributions() : MutableList<RoomDistribution?> {
         log.info("Getting all room distributions")
 
