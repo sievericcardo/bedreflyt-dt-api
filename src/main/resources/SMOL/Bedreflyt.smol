@@ -1,0 +1,52 @@
+abstract class KindModel (String name)
+    unit adaptModel()
+        print("RECONFIG> Reconfiguring " ++ this.name);
+        this.adaptDefect();
+        this.adaptAddition();
+        this.adaptRemoval();
+    end
+
+    abstract unit adaptAddition() end
+    abstract unit adaptRemoval() end
+    abstract unit adaptDefect() end
+end
+
+class AssetModel extends Twin (List<KindModel> models)
+    Unit register (KindModel m)
+        this.models = new List<KindModel>(m, this.models);
+    end
+
+    Unit reconfigure()
+        print("RECONFIG> Reconfiguring the asset model...");
+
+        List<KindModel> ms = this.models;
+        while ms != null do
+            ms.content.adaptModel();
+            ms = ms.next;
+        end
+
+        print("RECONFIG> Asset model reconfigured");
+    end
+end
+
+main
+    AssetModel assetModel = new AssetModel(null);
+
+    DiagnosisModel m1 = new DiagnosisModel("diagnosis");
+    RoomModel m2 = new RoomModel("rooms");
+    RoomDescriptionModel m3 = new RoomDescriptionModel("room descriptions");
+    TaskModel m4 = new TaskModel("tasks");
+    JourneyStepModel m5 = new JourneyStepModel("journey steps");
+    TreatmentModel m6 = new TreatmentModel("treatments");
+
+    assetModel.register(m1);
+    assetModel.register(m2);
+    assetModel.register(m3);
+    assetModel.register(m4);
+    assetModel.register(m5);
+    assetModel.register(m6);
+
+    assetModel.reconfigure();
+
+    breakpoint;
+end

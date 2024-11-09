@@ -1,0 +1,60 @@
+class TreatmentModel extends KindModel()
+
+    override Unit adaptAddition()
+        List<Treatment> newTreatments = construct("
+            PREFIX ast: <http://www.smolang.org/bedreflyt#>
+            SELECT ?treatmentName {
+                ?x a ast:Treatment ;
+                    ast:treatmentName ?treatmentName .
+                FILTER NOT EXISTS {
+                    ?y a prog:Treatment ;
+                        prog:Treatment_treatmentName ?treatmentName .
+                }
+            }");
+
+        if newTreatments != null then
+            print("RECONFIG> New Treatment(s) detected: repairing the model");
+
+            while newTreatments != null do
+                Treatment newTreatment = newTreatments.content;
+                List<Treatment> lx = newTreatments;
+                newTreatments = newTreatments.next;
+                print("RECONFIG> New treatment detected: ");
+                print("          Treatment Name: " ++ newTreatment.treatmentName);
+
+                destroy(lx);
+            end
+
+            print("RECONFIG> Treatment(s) added");
+        end
+    end
+
+    override Unit adaptRemoval()
+        List<Treatment> wrongTreatments = access("
+            PREFIX ast: <http://www.smolang.org/bedreflyt#>
+            SELECT DISTINCT ?obj {
+                ?obj a prog:Treatment ;
+                     prog:Treatment_treatmentName ?treatmentName.
+                FILTER NOT EXISTS {
+                    ?y a ast:Treatment ;
+                       ast:treatmentName ?treatmentName.
+                }
+            }");
+
+        if wrongTreatments != null then
+            print("RECONFIG> Misconfigured Treatment(s) detected: repairing the model");
+            while wrongTreatments != null do
+                Treatment wrongTreatment = wrongTreatments.content;
+                List<Treatment> lx = wrongTreatments;
+                wrongTreatments = wrongTreatments.next;
+                destroy(lx);
+
+                print("RECONFIG> Misconfigured treatment to remove: ");
+                print("          Treatment Name: " ++ wrongTreatment.treatmentName);
+
+            end
+
+            print("RECONFIG> Treatment(s) removed");
+        end
+    end
+end

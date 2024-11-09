@@ -1,0 +1,144 @@
+class TaskModel extends KindModel ()
+
+    override Unit adaptAddition()
+        List<Task> newTasks = construct("
+            PREFIX ast: <http://www.smolang.org/bedreflyt#>
+            SELECT ?taskId ?bed ?durationAverage {
+                ?x a ast:Task ;
+                    ast:taskId ?taskId ;
+                    ast:bed ?bed ;
+                    ast:durationAverage ?durationAverage .
+                FILTER NOT EXISTS {
+                    ?y a prog:Task ;
+                        prog:Task_taskId ?taskId .
+                }
+            }");
+
+        if newTasks != null then
+            print("RECONFIG> New Task(s) detected: repairing the model");
+
+            while newTasks != null do
+                Task newTask = newTasks.content;
+                List<Task> lx = newTasks;
+                newTasks = newTasks.next;
+                print("RECONFIG> New task detected: ");
+                print("          Task Id: " ++ newTask.taskId);
+                print("          Bed: " ++ intToString(newTask.bed));
+                print("          Duration Average: " ++ doubleToString(newTask.durationAverage));
+
+                destroy(lx);
+            end
+
+            print("RECONFIG> Task(s) added");
+        end
+    end
+
+    override Unit adaptRemoval()
+        List<Task> wrongTasks = access("
+            PREFIX ast: <http://www.smolang.org/bedreflyt#>
+            SELECT DISTINCT ?obj {
+                ?obj a prog:Task ;
+                     prog:Task_taskId ?taskId.
+                FILTER NOT EXISTS {
+                    ?y a ast:Task ;
+                       ast:taskId ?taskId.
+                }
+            }");
+
+        if wrongTasks != null then
+            print("RECONFIG> Misconfigured Task(s) detected: repairing the model");
+            while wrongTasks != null do
+                Task wrongTask = wrongTasks.content;
+                List<Task> lx = wrongTasks;
+                wrongTasks = wrongTasks.next;
+                destroy(lx);
+
+                print("RECONFIG> Misconfigured task to remove: ");
+                print("          Task Id: " ++ wrongTask.taskId);
+                print("          Bed: " ++ intToString(wrongTask.bed));
+                print("          Duration Average: " ++ doubleToString(wrongTask.durationAverage));
+
+                destroy(wrongTask);
+            end
+
+            print("RECONFIG> Task(s) removed");
+        end
+    end
+
+    override Unit adaptDefect()
+        print("RECONFIG> Checking for defects in the Task(s)");
+        this.checkBedChanged();
+        this.checkDurationChanged();
+        print("RECONFIG> Defects checked for the Task(s)");
+    end
+
+    Unit checkBedChanged()
+        List<TaskDefectBed> taskDefectBeds = construct("
+            PREFIX ast: <http://www.smolang.org/bedreflyt#>
+            SELECT DISTINCT ?task ?bedNew {
+                ?obj a prog:JourneyStep ;
+                     prog:JourneyStep_diagnosis ?diagnosis ;
+                    prog:JourneyStep_journeyOrder ?journeyOrder ;
+                    prog:JourneyStep_task ?task .
+                ?y a ast:Task ;
+                    ast:taskName ?taskName ;
+                    ast:bed ?bedNew ;
+                    ast:durationAverage ?durationAverage .
+                FILTER (?bed != ?bedNew)
+            }");
+
+        if taskDefectBeds != null then
+            print("RECONFIG> Task(s) with bed defect detected: repairing the model");
+            while taskDefectBeds != null do
+                TaskDefectBed taskDefectBed = taskDefectBeds.content;
+                List<TaskDefectBed> lx = taskDefectBeds;
+                taskDefectBeds = taskDefectBeds.next;
+                destroy(lx);
+
+                print("RECONFIG> Task with bed defect detected: ");
+                print("          Task: " ++ taskDefectBed.task);
+                print("          New Bed: " ++ intToString(taskDefectBed.bedNew));
+
+                // Repair the defect
+                taskDefectBed.obj.bed = taskDefectBed.bedNew;
+            end
+
+            print("RECONFIG> Task(s) with bed defect repaired");
+        end
+    end
+
+    Unit checkDurationChanged()
+        List<TaskDefectDuration> taskDefectDurations = construct("
+            PREFIX ast: <http://www.smolang.org/bedreflyt#>
+            SELECT DISTINCT ?task ?durationAverageNew {
+                ?obj a prog:JourneyStep ;
+                     prog:JourneyStep_diagnosis ?diagnosis ;
+                    prog:JourneyStep_journeyOrder ?journeyOrder ;
+                    prog:JourneyStep_task ?task .
+                ?y a ast:Task ;
+                    ast:taskName ?taskName ;
+                    ast:bed ?bed ;
+                    ast:durationAverage ?durationAverageNew .
+                FILTER (?durationAverage != ?durationAverageNew)
+            }");
+
+        if taskDefectDurations != null then
+            print("RECONFIG> Task(s) with duration defect detected: repairing the model");
+            while taskDefectDurations != null do
+                TaskDefectDuration taskDefectDuration = taskDefectDurations.content;
+                List<TaskDefectDuration> lx = taskDefectDurations;
+                taskDefectDurations = taskDefectDurations.next;
+                destroy(lx);
+
+                print("RECONFIG> Task with duration defect detected: ");
+                print("          Task: " ++ taskDefectDuration.task);
+                print("          New Duration Average: " ++ doubleToString(taskDefectDuration.durationAverageNew));
+
+                // Repair the defect
+                taskDefectDuration.obj.durationAverage = taskDefectDuration.durationAverageNew;
+            end
+
+            print("RECONFIG> Task(s) with duration defect repaired");
+        end
+    end
+end

@@ -1,0 +1,25 @@
+abstract class Twin() end
+
+class Diagnosis extends Twin (String diagnosisName)
+end
+
+class Task extends Twin (String taskName, Int bed, Double durationAverage)
+end
+
+class JourneyStep extends Twin (String diagnosis, Int journeyOrder, String task)
+end
+
+class Treatment extends Twin (List<JourneyStep> journey)
+end
+
+class Room extends Twin (String roomDescription, Int bedCategory)
+end
+
+class RoomDistribution extends Twin (Int roomNumber, Int roomNumberModel, Int room, Int capacity, Int bathroom)
+end
+
+class TaskDefectBed extends Twin (Task obj, Int bedNew) end
+class TaskDefectDuration extends Twin (Task obj, Double durationAverageNew) end
+class JourneyStepDefectOrder extends Twin (JourneyStep obj, Int journeyOrderNew) end
+class JourneyStepDefectTask extends Twin (JourneyStep obj, String taskNew) end
+class RoomDefectBedCategory extends Twin (Room obj, Int bedCategoryNew) end

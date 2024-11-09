@@ -1,0 +1,85 @@
+class RoomDescriptionModel extends KindModel()
+
+    override Unit adaptAddition()
+        List<RoomDescription> newRoomDescriptions = construct("
+            PREFIX ast: <http://www.smolang.org/bedreflyt#>
+            SELECT ?roomNumber ?roomNumberModel ?room ?capacity ?bathroom {
+                ?x a ast:RoomDescription ;
+                    ast:roomNumber ?roomNumber ;
+                    ast:roomNumberModel ?roomNumberModel ;
+                    ast:room ?room ;
+                    ast:capacity ?capacity ;
+                    ast:bathroom ?bathroom .
+                FILTER NOT EXISTS {
+                    ?y a prog:RoomDescription ;
+                        prog:RoomDescription_roomNumber ?roomNumber ;
+                        prog:RoomDescription_roomNumberModel ?roomNumberModel ;
+                        prog:RoomDescription_room ?room ;
+                        prog:RoomDescription_capacity ?capacity ;
+                        prog:RoomDescription_bathroom ?bathroom .
+                }
+            }");
+
+        if newRoomDescriptions != null then
+            print("RECONFIG> New RoomDescription(s) detected: repairing the model");
+
+            while newRoomDescriptions != null do
+                RoomDescription newRoomDescription = newRoomDescriptions.content;
+                List<RoomDescription> lx = newRoomDescriptions;
+                newRoomDescriptions = newRoomDescriptions.next;
+                print("RECONFIG> New room description detected: ");
+                print("          Room Number: " ++ intToString(newRoomDescription.roomNumber));
+                print("          Room Number Model: " ++ intToString(newRoomDescription.roomNumberModel));
+                print("          Room: " ++ intToString(newRoomDescription.room));
+                print("          Capacity: " ++ intToString(newRoomDescription.capacity));
+                print("          Bathroom: " ++ intToString(newRoomDescription.bathroom));
+
+                destroy(lx);
+            end
+
+            print("RECONFIG> RoomDescription(s) added");
+        end
+    end
+
+    override Unit adaptRemoval()
+        List<RoomDescription> wrongRoomDescriptions = access("
+            PREFIX ast: <http://www.smolang.org/bedreflyt#>
+            SELECT DISTINCT ?obj {
+                ?obj a prog:RoomDescription ;
+                    prog:RoomDescription_roomNumber ?roomNumber ;
+                    prog:RoomDescription_roomNumberModel ?roomNumberModel ;
+                    prog:RoomDescription_room ?room ;
+                    prog:RoomDescription_capacity ?capacity ;
+                    prog:RoomDescription_bathroom ?bathroom .
+                FILTER NOT EXISTS {
+                    ?y a ast:RoomDescription ;
+                        ast:roomNumber ?roomNumber ;
+                        ast:roomNumberModel ?roomNumberModel ;
+                        ast:room ?room ;
+                        ast:capacity ?capacity ;
+                        ast:bathroom ?bathroom .
+                }
+            }");
+
+        if wrongRoomDescriptions != null then
+            print("RECONFIG> Misconfigured RoomDescription(s) detected: repairing the model");
+            while wrongRoomDescriptions != null do
+                RoomDescription wrongRoomDescription = wrongRoomDescriptions.content;
+                List<RoomDescription> lx = wrongRoomDescriptions;
+                wrongRoomDescriptions = wrongRoomDescriptions.next;
+                destroy(lx);
+
+                print("RECONFIG> Misconfigured room description to remove: ");
+                print("          Room Number: " ++ intToString(wrongRoomDescription.roomNumber));
+                print("          Room Number Model: " ++ intToString(wrongRoomDescription.roomNumberModel));
+                print("          Room: " ++ intToString(wrongRoomDescription.room));
+                print("          Capacity: " ++ intToString(wrongRoomDescription.capacity));
+                print("          Bathroom: " ++ intToString(wrongRoomDescription.bathroom));
+            end
+
+            print("RECONFIG> RoomDescription(s) removed");
+        end
+    end
+
+    override Unit adaptDefect() skip; end
+end
