@@ -71,8 +71,8 @@ class JourneyStepModel extends KindModel()
 
     override Unit adaptDefect()
         print("RECONFIG> Checking for defects in the Journey Step(s)");
-        checkOrderChanged();
-        checkTaskChanged();
+        this.checkOrderChanged();
+        this.checkTaskChanged();
         print("RECONFIG> Defects checked in the Journey Step(s)");
     end
     
