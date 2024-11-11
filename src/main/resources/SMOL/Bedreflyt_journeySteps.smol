@@ -35,7 +35,7 @@ class JourneyStepModel extends KindModel()
         end
     end
 
-    Unit adaptRemoval()
+    override Unit adaptRemoval()
         List<JourneyStep> wrongJourneySteps = access("
             PREFIX ast: <http://www.smolang.org/bedreflyt#>
             SELECT DISTINCT ?obj {
@@ -100,10 +100,10 @@ class JourneyStepModel extends KindModel()
                 wrongJourneySteps = wrongJourneySteps.next;
                 destroy(lx);
 
-                print("RECONFIG> Misconfigured journey step to remove: ");
-                print("          Diagnosis: " ++ wrongJourneyStep.diagnosis);
-                print("          Journey Order: " ++ intToString(wrongJourneyStep.journeyOrder));
-                print("          Task: " ++ wrongJourneyStep.task);
+                print("RECONFIG> Misconfigured journey step to adjust: ");
+                print("          Diagnosis: " ++ wrongJourneyStep.obj.diagnosis);
+                print("          Journey Order: " ++ intToString(wrongJourneyStep.journeyOrderNew));
+                print("          Task: " ++ wrongJourneyStep.obj.task);
 
                 wrongJourneyStep.obj.journeyOrder = wrongJourneyStep.journeyOrderNew;
             end
@@ -136,9 +136,9 @@ class JourneyStepModel extends KindModel()
                 destroy(lx);
 
                 print("RECONFIG> Misconfigured journey step to remove: ");
-                print("          Diagnosis: " ++ wrongJourneyStep.diagnosis);
-                print("          Journey Order: " ++ intToString(wrongJourneyStep.journeyOrder));
-                print("          Task: " ++ wrongJourneyStep.task);
+                print("          Diagnosis: " ++ wrongJourneyStep.obj.diagnosis);
+                print("          Journey Order: " ++ intToString(wrongJourneyStep.obj.journeyOrder));
+                print("          Task: " ++ wrongJourneyStep.taskNew);
 
                 wrongJourneyStep.obj.task = wrongJourneyStep.taskNew;
             end
