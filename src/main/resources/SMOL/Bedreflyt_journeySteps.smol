@@ -6,7 +6,7 @@ class JourneyStepModel extends KindModel()
             SELECT ?diagnosis ?journeyOrder ?task {
                 ?x a ast:JourneyStep ;
                     ast:diagnosis ?diagnosis ;
-                    ast:journeyOrder ?journeyOrder ;
+                    ast:orderInJourney ?journeyOrder ;
                     ast:task ?task .
                 FILTER NOT EXISTS {
                     ?y a prog:JourneyStep ;
@@ -46,7 +46,7 @@ class JourneyStepModel extends KindModel()
                 FILTER NOT EXISTS {
                     ?y a ast:JourneyStep ;
                        ast:diagnosis ?diagnosis ;
-                       ast:journeyOrder ?journeyOrder ;
+                       ast:orderInJourney ?journeyOrder ;
                        ast:task ?task .
                 }
             }");
@@ -87,7 +87,7 @@ class JourneyStepModel extends KindModel()
                      prog:JourneyStep_task ?task .
                 ?y a ast:JourneyStep ;
                     ast:diagnosis ?diagnosis ;
-                    ast:journeyOrder ?journeyOrderNew ;
+                    ast:orderInJourney ?journeyOrderNew ;
                     ast:task ?task .
                 FILTER (?journeyOrder != ?journeyOrderNew)
             }");
@@ -122,7 +122,7 @@ class JourneyStepModel extends KindModel()
                      prog:JourneyStep_task ?task .
                 ?y a ast:JourneyStep ;
                     ast:diagnosis ?diagnosis ;
-                    ast:journeyOrder ?journeyOrder ;
+                    ast:orderInJourney ?journeyOrder ;
                     ast:task ?taskNew .
                 FILTER (?task != ?taskNew)
             }");
