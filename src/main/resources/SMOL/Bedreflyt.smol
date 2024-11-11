@@ -36,8 +36,9 @@ main
     RoomModel m2 = new RoomModel("rooms");
     RoomDistributionModel m3 = new RoomDistributionModel("room distributions");
     TaskModel m4 = new TaskModel("tasks");
-    JourneyStepModel m5 = new JourneyStepModel("journey steps");
-    TreatmentModel m6 = new TreatmentModel("treatments");
+    TaskDependencyModel m5 = new TaskDependencyModel("task dependencies");
+    JourneyStepModel m6 = new JourneyStepModel("journey steps");
+    TreatmentModel m7 = new TreatmentModel("treatments");
 
     assetModel.register(m1);
     assetModel.register(m2);
@@ -45,6 +46,7 @@ main
     assetModel.register(m4);
     assetModel.register(m5);
     assetModel.register(m6);
+    assetModel.register(m7);
 
     assetModel.reconfigure();
 
