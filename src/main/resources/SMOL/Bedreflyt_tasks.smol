@@ -3,14 +3,14 @@ class TaskModel extends KindModel ()
     override Unit adaptAddition()
         List<Task> newTasks = construct("
             PREFIX ast: <http://www.smolang.org/bedreflyt#>
-            SELECT ?taskId ?bed ?durationAverage {
+            SELECT ?taskName ?bed ?durationAverage {
                 ?x a ast:Task ;
-                    ast:taskId ?taskId ;
+                    ast:taskName ?taskName ;
                     ast:bed ?bed ;
                     ast:durationAverage ?durationAverage .
                 FILTER NOT EXISTS {
                     ?y a prog:Task ;
-                        prog:Task_taskId ?taskId .
+                        prog:Task_taskName ?taskName .
                 }
             }");
 
@@ -22,7 +22,7 @@ class TaskModel extends KindModel ()
                 List<Task> lx = newTasks;
                 newTasks = newTasks.next;
                 print("RECONFIG> New task detected: ");
-                print("          Task Id: " ++ newTask.taskId);
+                print("          Task Id: " ++ newTask.taskName);
                 print("          Bed: " ++ intToString(newTask.bed));
                 print("          Duration Average: " ++ doubleToString(newTask.durationAverage));
 
@@ -38,10 +38,10 @@ class TaskModel extends KindModel ()
             PREFIX ast: <http://www.smolang.org/bedreflyt#>
             SELECT DISTINCT ?obj {
                 ?obj a prog:Task ;
-                     prog:Task_taskId ?taskId.
+                     prog:Task_taskName ?taskName.
                 FILTER NOT EXISTS {
                     ?y a ast:Task ;
-                       ast:taskId ?taskId.
+                       ast:taskName ?taskName.
                 }
             }");
 
@@ -54,7 +54,7 @@ class TaskModel extends KindModel ()
                 destroy(lx);
 
                 print("RECONFIG> Misconfigured task to remove: ");
-                print("          Task Id: " ++ wrongTask.taskId);
+                print("          Task Id: " ++ wrongTask.taskName);
                 print("          Bed: " ++ intToString(wrongTask.bed));
                 print("          Duration Average: " ++ doubleToString(wrongTask.durationAverage));
 
@@ -96,7 +96,7 @@ class TaskModel extends KindModel ()
                 destroy(lx);
 
                 print("RECONFIG> Task with bed defect detected: ");
-                print("          Task: " ++ taskDefectBed.task);
+                print("          Task: " ++ taskDefectBed.obj.taskName);
                 print("          New Bed: " ++ intToString(taskDefectBed.bedNew));
 
                 // Repair the defect
@@ -131,7 +131,7 @@ class TaskModel extends KindModel ()
                 destroy(lx);
 
                 print("RECONFIG> Task with duration defect detected: ");
-                print("          Task: " ++ taskDefectDuration.task);
+                print("          Task: " ++ taskDefectDuration.obj.taskName);
                 print("          New Duration Average: " ++ doubleToString(taskDefectDuration.durationAverageNew));
 
                 // Repair the defect
