@@ -7,7 +7,7 @@ class TaskModel extends KindModel ()
                 ?x a ast:Task ;
                     ast:taskName ?taskName ;
                     ast:bed ?bed ;
-                    ast:durationAverage ?durationAverage .
+                    ast:averageDuration ?durationAverage .
                 FILTER NOT EXISTS {
                     ?y a prog:Task ;
                         prog:Task_taskName ?taskName .
@@ -83,7 +83,7 @@ class TaskModel extends KindModel ()
                 ?y a ast:Task ;
                     ast:taskName ?taskName ;
                     ast:bed ?bedNew ;
-                    ast:durationAverage ?durationAverage .
+                    ast:averageDuration ?durationAverage .
                 FILTER (?bed != ?bedNew)
             }");
 
@@ -118,7 +118,7 @@ class TaskModel extends KindModel ()
                 ?y a ast:Task ;
                     ast:taskName ?taskName ;
                     ast:bed ?bed ;
-                    ast:durationAverage ?durationAverageNew .
+                    ast:averageDuration ?durationAverageNew .
                 FILTER (?durationAverage != ?durationAverageNew)
             }");
 
