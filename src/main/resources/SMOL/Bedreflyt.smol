@@ -34,7 +34,7 @@ main
 
     DiagnosisModel m1 = new DiagnosisModel("diagnosis");
     RoomModel m2 = new RoomModel("rooms");
-    RoomDescriptionModel m3 = new RoomDescriptionModel("room descriptions");
+    RoomDistributionModel m3 = new RoomDistributionModel("room distributions");
     TaskModel m4 = new TaskModel("tasks");
     JourneyStepModel m5 = new JourneyStepModel("journey steps");
     // TreatmentModel m6 = new TreatmentModel("treatments");
