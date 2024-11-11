@@ -279,6 +279,9 @@ class SimulationController (
 
         val resultRooms: ResultSet = repl.interpreter!!.query(rooms)!!
 
+        if (!resultRooms.hasNext()) {
+            return ResponseEntity.badRequest().body(listOf("No rooms found"))
+        }
         while (resultRooms.hasNext()) {
             val solution: QuerySolution = resultRooms.next()
             val roomId = solution.get("?roomId").asLiteral().toString().toLong()
@@ -299,6 +302,9 @@ class SimulationController (
 
         val resultRoomDistribution: ResultSet = repl.interpreter!!.query(roomDistributions)!!
 
+        if (!resultRoomDistribution.hasNext()) {
+            return ResponseEntity.badRequest().body(listOf("No room distributions found"))
+        }
         while (resultRoomDistribution.hasNext()) {
             val solution: QuerySolution = resultRoomDistribution.next()
             val roomNumber = solution.get("?roomNumber").asLiteral().toString().split("^^")[0].toLong()
@@ -352,6 +358,10 @@ class SimulationController (
             }"""
 
         val resultTasks: ResultSet = repl.interpreter!!.query(tasks)!!
+
+        if (!resultTasks.hasNext()) {
+            return ResponseEntity.badRequest().body(listOf("No tasks found"))
+        }
         while (resultTasks.hasNext()) {
             val solution: QuerySolution = resultTasks.next()
             val taskName = solution.get("?taskName").asLiteral().toString()
@@ -369,6 +379,10 @@ class SimulationController (
             }"""
 
         val resultTaskDependencies: ResultSet = repl.interpreter!!.query(taskDependencies)!!
+
+        if (!resultTaskDependencies.hasNext()) {
+            return ResponseEntity.badRequest().body(listOf("No task dependencies found"))
+        }
         while (resultTaskDependencies.hasNext()) {
             val solution: QuerySolution = resultTaskDependencies.next()
             val taskName = solution.get("?taskName").asLiteral().toString()
@@ -385,6 +399,10 @@ class SimulationController (
             }"""
 
         val resultTreatments: ResultSet = repl.interpreter!!.query(treatments)!!
+
+        if (!resultTreatments.hasNext()) {
+            return ResponseEntity.badRequest().body(listOf("No treatments found"))
+        }
         while (resultTreatments.hasNext()) {
             val solution: QuerySolution = resultTreatments.next()
             val diagnosis = solution.get("?diagnosis").asLiteral().toString()
