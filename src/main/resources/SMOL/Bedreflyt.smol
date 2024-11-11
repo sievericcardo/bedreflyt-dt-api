@@ -37,14 +37,14 @@ main
     RoomDistributionModel m3 = new RoomDistributionModel("room distributions");
     TaskModel m4 = new TaskModel("tasks");
     JourneyStepModel m5 = new JourneyStepModel("journey steps");
-    // TreatmentModel m6 = new TreatmentModel("treatments");
+    TreatmentModel m6 = new TreatmentModel("treatments");
 
     assetModel.register(m1);
     assetModel.register(m2);
     assetModel.register(m3);
     assetModel.register(m4);
     assetModel.register(m5);
-    // assetModel.register(m6);
+    assetModel.register(m6);
 
     assetModel.reconfigure();
 
