@@ -6,6 +6,9 @@ end
 class Task extends Twin (String taskName, Int bed, Double durationAverage)
 end
 
+class TaskDependency extends Twin (String taskName, String taskDependency)
+end
+
 class JourneyStep extends Twin (String diagnosis, Int journeyOrder, String task)
 end
 
