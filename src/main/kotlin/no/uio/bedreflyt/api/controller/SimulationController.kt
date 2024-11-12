@@ -273,7 +273,7 @@ class SimulationController (
             """
                SELECT * WHERE {
                 ?obj a prog:Room ;
-                    prog:Room_roomId ?roomId ;
+                    prog:Room_bedCategory ?bedCategory ;
                     prog:Room_roomDescription ?roomDescription .
             }"""
 
@@ -284,7 +284,7 @@ class SimulationController (
         }
         while (resultRooms.hasNext()) {
             val solution: QuerySolution = resultRooms.next()
-            val roomId = solution.get("?roomId").asLiteral().toString().toLong()
+            val roomId = solution.get("?bedCategory").asLiteral().toString().split("^^")[0].toLong()
             val roomDescription = solution.get("?roomDescription").asLiteral().toString()
             databaseService.insertRoom(roomDbUrl, roomId, roomDescription)
         }
