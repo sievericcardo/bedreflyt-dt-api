@@ -294,7 +294,7 @@ class SimulationController (
         ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
-    @PostMapping("/smolScenario")
+    @PostMapping("/smol-scenario")
     fun simulateSmolScenario (@SwaggerRequestBody(description = "Request to sign in a new user") @RequestBody scenario: List<ScenarioRequest>): ResponseEntity<List<String>> {
         log.info("Simulating scenario")
         val repl: REPL = replConfig.repl()
