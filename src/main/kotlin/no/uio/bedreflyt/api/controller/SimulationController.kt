@@ -101,20 +101,29 @@ class SimulationController (
         val patientDistances = mutableListOf<Int>()
 
         val singlePatient = patient.split("\n")
+        log.info("Single patient: $singlePatient")
+
         singlePatient.forEach { line ->
             val patientData = line.split(",")
+
+            log.info("Patient data: $patientData")
 
             if (patientData.size > 1) {
                 patientNumbers += 1
                 val patientId = patientData[0]
                 val patientDistance = patientData[1]
 
-                val patientInfo = patientService.findByPatientId(patientId)[0]
-                if (patientInfo != null) {
+                log.info("Patient ID: $patientId")
+
+                val patientInfoList = patientService.findByPatientId(patientId)
+                if (patientInfoList.isNotEmpty()) {
+                    val patientInfo = patientInfoList[0]
                     val gender = if (patientInfo.gender == "Male") true else false
                     genders.add(gender)
                     infectious.add(patientInfo.infectious)
                     patientDistances.add(patientDistance.toInt())
+                } else {
+                    patientNumbers -= 1
                 }
             }
         }
@@ -130,14 +139,16 @@ class SimulationController (
             patientDistances
         )
 
+        log.info("Invoking solver with request: $solverRequest")
+
         if (patientNumbers > 0) {
 
             val restTemplate = RestTemplate()
             val headers = HttpHeaders()
             headers.contentType = MediaType.APPLICATION_JSON
-            val reqeust = HttpEntity(solverRequest, headers)
+            val request = HttpEntity(solverRequest, headers)
 
-            val response = restTemplate.postForEntity("http://localhost:8000/api/solve", reqeust, String::class.java)
+            val response = restTemplate.postForEntity("http://localhost:8000/api/solve", request, String::class.java)
 
             return (response.body!!)
         } else {
