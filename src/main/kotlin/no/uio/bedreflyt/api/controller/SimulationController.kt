@@ -52,6 +52,13 @@ class SimulationController (
 
     private val log : Logger = Logger.getLogger(HomeController::class.java.name)
 
+    /**
+     * Execute the JAR
+     *
+     * Execute the JAR file to get the ABS model output
+     *
+     * @return String - Output of the JAR file
+     */
     private fun executeJar() : String {
         val command = listOf("java", "-jar", "bedreflyt.jar")
 
@@ -89,6 +96,14 @@ class SimulationController (
         }
     }
 
+    /**
+     * Invoke the solver
+     *
+     * Invoke the solver with the patient data. For each patient, get the patient information and invoke the solver
+     *
+     * @param patient - Patient data
+     * @return String - Solver response
+     */
     private fun invokeSolver(patient : String) : String {
         val roomDistributions = roomDistributionService.findAll()
         val rooms = roomDistributions.size
@@ -156,6 +171,13 @@ class SimulationController (
         }
     }
 
+    /**
+     * Simulate the scenario
+     *
+     * Execute the ABS model, get the various resources computed, take the single days and simulate the scenario
+     *
+     * @return ResponseEntity<List<String>> - List of scenarios
+     */
     private fun simulate() : ResponseEntity<List<String>> {
         try {
             val data = executeJar()
