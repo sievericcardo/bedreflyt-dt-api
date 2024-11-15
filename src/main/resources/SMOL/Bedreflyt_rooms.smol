@@ -1,0 +1,98 @@
+class RoomModel extends KindModel()
+    
+    override Unit adaptAddition()
+        List<Room> newRooms = construct("
+            PREFIX ast: <http://www.smolang.org/bedreflyt#>
+            SELECT ?roomDescription ?bedCategory {
+                ?x a ast:Room ;
+                    ast:roomDescription ?roomDescription ;
+                    ast:bedCategory ?bedCategory .
+                FILTER NOT EXISTS {
+                    ?y a prog:Room ;
+                        prog:Room_roomDescription ?roomDescription ;
+                        prog:Room_bedCategory ?bedCategory .
+                }
+            }");
+
+        if newRooms != null then
+            print("RECONFIG> New Room(s) detected: repairing the model");
+
+            while newRooms != null do
+                Room newRoom = newRooms.content;
+                List<Room> lx = newRooms;
+                newRooms = newRooms.next;
+                print("RECONFIG> New room detected: ");
+                print("          Room Description: " ++ newRoom.roomDescription);
+                print("          Bed Category: " ++ intToString(newRoom.bedCategory));
+
+                destroy(lx);
+            end
+
+            print("RECONFIG> Room(s) added");
+        end
+    end
+    
+    override Unit adaptRemoval()
+        List<Room> wrongRooms = access("
+            PREFIX ast: <http://www.smolang.org/bedreflyt#>
+            SELECT DISTINCT ?obj {
+                ?obj a prog:Room ;
+                    prog:Room_roomDescription ?roomDescription ;
+                    prog:Room_bedCategory ?bedCategory.
+                FILTER NOT EXISTS {
+                    ?y a ast:Room ;
+                    ast:roomDescription ?roomDescription ;
+                    ast:bedCategory ?bedCategory.
+                }
+            }");
+
+        if wrongRooms != null then
+            print("RECONFIG> Misconfigured Room(s) detected: repairing the model");
+            while wrongRooms != null do
+                Room wrongRoom = wrongRooms.content;
+                List<Room> lx = wrongRooms;
+                wrongRooms = wrongRooms.next;
+                destroy(lx);
+
+                print("RECONFIG> Misconfigured room to remove: ");
+                print("          Room Description: " ++ wrongRoom.roomDescription);
+                print("          Bed Category: " ++ intToString(wrongRoom.bedCategory));
+            end
+
+            print("RECONFIG> Room(s) removed");
+        end
+    end
+
+    override Unit adaptDefect()
+        List<RoomDefectBedCategory> wrongRoomBedCategories = construct("
+            PREFIX ast: <http://www.smolang.org/bedreflyt#>
+            SELECT DISTINCT ?obj ?bedCategoryNew {
+                ?obj a prog:Room ;
+                     prog:Room_roomDescription ?roomDescription ;
+                     prog:Room_bedCategory ?bedCategory .
+                ?y a ast:Room ;
+                    ast:roomDescription ?roomDescription ;
+                    ast:bedCategory ?bedCategoryNew .
+                FILTER (?bedCategory != ?bedCategoryNew)
+            }");
+
+        if wrongRoomBedCategories != null then
+            print("RECONFIG> Misconfigured Room Bed Category detected: repairing the model");
+            while wrongRoomBedCategories != null do
+                RoomDefectBedCategory wrongRoomBedCategory = wrongRoomBedCategories.content;
+                List<RoomDefectBedCategory> lx = wrongRoomBedCategories;
+                wrongRoomBedCategories = wrongRoomBedCategories.next;
+                destroy(lx);
+
+                print("RECONFIG> Misconfigured room bed category to update: ");
+                print("          Room Description: " ++ wrongRoomBedCategory.obj.roomDescription);
+                print("          Bed Category: " ++ intToString(wrongRoomBedCategory.obj.bedCategory));
+                print("          New Bed Category: " ++ intToString(wrongRoomBedCategory.bedCategoryNew));
+
+                wrongRoomBedCategory.obj.bedCategory = wrongRoomBedCategory.bedCategoryNew;
+            end
+
+            print("RECONFIG> Room Bed Category updated");
+        end
+    end
+end

@@ -1,0 +1,14 @@
+class TreatmentModel extends KindModel()
+
+    override Unit adaptAddition()
+        skip;
+    end
+
+    override Unit adaptRemoval()
+        skip;
+    end
+
+    override Unit adaptDefect()
+        skip;
+    end
+end

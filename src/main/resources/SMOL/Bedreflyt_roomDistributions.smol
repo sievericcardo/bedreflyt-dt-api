@@ -1,0 +1,85 @@
+class RoomDistributionModel extends KindModel()
+
+    override Unit adaptAddition()
+        List<RoomDistribution> newRoomDistributions = construct("
+            PREFIX ast: <http://www.smolang.org/bedreflyt#>
+            SELECT ?roomNumber ?roomNumberModel ?room ?capacity ?bathroom {
+                ?x a ast:RoomDistribution ;
+                    ast:roomNumber ?roomNumber ;
+                    ast:roomNumberModel ?roomNumberModel ;
+                    ast:room ?room ;
+                    ast:capacity ?capacity ;
+                    ast:bathroom ?bathroom .
+                FILTER NOT EXISTS {
+                    ?y a prog:RoomDistribution ;
+                        prog:RoomDistribution_roomNumber ?roomNumber ;
+                        prog:RoomDistribution_roomNumberModel ?roomNumberModel ;
+                        prog:RoomDistribution_room ?room ;
+                        prog:RoomDistribution_capacity ?capacity ;
+                        prog:RoomDistribution_bathroom ?bathroom .
+                }
+            }");
+
+        if newRoomDistributions != null then
+            print("RECONFIG> New RoomDistribution(s) detected: repairing the model");
+
+            while newRoomDistributions != null do
+                RoomDistribution newRoomDistribution = newRoomDistributions.content;
+                List<RoomDistribution> lx = newRoomDistributions;
+                newRoomDistributions = newRoomDistributions.next;
+                print("RECONFIG> New room description detected: ");
+                print("          Room Number: " ++ intToString(newRoomDistribution.roomNumber));
+                print("          Room Number Model: " ++ intToString(newRoomDistribution.roomNumberModel));
+                print("          Room: " ++ intToString(newRoomDistribution.room));
+                print("          Capacity: " ++ intToString(newRoomDistribution.capacity));
+                print("          Bathroom: " ++ intToString(newRoomDistribution.bathroom));
+
+                destroy(lx);
+            end
+
+            print("RECONFIG> RoomDistribution(s) added");
+        end
+    end
+
+    override Unit adaptRemoval()
+        List<RoomDistribution> wrongRoomDistributions = access("
+            PREFIX ast: <http://www.smolang.org/bedreflyt#>
+            SELECT DISTINCT ?obj {
+                ?obj a prog:RoomDistribution ;
+                    prog:RoomDistribution_roomNumber ?roomNumber ;
+                    prog:RoomDistribution_roomNumberModel ?roomNumberModel ;
+                    prog:RoomDistribution_room ?room ;
+                    prog:RoomDistribution_capacity ?capacity ;
+                    prog:RoomDistribution_bathroom ?bathroom .
+                FILTER NOT EXISTS {
+                    ?y a ast:RoomDistribution ;
+                        ast:roomNumber ?roomNumber ;
+                        ast:roomNumberModel ?roomNumberModel ;
+                        ast:room ?room ;
+                        ast:capacity ?capacity ;
+                        ast:bathroom ?bathroom .
+                }
+            }");
+
+        if wrongRoomDistributions != null then
+            print("RECONFIG> Misconfigured RoomDistribution(s) detected: repairing the model");
+            while wrongRoomDistributions != null do
+                RoomDistribution wrongRoomDistribution = wrongRoomDistributions.content;
+                List<RoomDistribution> lx = wrongRoomDistributions;
+                wrongRoomDistributions = wrongRoomDistributions.next;
+                destroy(lx);
+
+                print("RECONFIG> Misconfigured room description to remove: ");
+                print("          Room Number: " ++ intToString(wrongRoomDistribution.roomNumber));
+                print("          Room Number Model: " ++ intToString(wrongRoomDistribution.roomNumberModel));
+                print("          Room: " ++ intToString(wrongRoomDistribution.room));
+                print("          Capacity: " ++ intToString(wrongRoomDistribution.capacity));
+                print("          Bathroom: " ++ intToString(wrongRoomDistribution.bathroom));
+            end
+
+            print("RECONFIG> RoomDistribution(s) removed");
+        end
+    end
+
+    override Unit adaptDefect() skip; end
+end
