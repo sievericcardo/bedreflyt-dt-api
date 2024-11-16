@@ -445,7 +445,13 @@ class SimulationController (
             databaseService.insertTreatment(treatmentDbUrl, diagnosis, orderInJourney, task)
         }
 
-        return simulate()
+        val sim = simulate()
+
+        databaseService.deleteDatabase(roomDbUrl)
+        databaseService.deleteDatabase(scenarioDbUrl)
+        databaseService.deleteDatabase(treatmentDbUrl)
+
+        return sim
     }
 
 
