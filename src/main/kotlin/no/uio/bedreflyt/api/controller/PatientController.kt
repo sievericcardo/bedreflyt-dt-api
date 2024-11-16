@@ -144,9 +144,6 @@ class PatientController (
         }
 
         val patients = patientService.findByPatientId(patientRequest.patientId)
-        if (patients == null) {
-            return ResponseEntity.badRequest().body("Patient not found")
-        }
 
         patients.forEach() { patient ->
             patientService.deletePatient(patient)

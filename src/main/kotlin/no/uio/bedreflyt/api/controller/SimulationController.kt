@@ -107,7 +107,6 @@ class SimulationController (
     private fun invokeSolver(patient : String) : String {
         val roomDistributions = roomDistributionService.findAll()
         val rooms = roomDistributions.size
-        val roomNumbers = roomDistributions.map { it?.roomNumberModel ?: 0 }
         val capacities = roomDistributions.map { it?.capacity ?: 0 }
         val roomCategories = roomDistributions.map { it?.room?.id ?: 0 }
         var  patientNumbers = 0

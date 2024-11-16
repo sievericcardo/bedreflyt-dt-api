@@ -72,9 +72,6 @@ class RoomController (
         log.info("Creating room distribution")
 
         val room = roomService.findById(roomDistributionRequest.roomCategory)
-        if (room == null) {
-            return "Room not found"
-        }
 
         val roomDistribution = RoomDistribution(
             roomNumber = roomDistributionRequest.roomNumber,
@@ -106,9 +103,6 @@ class RoomController (
         }
 
         val room = roomService.findByRoomDescription(roomRequest.roomDescription)
-        if (room == null) {
-            return "Room not found"
-        }
 
         roomService.deleteRoom(room)
 
@@ -128,9 +122,6 @@ class RoomController (
         log.info("Deleting room distribution")
 
         val roomDistribution = roomDistributionService.findByRoomNumber(roomDistributionRequest.roomNumber)
-        if (roomDistribution == null) {
-            return "Room distribution not found"
-        }
 
         roomDistributionService.deleteRoomDistribution(roomDistribution)
 
