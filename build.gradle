@@ -1,7 +1,7 @@
 plugins {
-    id 'org.jetbrains.kotlin.jvm' version '1.9.23'
+    id 'org.jetbrains.kotlin.jvm' version '2.0.21'
     id 'com.github.johnrengelman.shadow' version '8.1.1'
-    id 'org.springframework.boot' version '3.3.0'
+    id 'org.springframework.boot' version '3.3.5'
     id 'io.spring.dependency-management' version '1.1.5'
 }
 
@@ -34,17 +34,10 @@ ext {
     hibernateVersion = '6.6.1.Final'
 }
 
-configurations.configureEach {
-    resolutionStrategy {
-        force "com.fasterxml.jackson.core:jackson-databind:${jacksonVersion}"
-        force "com.fasterxml.jackson.core:jackson-core:${jacksonVersion}"
-        force "com.fasterxml.jackson.core:jackson-annotations:${jacksonVersion}"
-    }
-}
-
 dependencies {
     testImplementation("org.jetbrains.kotlin:kotlin-test")
     testImplementation("com.h2database:h2:2.3.232")
+    implementation("org.jetbrains.kotlin:kotlin-reflect")
     // Logger
     implementation("org.slf4j:jul-to-slf4j:${sl4jVersion}")
     implementation("org.slf4j:slf4j-api:${sl4jVersion}")
@@ -52,6 +45,7 @@ dependencies {
     // SMOL
     implementation("com.github.smolang:SemanticObjects:8c57e63cb9") {
         exclude group: 'org.slf4j', module: 'slf4j-simple'
+        exclude group: 'org.jetbrains.kotlin', module: 'kotlin-reflect'
     }
     // Spring Boot
     testImplementation("org.springframework.boot:spring-boot-starter-test:${springBootVersion}") {
@@ -81,12 +75,9 @@ dependencies {
     // Jackson
     implementation("com.fasterxml.jackson.core:jackson-core:${jacksonVersion}")
     implementation("com.fasterxml.jackson.core:jackson-annotations:${jacksonVersion}")
-    implementation("com.fasterxml.jackson.module:jackson-module-kotlin:${jacksonVersion}")
     implementation("com.fasterxml.jackson.core:jackson-databind:${jacksonVersion}")
-    implementation("org.jetbrains.kotlin:kotlin-reflect")
     // JPA
     implementation("org.hibernate.orm:hibernate-core:${hibernateVersion}")
-    implementation("org.hibernate.orm:hibernate-community-dialects:${hibernateVersion}")
     // DevTools
     runtimeOnly("org.springframework.boot:spring-boot-devtools:${springBootVersion}")
     implementation("org.bouncycastle:bcprov-jdk18on:1.78.1")
