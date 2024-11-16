@@ -18,8 +18,8 @@ import java.util.logging.Logger
 data class PatientRequest (
     val patientId : String,
     val operationId : String = "",
-    val operationStart : LocalDateTime? = null,
-    val operationEnd : LocalDateTime? = null,
+    val operationStart : String? = "",
+    val operationEnd : String? = "",
     val operationLengthDays : Float = 0.0f,
     val acute : Boolean = false,
     val gender : String = "",
@@ -63,8 +63,8 @@ class PatientController (
         val patient = Patient(
             patientId = patientRequest.patientId,
             operationId = patientRequest.operationId,
-            operationStart = patientRequest.operationStart,
-            operationEnd = patientRequest.operationEnd,
+            operationStart = patientRequest.operationStart?.let { LocalDateTime.parse(it) },
+            operationEnd = patientRequest.operationEnd?.let { LocalDateTime.parse(it) },
             operationLengthDays = patientRequest.operationLengthDays,
             acute = patientRequest.acute,
             gender = patientRequest.gender,
@@ -105,8 +105,8 @@ class PatientController (
         val patient = Patient(
             patientId = patientRequest.patientId,
             operationId = patientRequest.operationId,
-            operationStart = patientRequest.operationStart,
-            operationEnd = patientRequest.operationEnd,
+            operationStart = patientRequest.operationStart?.let { LocalDateTime.parse(it) },
+            operationEnd = patientRequest.operationEnd?.let { LocalDateTime.parse(it) },
             operationLengthDays = patientRequest.operationLengthDays,
             acute = patientRequest.acute,
             age = patientRequest.age,
