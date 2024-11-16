@@ -98,6 +98,18 @@ class DatabaseService {
         jdbcTemplate.execute(createTreatmentTable)
     }
 
+    fun deleteDatabase(dbPath: String) {
+        val jdbcTemplate = getJdbcTemplate(dbPath)
+        jdbcTemplate.execute("DROP TABLE IF EXISTS patient")
+        jdbcTemplate.execute("DROP TABLE IF EXISTS patientStatus")
+        jdbcTemplate.execute("DROP TABLE IF EXISTS scenario")
+        jdbcTemplate.execute("DROP TABLE IF EXISTS roomCategory")
+        jdbcTemplate.execute("DROP TABLE IF EXISTS roomDistrib")
+        jdbcTemplate.execute("DROP TABLE IF EXISTS tasks")
+        jdbcTemplate.execute("DROP TABLE IF EXISTS taskDependencies")
+        jdbcTemplate.execute("DROP TABLE IF EXISTS treatments")
+    }
+
     fun insertPatient(dbPath: String, patientId: String, gender: String) {
         if (getPatientById(dbPath, patientId) != null) {
             return
