@@ -1,5 +1,5 @@
 plugins {
-    id 'org.jetbrains.kotlin.jvm' version '2.0.21'
+    id 'org.jetbrains.kotlin.jvm' version '2.0.0'
     id 'com.github.johnrengelman.shadow' version '8.1.1'
     id 'org.springframework.boot' version '3.3.5'
     id 'io.spring.dependency-management' version '1.1.5'
@@ -25,13 +25,21 @@ java {
 ext {
     springBootVersion = '3.3.5'
     springDocVersion = '2.6.0'
-    jacksonVersion = '2.18.0'
+    jacksonVersion = '2.18.1'
     lombokVersion = '1.18.34'
     logbackVersion = '1.5.6'
     sl4jVersion = '2.0.16'
     jwtVersion = '0.12.6'
     postgresVersion = '42.7.4'
     hibernateVersion = '6.6.1.Final'
+}
+
+configurations.configureEach {
+    resolutionStrategy {
+        force "com.fasterxml.jackson.core:jackson-databind:${jacksonVersion}"
+        force "com.fasterxml.jackson.core:jackson-core:${jacksonVersion}"
+        force "com.fasterxml.jackson.core:jackson-annotations:${jacksonVersion}"
+    }
 }
 
 dependencies {
@@ -46,6 +54,8 @@ dependencies {
     implementation("com.github.smolang:SemanticObjects:8c57e63cb9") {
         exclude group: 'org.slf4j', module: 'slf4j-simple'
         exclude group: 'org.jetbrains.kotlin', module: 'kotlin-reflect'
+        exclude group: 'com.fasterxml.jackson.module', module: 'jackson-module-kotlin'
+        exclude group: 'org.jetbrains.kotlinx', module: 'kotlinx-coroutines-core'
     }
     // Spring Boot
     testImplementation("org.springframework.boot:spring-boot-starter-test:${springBootVersion}") {
@@ -59,6 +69,7 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-web:${springBootVersion}") {
         exclude group: "ch.qos.logback", module: "logback-classic"
         exclude group: "ch.qos.logback", module: "logback-core"
+        exclude group: 'com.fasterxml.jackson.module', module: 'jackson-module-kotlin'
     }
     implementation("org.springframework.boot:spring-boot-starter-security:${springBootVersion}") {
         exclude group: "ch.qos.logback", module: "logback-classic"
@@ -94,9 +105,6 @@ dependencies {
     implementation('org.apache.commons:commons-text:1.12.0')
     compileOnly("jakarta.servlet:jakarta.servlet-api:6.1.0")
     implementation("jakarta.xml.bind:jakarta.xml.bind-api:4.0.2")
-    // Kotlinx
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.9.0")
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
 }
 
 tasks.test {
