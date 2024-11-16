@@ -163,7 +163,9 @@ class SimulationController (
             headers.contentType = MediaType.APPLICATION_JSON
             val request = HttpEntity(solverRequest, headers)
 
-            val response = restTemplate.postForEntity("http://localhost:8000/api/solve", request, String::class.java)
+            val solverEndpoint = System.getenv().getOrDefault("SOLVER_ENDPOINT", "localhost")
+            val solverUrl = "http://$solverEndpoint:8000/api/solve"
+            val response = restTemplate.postForEntity(solverUrl, request, String::class.java)
 
             return (response.body!!)
         } else {
