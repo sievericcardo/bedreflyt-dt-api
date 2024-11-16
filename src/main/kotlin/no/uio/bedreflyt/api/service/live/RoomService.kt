@@ -6,7 +6,7 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.stereotype.Service
 
 @Service
-class RoomService @Autowired constructor(
+class RoomService (
     private val roomRepository: RoomRepository
 ) {
     fun findAll(): MutableList<Room?> {
