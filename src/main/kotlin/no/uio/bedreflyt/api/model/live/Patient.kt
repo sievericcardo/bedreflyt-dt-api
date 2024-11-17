@@ -64,5 +64,8 @@ class Patient (
 
     @Column(name = "infectious")
     var infectious : Boolean = false,
+
+    @Column(name = "roomNumber")
+    var roomNumber : Int = 0,
 ) {
 }
