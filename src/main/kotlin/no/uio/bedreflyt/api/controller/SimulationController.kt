@@ -38,6 +38,7 @@ data class SolverRequest (
     val genders: List<Boolean>,
     val infectious: List<Boolean>,
     val patient_distances: List<Int>,
+    val previous: List<Int>
 )
 
 @RestController
@@ -113,6 +114,7 @@ class SimulationController (
         val genders = mutableListOf<Boolean>()
         val infectious = mutableListOf<Boolean>()
         val patientDistances = mutableListOf<Int>()
+        val previous = mutableListOf<Int>()
 
         val singlePatient = patient.split("\n")
         log.info("Single patient: $singlePatient")
@@ -136,6 +138,7 @@ class SimulationController (
                     genders.add(gender)
                     infectious.add(patientInfo.infectious)
                     patientDistances.add(patientDistance.toInt())
+                    previous.add(patientInfo.roomNumber)
                 } else {
                     patientNumbers -= 1
                 }
@@ -150,7 +153,8 @@ class SimulationController (
             patientNumbers,
             genders,
             infectious,
-            patientDistances
+            patientDistances,
+            previous
         )
 
         log.info("Invoking solver with request: $solverRequest")
@@ -222,7 +226,7 @@ class SimulationController (
         }
     }
 
-    @Operation(summary = "Simulate a scenario")
+    @Operation(summary = "Simulate a scenario for room allocation using data from the DB")
     @ApiResponses(value = [
         ApiResponse(responseCode = "200", description = "Scenario simulated"),
         ApiResponse(responseCode = "400", description = "Invalid scenario"),
@@ -230,9 +234,10 @@ class SimulationController (
         ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
-    @PostMapping("/scenario")
-    fun simulateScenario (@SwaggerRequestBody(description = "Request to sign in a new user") @RequestBody scenario: List<ScenarioRequest>): ResponseEntity<List<String>> {
+    @PostMapping("/room-allocation")
+    fun simulateScenario (@SwaggerRequestBody(description = "Request to execute a simulation for room allocation") @RequestBody scenario: List<ScenarioRequest>): ResponseEntity<List<String>> {
         log.info("Simulating scenario")
+        val repl: REPL = replConfig.repl()
 
         val roomDbUrl = "roomData.db"
         databaseService.createRoomTables(roomDbUrl)
@@ -261,7 +266,7 @@ class SimulationController (
         patients.forEach { patient ->
             if (patient != null) {
                 databaseService.insertPatient(scenarioDbUrl, patient.patientId, patient.gender)
-                databaseService.insertPatientStatus(scenarioDbUrl, patient.patientId, patient.infectious, 0)
+                databaseService.insertPatientStatus(scenarioDbUrl, patient.patientId, patient.infectious, patient.roomNumber)
             }
         }
 
@@ -284,10 +289,82 @@ class SimulationController (
             }
         }
 
-        return simulate()
+        val treatmentDbUrl = "trData.db"
+        databaseService.createTreatmentTables(treatmentDbUrl)
+
+        val tasks =
+            """
+               SELECT * WHERE {
+                ?obj a prog:Task ;
+                    prog:Task_taskName ?taskName ;
+                    prog:Task_durationAverage ?averageDuration ;
+                    prog:Task_bed ?bedCategory .
+            }"""
+
+        val resultTasks: ResultSet = repl.interpreter!!.query(tasks)!!
+
+        if (!resultTasks.hasNext()) {
+            return ResponseEntity.badRequest().body(listOf("No tasks found"))
+        }
+        while (resultTasks.hasNext()) {
+            val solution: QuerySolution = resultTasks.next()
+            val taskName = solution.get("?taskName").asLiteral().toString()
+            val bedCategory = solution.get("?bedCategory").asLiteral().toString().split("^^")[0].toInt()
+            val averageDuration = solution.get("?averageDuration").asLiteral().toString().split("^^")[0].toDouble().toInt()
+            databaseService.insertTask(treatmentDbUrl, taskName, bedCategory, averageDuration)
+        }
+
+        val taskDependencies =
+            """
+               SELECT * WHERE {
+                ?obj a prog:TaskDependency ;
+                    prog:TaskDependency_taskName ?taskName ;
+                    prog:TaskDependency_taskDependency ?taskDependency .
+            }"""
+
+        val resultTaskDependencies: ResultSet = repl.interpreter!!.query(taskDependencies)!!
+
+        if (!resultTaskDependencies.hasNext()) {
+            return ResponseEntity.badRequest().body(listOf("No task dependencies found"))
+        }
+        while (resultTaskDependencies.hasNext()) {
+            val solution: QuerySolution = resultTaskDependencies.next()
+            val taskName = solution.get("?taskName").asLiteral().toString()
+            val taskDependency = solution.get("?taskDependency").asLiteral().toString()
+            databaseService.insertTaskDependency(treatmentDbUrl, taskName, taskDependency)
+        }
+
+        val treatments = """
+            SELECT * WHERE {
+                ?obj a prog:JourneyStep ;
+                    prog:JourneyStep_diagnosis ?diagnosis ;
+                    prog:JourneyStep_journeyOrder ?journeyOrder ;
+                    prog:JourneyStep_task ?task .
+            }"""
+
+        val resultTreatments: ResultSet = repl.interpreter!!.query(treatments)!!
+
+        if (!resultTreatments.hasNext()) {
+            return ResponseEntity.badRequest().body(listOf("No treatments found"))
+        }
+        while (resultTreatments.hasNext()) {
+            val solution: QuerySolution = resultTreatments.next()
+            val diagnosis = solution.get("?diagnosis").asLiteral().toString()
+            val orderInJourney = solution.get("?journeyOrder").asLiteral().toString().split("^^")[0].toInt()
+            val task = solution.get("?task").asLiteral().toString()
+            databaseService.insertTreatment(treatmentDbUrl, diagnosis, orderInJourney, task)
+        }
+
+        val sim = simulate()
+
+        databaseService.deleteDatabase(roomDbUrl)
+        databaseService.deleteDatabase(scenarioDbUrl)
+        databaseService.deleteDatabase(treatmentDbUrl)
+
+        return sim
     }
 
-    @Operation(summary = "Simulate a scenario using smol")
+    @Operation(summary = "Simulate a scenario for room allocation using smol")
     @ApiResponses(value = [
         ApiResponse(responseCode = "200", description = "Scenario simulated"),
         ApiResponse(responseCode = "400", description = "Invalid scenario"),
@@ -295,8 +372,8 @@ class SimulationController (
         ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
-    @PostMapping("/smol-scenario")
-    fun simulateSmolScenario (@SwaggerRequestBody(description = "Request to sign in a new user") @RequestBody scenario: List<ScenarioRequest>): ResponseEntity<List<String>> {
+    @PostMapping("/room-allocation-smol")
+    fun simulateSmolScenario (@SwaggerRequestBody(description = "Request to execute a simulation for room allocation") @RequestBody scenario: List<ScenarioRequest>): ResponseEntity<List<String>> {
         log.info("Simulating scenario")
         val repl: REPL = replConfig.repl()
 
@@ -356,7 +433,7 @@ class SimulationController (
         patients.forEach { patient ->
             if (patient != null) {
                 databaseService.insertPatient(scenarioDbUrl, patient.patientId, patient.gender)
-                databaseService.insertPatientStatus(scenarioDbUrl, patient.patientId, patient.infectious, 0)
+                databaseService.insertPatientStatus(scenarioDbUrl, patient.patientId, patient.infectious, patient.roomNumber)
             }
         }
 
