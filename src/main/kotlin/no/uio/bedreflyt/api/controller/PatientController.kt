@@ -34,6 +34,7 @@ data class PatientRequest (
     val lengthStayDaysCategory : Int = 0,
     val careId : String = "",
     val infectious : Boolean = false,
+    val roomNumber: Int = 0
 )
 
 @RestController
@@ -78,7 +79,8 @@ class PatientController (
             postOperationBedtimeHoursCategory = patientRequest.postOperationBedtimeHoursCategory,
             lengthStayDaysCategory = patientRequest.lengthStayDaysCategory,
             careId = patientRequest.careId,
-            infectious = patientRequest.infectious
+            infectious = patientRequest.infectious,
+            roomNumber = patientRequest.roomNumber
         )
 
         patientService.savePatient(patient)
@@ -119,7 +121,8 @@ class PatientController (
             postOperationBedtimeHoursCategory = patientRequest.postOperationBedtimeHoursCategory,
             lengthStayDaysCategory = patientRequest.lengthStayDaysCategory,
             careId = patientRequest.careId,
-            infectious = patientRequest.infectious
+            infectious = patientRequest.infectious,
+            roomNumber = patientRequest.roomNumber
         )
 
         patientService.updatePatient(patient)
