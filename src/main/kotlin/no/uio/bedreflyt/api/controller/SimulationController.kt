@@ -117,19 +117,14 @@ class SimulationController (
         val previous = mutableListOf<Int>()
 
         val singlePatient = patient.split("\n")
-        log.info("Single patient: $singlePatient")
 
         singlePatient.forEach { line ->
             val patientData = line.split(",")
-
-            log.info("Patient data: $patientData")
 
             if (patientData.size > 1) {
                 patientNumbers += 1
                 val patientId = patientData[0]
                 val patientDistance = patientData[1]
-
-                log.info("Patient ID: $patientId")
 
                 val patientInfoList = patientService.findByPatientId(patientId)
                 if (patientInfoList.isNotEmpty()) {
@@ -157,7 +152,7 @@ class SimulationController (
             previous
         )
 
-        log.info("Invoking solver with request: $solverRequest")
+        log.info("Invoking solver with  ${solverRequest.no_rooms} rooms, ${solverRequest.no_patients} patients")
 
         if (patientNumbers > 0) {
 
