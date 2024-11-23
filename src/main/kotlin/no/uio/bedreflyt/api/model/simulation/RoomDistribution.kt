@@ -6,5 +6,4 @@ class RoomDistribution (
     val room: String,
     val capacity: Int,
     val bathroom: Boolean
-) {
-}
+)
