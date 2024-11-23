@@ -1,4 +1,4 @@
-package no.uio.bedreflyt.api.service
+package no.uio.bedreflyt.api.service.simulation
 
 import org.springframework.dao.EmptyResultDataAccessException
 import org.springframework.jdbc.core.JdbcTemplate
@@ -115,7 +115,7 @@ class DatabaseService {
             return
         }
         val jdbcTemplate = getJdbcTemplate(dbPath)
-        val genderModl = gender.equals("Male")
+        val genderModl = gender == "Male"
         val sql = "INSERT INTO patient (patientId, gender, genderModl) VALUES (?, ?, ?)"
         jdbcTemplate.update(sql, patientId, gender, genderModl)
     }
