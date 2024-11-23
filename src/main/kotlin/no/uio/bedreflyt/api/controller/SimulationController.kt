@@ -4,7 +4,7 @@ import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.responses.ApiResponses
 import no.uio.bedreflyt.api.config.REPLConfig
-import no.uio.bedreflyt.api.service.DatabaseService
+import no.uio.bedreflyt.api.service.simulation.DatabaseService
 import no.uio.bedreflyt.api.service.live.PatientService
 import no.uio.bedreflyt.api.service.live.RoomDistributionService
 import no.uio.bedreflyt.api.service.live.RoomService
@@ -129,7 +129,7 @@ class SimulationController (
                 val patientInfoList = patientService.findByPatientId(patientId)
                 if (patientInfoList.isNotEmpty()) {
                     val patientInfo = patientInfoList[0]
-                    val gender = if (patientInfo.gender == "Male") true else false
+                    val gender = patientInfo.gender == "Male"
                     genders.add(gender)
                     infectious.add(patientInfo.infectious)
                     patientDistances.add(patientDistance.toInt())
@@ -206,7 +206,7 @@ class SimulationController (
             val scenarios = mutableListOf<String>()
 
             groupedInformation.forEach { group ->
-                group.forEach() { patient ->
+                group.forEach { patient ->
                     val solveData = invokeSolver(patient)
                     scenarios.add(solveData)
                     log.info(solveData)
