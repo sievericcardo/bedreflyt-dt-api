@@ -2,7 +2,6 @@ package no.uio.bedreflyt.api.service.live
 
 import no.uio.bedreflyt.api.model.live.Room
 import no.uio.bedreflyt.api.repository.live.RoomRepository
-import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.stereotype.Service
 
 @Service
