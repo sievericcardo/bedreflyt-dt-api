@@ -148,7 +148,7 @@ class PatientController (
 
         val patients = patientService.findByPatientId(patientRequest.patientId)
 
-        patients.forEach() { patient ->
+        patients.forEach { patient ->
             patientService.deletePatient(patient)
         }
 
