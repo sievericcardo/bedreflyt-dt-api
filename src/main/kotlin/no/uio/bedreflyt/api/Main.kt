@@ -7,7 +7,7 @@ import org.springframework.data.jpa.repository.config.EnableJpaRepositories
 
 @SpringBootApplication
 @ComponentScan(basePackages = ["no.uio.bedreflyt.api.config"])
-@EnableJpaRepositories(basePackages = arrayOf("no.uio.bedreflyt.api.repository.live"))
+@EnableJpaRepositories(basePackages = ["no.uio.bedreflyt.api.repository.live"])
 open class API
 
 fun main(args: Array<String>) {
