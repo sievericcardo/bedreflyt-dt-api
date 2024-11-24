@@ -14,7 +14,7 @@ import java.io.File
 import java.util.logging.Logger
 
 @RestController
-@RequestMapping("/fuseki")
+@RequestMapping("/api/fuseki")
 class FusekiController {
 
     private val log : Logger = Logger.getLogger(FusekiController::class.java.name)
