@@ -147,4 +147,148 @@ class JourneyStepController (
 
         return ResponseEntity.ok(journeySteps)
     }
+
+    @Operation(summary = "Update a journey step")
+    @ApiResponses(value = [
+        ApiResponse(responseCode = "200", description = "Journey step updated"),
+        ApiResponse(responseCode = "400", description = "Invalid journey step"),
+        ApiResponse(responseCode = "401", description = "Unauthorized"),
+        ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
+        ApiResponse(responseCode = "500", description = "Internal server error")
+    ])
+    @PostMapping("/update")
+    fun updateJourneyStep(@SwaggerRequestBody(description = "Journey step to update") @RequestBody journeyStep: UpdateJourneyStepRequest) : ResponseEntity<String> {
+        log.info("Updating journey step")
+
+        val query = """
+            PREFIX : <$prefix>
+            
+            DELETE {
+                :journeyStep${journeyStep.oldJourneyOrder}_${journeyStep.oldDiagnosis} :diagnosis "${journeyStep.oldDiagnosis}" ;
+                    :journeyOrder ${journeyStep.oldJourneyOrder} ;
+                    :task "${journeyStep.oldTask}" .
+            }
+            INSERT {
+                :journeyStep${journeyStep.newJourneyOrder}_${journeyStep.newDiagnosis} a :JourneyStep ;
+                    :diagnosis "${journeyStep.newDiagnosis}" ;
+                    :journeyOrder ${journeyStep.newJourneyOrder} ;
+                    :task "${journeyStep.newTask}" .
+            }
+            WHERE {
+                :journeyStep${journeyStep.oldJourneyOrder}_${journeyStep.oldDiagnosis} a :JourneyStep ;
+                    :diagnosis "${journeyStep.oldDiagnosis}" ;
+                    :journeyOrder ${journeyStep.oldJourneyOrder} ;
+                    :task "${journeyStep.oldTask}" .
+            }
+        """.trimIndent()
+
+        val updateRequest: UpdateRequest = UpdateFactory.create(query)
+        val fusekiEndpoint = "$tripleStore/update"
+        val updateProcessor: UpdateProcessor = UpdateExecutionFactory.createRemote(updateRequest, fusekiEndpoint)
+
+        try {
+            updateProcessor.execute()
+        } catch (e: Exception) {
+            return ResponseEntity.badRequest().body("Error: the update query could not be executed.")
+        }
+
+        repl.interpreter!!.tripleManager.regenerateTripleStoreModel()
+        repl.interpreter!!.evalCall(
+            repl.interpreter!!.getObjectNames("AssetModel")[0],
+            "AssetModel",
+            "reconfigure"
+        )
+
+        // Append to the file bedreflyt.ttl
+        val path = "bedreflyt.ttl"
+        val fileContent = File(path).readText(Charsets.UTF_8)
+        val newContent = fileContent.replace(
+            """
+            ###  http://$ttlPrefix/journeyStep${journeyStep.oldJourneyOrder}_${journeyStep.oldDiagnosis}
+            :journeyStep${journeyStep.oldJourneyOrder}_${journeyStep.oldDiagnosis} rdf:type owl:NamedIndividual ,
+                            :JourneyStep ;
+                :diagnosis "${journeyStep.oldDiagnosis}" ;
+                :journeyOrder ${journeyStep.oldJourneyOrder} ;
+                :task "${journeyStep.oldTask}" .
+            """.trimIndent(),
+            """
+            ###  http://$ttlPrefix/journeyStep${journeyStep.oldJourneyOrder}_${journeyStep.oldDiagnosis}
+            :journeyStep${journeyStep.oldJourneyOrder}_${journeyStep.oldDiagnosis} rdf:type owl:NamedIndividual ,
+                            :JourneyStep ;
+                :diagnosis "${journeyStep.newDiagnosis}" ;
+                :journeyOrder ${journeyStep.newJourneyOrder} ;
+                :task "${journeyStep.newTask}" .
+            """.trimIndent()
+        )
+
+        File(path).writeText(newContent)
+
+        return ResponseEntity.ok("Journey step updated")
+    }
+
+    @Operation(summary = "Delete a journey step")
+    @ApiResponses(value = [
+        ApiResponse(responseCode = "200", description = "Journey step deleted"),
+        ApiResponse(responseCode = "400", description = "Invalid journey step"),
+        ApiResponse(responseCode = "401", description = "Unauthorized"),
+        ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
+        ApiResponse(responseCode = "500", description = "Internal server error")
+    ])
+    @PostMapping("/delete")
+    fun deleteJourneyStep(@SwaggerRequestBody(description = "Journey step to delete") @RequestBody journeyStep: JourneyStepRequest) : ResponseEntity<String> {
+        log.info("Deleting journey step")
+
+        val query = """
+            PREFIX : <$prefix>
+            
+            DELETE {
+                :journeyStep${journeyStep.journeyOrder}_${journeyStep.diagnosis} a :JourneyStep ;
+                    :diagnosis "${journeyStep.diagnosis}" ;
+                    :journeyOrder ${journeyStep.journeyOrder} ;
+                    :task "${journeyStep.task}" .
+            }
+            WHERE {
+                :journeyStep${journeyStep.journeyOrder}_${journeyStep.diagnosis} a :JourneyStep ;
+                    :diagnosis "${journeyStep.diagnosis}" ;
+                    :journeyOrder ${journeyStep.journeyOrder} ;
+                    :task "${journeyStep.task}" .
+            }
+        """.trimIndent()
+
+        val updateRequest: UpdateRequest = UpdateFactory.create(query)
+        val fusekiEndpoint = "$tripleStore/update"
+        val updateProcessor: UpdateProcessor = UpdateExecutionFactory.createRemote(updateRequest, fusekiEndpoint)
+
+        try {
+            updateProcessor.execute()
+        } catch (e: Exception) {
+            return ResponseEntity.badRequest().body("Error: the update query could not be executed.")
+        }
+
+        repl.interpreter!!.tripleManager.regenerateTripleStoreModel()
+        repl.interpreter!!.evalCall(
+            repl.interpreter!!.getObjectNames("AssetModel")[0],
+            "AssetModel",
+            "reconfigure"
+        )
+
+        // Append to the file bedreflyt.ttl
+        val path = "bedreflyt.ttl"
+        val fileContent = File(path).readText(Charsets.UTF_8)
+        val newContent = fileContent.replace(
+            """
+            ###  http://$ttlPrefix/journeyStep${journeyStep.journeyOrder}_${journeyStep.diagnosis}
+            :journeyStep${journeyStep.journeyOrder}_${journeyStep.diagnosis} rdf:type owl:NamedIndividual ,
+                            :JourneyStep ;
+                :diagnosis "${journeyStep.diagnosis}" ;
+                :journeyOrder ${journeyStep.journeyOrder} ;
+                :task "${journeyStep.task}" .
+            """.trimIndent(),
+            ""
+        )
+
+        File(path).writeText(newContent)
+
+        return ResponseEntity.ok("Journey step deleted")
+    }
 }
