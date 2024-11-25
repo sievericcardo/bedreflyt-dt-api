@@ -140,8 +140,8 @@ class TaskController (
         while (resultDiagnosis.hasNext()) {
             val solution: QuerySolution = resultDiagnosis.next()
             val name = solution.get("?name").asLiteral().toString()
-            val averageDuration = solution.get("?averageDuration").asLiteral().double
-            val bed = solution.get("?bed").asLiteral().int
+            val averageDuration = solution.get("?averageDuration").asLiteral().toString().split("^^")[0].toDouble()
+            val bed = solution.get("?bed").asLiteral().toString().split("^^")[0].toInt()
             taskList.add(Task(name, averageDuration, bed))
         }
 
