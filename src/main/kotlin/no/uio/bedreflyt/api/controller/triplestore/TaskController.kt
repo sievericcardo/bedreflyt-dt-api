@@ -100,8 +100,8 @@ class TaskController (
             :task_${task.taskName} rdf:type owl:NamedIndividual ,
                             :Task ;
                 :taskName "${task.taskName}" ;
-                :averageDuration ${task.averageDuration} ;
-                :bed ${task.bed} .
+                :averageDuration "${task.averageDuration}"^^xsd:double ;
+                :bed "${task.bed}"^^xsd:integer .
         """.trimIndent()
 
         File(path).writeText(newContent)
@@ -205,16 +205,16 @@ class TaskController (
            :task_${updateTaskRequest.oldTaskName} rdf:type owl:NamedIndividual ,
                             :Task ;
                 :taskName "${updateTaskRequest.oldTaskName}" ;
-                :averageDuration ${updateTaskRequest.oldAverageDuration} ;
-                :bed ${updateTaskRequest.oldBed} .
+                :averageDuration "${updateTaskRequest.oldAverageDuration}"^^xsd:double ;
+                :bed "${updateTaskRequest.oldBed}"^^xsd:integer .
         """.trimIndent(),
             """
             ###  http://$ttlPrefix/task_${updateTaskRequest.newTaskName}
             :task_${updateTaskRequest.newTaskName} rdf:type owl:NamedIndividual ,
                              :Task ;
                  :taskName "${updateTaskRequest.newTaskName}" ;
-                 :averageDuration ${updateTaskRequest.newAverageDuration} ;
-                 :bed ${updateTaskRequest.newBed} .
+                 :averageDuration "${updateTaskRequest.newAverageDuration}"^^xsd:double ;
+                 :bed "${updateTaskRequest.newBed}"^^xsd:integer .
         """.trimIndent()
         )
 
@@ -278,8 +278,8 @@ class TaskController (
             :task_${taskRequest.taskName} rdf:type owl:NamedIndividual ,
                             :Task ;
                 :taskName "${taskRequest.taskName}" ;
-                :averageDuration ${taskRequest.averageDuration} ;
-                :bed ${taskRequest.bed} .
+                :averageDuration "${taskRequest.averageDuration}"^^xsd:double ;
+                :bed "${taskRequest.bed}"^^xsd:integer .
         """.trimIndent(),
             ""
         )
