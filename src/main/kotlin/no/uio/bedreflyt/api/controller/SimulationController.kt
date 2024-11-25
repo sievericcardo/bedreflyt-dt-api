@@ -97,6 +97,125 @@ class SimulationController (
         }
     }
 
+    private fun createAndPopulateRoomTables(roomDbUrl: String) {
+        databaseService.createRoomTables(roomDbUrl)
+
+        val rooms = roomService.findAll()
+        rooms.forEach { room ->
+            if (room != null) {
+                databaseService.insertRoom(roomDbUrl, room.id, room.roomDescription)
+            }
+        }
+
+        val roomDistributions = roomDistributionService.findAll()
+        roomDistributions.forEach { roomDistribution ->
+            if (roomDistribution != null) {
+                roomDistribution.room?.id?.let {
+                    databaseService.insertRoomDistribution(roomDbUrl, roomDistribution.roomNumber, roomDistribution.roomNumberModel,
+                        it, roomDistribution.capacity, roomDistribution.bathroom)
+                }
+            }
+        }
+    }
+
+    private fun createAndPopulatePatientTables(scenarioDbUrl: String, scenario: List<ScenarioRequest>) {
+        databaseService.createPatientTable(scenarioDbUrl)
+
+        val patients = patientService.findAll()
+        patients.forEach { patient ->
+            if (patient != null) {
+                databaseService.insertPatient(scenarioDbUrl, patient.patientId, patient.gender)
+                databaseService.insertPatientStatus(scenarioDbUrl, patient.patientId, patient.infectious, patient.roomNumber)
+            }
+        }
+
+        scenario.forEach { scenarioRequest ->
+            scenarioRequest.patientId?.let { patientId ->
+                scenarioRequest.treatmentName?.let { treatmentName ->
+                    try {
+                        patientService.findByPatientId(patientId)
+                    } catch (e: EmptyResultDataAccessException) {
+                        throw IllegalArgumentException("Patient not found")
+                    }
+
+                    databaseService.insertScenario(
+                        scenarioDbUrl,
+                        scenarioRequest.batch,
+                        scenarioRequest.patientId,
+                        treatmentName
+                    )
+                }
+            }
+        }
+    }
+
+    private fun createAndPopulateTreatmentTables(treatmentDbUrl: String, repl: REPL) {
+        databaseService.createTreatmentTables(treatmentDbUrl)
+
+        val tasks =
+            """
+           SELECT * WHERE {
+            ?obj a prog:Task ;
+                prog:Task_taskName ?taskName ;
+                prog:Task_durationAverage ?averageDuration ;
+                prog:Task_bed ?bedCategory .
+        }"""
+
+        val resultTasks: ResultSet = repl.interpreter!!.query(tasks)!!
+
+        if (!resultTasks.hasNext()) {
+            throw IllegalArgumentException("No tasks found")
+        }
+        while (resultTasks.hasNext()) {
+            val solution: QuerySolution = resultTasks.next()
+            val taskName = solution.get("?taskName").asLiteral().toString()
+            val bedCategory = solution.get("?bedCategory").asLiteral().toString().split("^^")[0].toInt()
+            val averageDuration = solution.get("?averageDuration").asLiteral().toString().split("^^")[0].toDouble().toInt()
+            databaseService.insertTask(treatmentDbUrl, taskName, bedCategory, averageDuration)
+        }
+
+        val taskDependencies =
+            """
+           SELECT * WHERE {
+            ?obj a prog:TaskDependency ;
+                prog:TaskDependency_taskName ?taskName ;
+                prog:TaskDependency_taskDependency ?taskDependency .
+        }"""
+
+        val resultTaskDependencies: ResultSet = repl.interpreter!!.query(taskDependencies)!!
+
+        if (!resultTaskDependencies.hasNext()) {
+            throw IllegalArgumentException("No task dependencies found")
+        }
+        while (resultTaskDependencies.hasNext()) {
+            val solution: QuerySolution = resultTaskDependencies.next()
+            val taskName = solution.get("?taskName").asLiteral().toString()
+            val taskDependency = solution.get("?taskDependency").asLiteral().toString()
+            databaseService.insertTaskDependency(treatmentDbUrl, taskName, taskDependency)
+        }
+
+        val treatments = """
+        SELECT * WHERE {
+            ?obj a prog:JourneyStep ;
+                prog:JourneyStep_diagnosis ?diagnosis ;
+                prog:JourneyStep_journeyOrder ?journeyOrder ;
+                prog:JourneyStep_task ?task .
+        }"""
+
+        val resultTreatments: ResultSet = repl.interpreter!!.query(treatments)!!
+
+        if (!resultTreatments.hasNext()) {
+            throw IllegalArgumentException("No treatments found")
+        }
+        while (resultTreatments.hasNext()) {
+            val solution: QuerySolution = resultTreatments.next()
+            val diagnosis = solution.get("?diagnosis").asLiteral().toString()
+            val orderInJourney = solution.get("?journeyOrder").asLiteral().toString().split("^^")[0].toInt()
+            val task = solution.get("?task").asLiteral().toString()
+            databaseService.insertTreatment(treatmentDbUrl, diagnosis, orderInJourney, task)
+        }
+    }
+
     /**
      * Invoke the solver
      *
@@ -167,7 +286,7 @@ class SimulationController (
 
             return (response.body!!)
         } else {
-            return "No patients to solve"
+            return ""
         }
     }
 
@@ -235,120 +354,13 @@ class SimulationController (
         val repl: REPL = replConfig.repl()
 
         val roomDbUrl = "roomData.db"
-        databaseService.createRoomTables(roomDbUrl)
-
-        val rooms = roomService.findAll()
-        rooms.forEach { room ->
-            if (room != null) {
-                databaseService.insertRoom(roomDbUrl, room.id, room.roomDescription)
-            }
-        }
-
-        val roomDistributions = roomDistributionService.findAll()
-        roomDistributions.forEach { roomDistribution ->
-            if (roomDistribution != null) {
-                roomDistribution.room?.id?.let {
-                    databaseService.insertRoomDistribution(roomDbUrl, roomDistribution.roomNumber, roomDistribution.roomNumberModel,
-                        it, roomDistribution.capacity, roomDistribution.bathroom)
-                }
-            }
-        }
+        createAndPopulateRoomTables(roomDbUrl)
 
         val scenarioDbUrl = "scData.db"
-        databaseService.createPatientTable(scenarioDbUrl)
-
-        val patients = patientService.findAll()
-        patients.forEach { patient ->
-            if (patient != null) {
-                databaseService.insertPatient(scenarioDbUrl, patient.patientId, patient.gender)
-                databaseService.insertPatientStatus(scenarioDbUrl, patient.patientId, patient.infectious, patient.roomNumber)
-            }
-        }
-
-        scenario.forEach { scenarioRequest ->
-            scenarioRequest.patientId?.let { patientId ->
-                scenarioRequest.treatmentName?.let { treatmentName ->
-                    try {
-                        patientService.findByPatientId(patientId)
-                    } catch (e: EmptyResultDataAccessException) {
-                        return ResponseEntity.badRequest().body(listOf("Patient not found"))
-                    }
-
-                    databaseService.insertScenario(
-                        scenarioDbUrl,
-                        scenarioRequest.batch,
-                        scenarioRequest.patientId,
-                        treatmentName
-                    )
-                }
-            }
-        }
+        createAndPopulatePatientTables(scenarioDbUrl, scenario)
 
         val treatmentDbUrl = "trData.db"
-        databaseService.createTreatmentTables(treatmentDbUrl)
-
-        val tasks =
-            """
-               SELECT * WHERE {
-                ?obj a prog:Task ;
-                    prog:Task_taskName ?taskName ;
-                    prog:Task_durationAverage ?averageDuration ;
-                    prog:Task_bed ?bedCategory .
-            }"""
-
-        val resultTasks: ResultSet = repl.interpreter!!.query(tasks)!!
-
-        if (!resultTasks.hasNext()) {
-            return ResponseEntity.badRequest().body(listOf("No tasks found"))
-        }
-        while (resultTasks.hasNext()) {
-            val solution: QuerySolution = resultTasks.next()
-            val taskName = solution.get("?taskName").asLiteral().toString()
-            val bedCategory = solution.get("?bedCategory").asLiteral().toString().split("^^")[0].toInt()
-            val averageDuration = solution.get("?averageDuration").asLiteral().toString().split("^^")[0].toDouble().toInt()
-            databaseService.insertTask(treatmentDbUrl, taskName, bedCategory, averageDuration)
-        }
-
-        val taskDependencies =
-            """
-               SELECT * WHERE {
-                ?obj a prog:TaskDependency ;
-                    prog:TaskDependency_taskName ?taskName ;
-                    prog:TaskDependency_taskDependency ?taskDependency .
-            }"""
-
-        val resultTaskDependencies: ResultSet = repl.interpreter!!.query(taskDependencies)!!
-
-        if (!resultTaskDependencies.hasNext()) {
-            return ResponseEntity.badRequest().body(listOf("No task dependencies found"))
-        }
-        while (resultTaskDependencies.hasNext()) {
-            val solution: QuerySolution = resultTaskDependencies.next()
-            val taskName = solution.get("?taskName").asLiteral().toString()
-            val taskDependency = solution.get("?taskDependency").asLiteral().toString()
-            databaseService.insertTaskDependency(treatmentDbUrl, taskName, taskDependency)
-        }
-
-        val treatments = """
-            SELECT * WHERE {
-                ?obj a prog:JourneyStep ;
-                    prog:JourneyStep_diagnosis ?diagnosis ;
-                    prog:JourneyStep_journeyOrder ?journeyOrder ;
-                    prog:JourneyStep_task ?task .
-            }"""
-
-        val resultTreatments: ResultSet = repl.interpreter!!.query(treatments)!!
-
-        if (!resultTreatments.hasNext()) {
-            return ResponseEntity.badRequest().body(listOf("No treatments found"))
-        }
-        while (resultTreatments.hasNext()) {
-            val solution: QuerySolution = resultTreatments.next()
-            val diagnosis = solution.get("?diagnosis").asLiteral().toString()
-            val orderInJourney = solution.get("?journeyOrder").asLiteral().toString().split("^^")[0].toInt()
-            val task = solution.get("?task").asLiteral().toString()
-            databaseService.insertTreatment(treatmentDbUrl, diagnosis, orderInJourney, task)
-        }
+        createAndPopulateTreatmentTables(treatmentDbUrl, repl)
 
         val sim = simulate()
 
@@ -422,100 +434,10 @@ class SimulationController (
         }
 
         val scenarioDbUrl = "scData.db"
-        databaseService.createPatientTable(scenarioDbUrl)
-
-        val patients = patientService.findAll()
-        patients.forEach { patient ->
-            if (patient != null) {
-                databaseService.insertPatient(scenarioDbUrl, patient.patientId, patient.gender)
-                databaseService.insertPatientStatus(scenarioDbUrl, patient.patientId, patient.infectious, patient.roomNumber)
-            }
-        }
-
-        scenario.forEach { scenarioRequest ->
-            scenarioRequest.patientId?.let { patientId ->
-                scenarioRequest.treatmentName?.let { treatmentName ->
-                    try {
-                        patientService.findByPatientId(patientId)
-                    } catch (e: EmptyResultDataAccessException) {
-                        return ResponseEntity.badRequest().body(listOf("Patient not found"))
-                    }
-
-                    databaseService.insertScenario(
-                        scenarioDbUrl,
-                        scenarioRequest.batch,
-                        scenarioRequest.patientId,
-                        treatmentName
-                    )
-                }
-            }
-        }
+        createAndPopulatePatientTables(scenarioDbUrl, scenario)
 
         val treatmentDbUrl = "trData.db"
-        databaseService.createTreatmentTables(treatmentDbUrl)
-
-        val tasks =
-            """
-               SELECT * WHERE {
-                ?obj a prog:Task ;
-                    prog:Task_taskName ?taskName ;
-                    prog:Task_durationAverage ?averageDuration ;
-                    prog:Task_bed ?bedCategory .
-            }"""
-
-        val resultTasks: ResultSet = repl.interpreter!!.query(tasks)!!
-
-        if (!resultTasks.hasNext()) {
-            return ResponseEntity.badRequest().body(listOf("No tasks found"))
-        }
-        while (resultTasks.hasNext()) {
-            val solution: QuerySolution = resultTasks.next()
-            val taskName = solution.get("?taskName").asLiteral().toString()
-            val bedCategory = solution.get("?bedCategory").asLiteral().toString().split("^^")[0].toInt()
-            val averageDuration = solution.get("?averageDuration").asLiteral().toString().split("^^")[0].toDouble().toInt()
-            databaseService.insertTask(treatmentDbUrl, taskName, bedCategory, averageDuration)
-        }
-
-        val taskDependencies =
-            """
-               SELECT * WHERE {
-                ?obj a prog:TaskDependency ;
-                    prog:TaskDependency_taskName ?taskName ;
-                    prog:TaskDependency_taskDependency ?taskDependency .
-            }"""
-
-        val resultTaskDependencies: ResultSet = repl.interpreter!!.query(taskDependencies)!!
-
-        if (!resultTaskDependencies.hasNext()) {
-            return ResponseEntity.badRequest().body(listOf("No task dependencies found"))
-        }
-        while (resultTaskDependencies.hasNext()) {
-            val solution: QuerySolution = resultTaskDependencies.next()
-            val taskName = solution.get("?taskName").asLiteral().toString()
-            val taskDependency = solution.get("?taskDependency").asLiteral().toString()
-            databaseService.insertTaskDependency(treatmentDbUrl, taskName, taskDependency)
-        }
-
-        val treatments = """
-            SELECT * WHERE {
-                ?obj a prog:JourneyStep ;
-                    prog:JourneyStep_diagnosis ?diagnosis ;
-                    prog:JourneyStep_journeyOrder ?journeyOrder ;
-                    prog:JourneyStep_task ?task .
-            }"""
-
-        val resultTreatments: ResultSet = repl.interpreter!!.query(treatments)!!
-
-        if (!resultTreatments.hasNext()) {
-            return ResponseEntity.badRequest().body(listOf("No treatments found"))
-        }
-        while (resultTreatments.hasNext()) {
-            val solution: QuerySolution = resultTreatments.next()
-            val diagnosis = solution.get("?diagnosis").asLiteral().toString()
-            val orderInJourney = solution.get("?journeyOrder").asLiteral().toString().split("^^")[0].toInt()
-            val task = solution.get("?task").asLiteral().toString()
-            databaseService.insertTreatment(treatmentDbUrl, diagnosis, orderInJourney, task)
-        }
+        createAndPopulateTreatmentTables(treatmentDbUrl, repl)
 
         val sim = simulate()
 
@@ -525,6 +447,4 @@ class SimulationController (
 
         return sim
     }
-
-
 }
