@@ -37,7 +37,7 @@ data class UpdateTaskRequest (
 )
 
 @RestController
-@RequestMapping("/api/fuseki/diagnosis")
+@RequestMapping("/api/fuseki/task")
 class TaskController (
     private val replConfig: REPLConfig
 ) {
