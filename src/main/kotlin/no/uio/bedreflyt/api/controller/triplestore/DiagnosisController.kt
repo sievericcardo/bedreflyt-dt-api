@@ -37,6 +37,12 @@ class DiagnosisController (
 ) {
 
     private val log : Logger = Logger.getLogger(DiagnosisController::class.java.name)
+    private val host = System.getenv().getOrDefault("TRIPLESTORE_URL", "localhost")
+    private val dataStore = System.getenv().getOrDefault("TRIPLESTORE_DATASET", "Bedreflyt")
+    private val tripleStore = "http://$host:3030/$dataStore"
+    private val prefix = System.getenv().getOrDefault("DOMAIN_PREFIX", "http://www.smolang.org/bedreflyt#")
+    private val ttlPrefix = if (prefix.isNotEmpty()) prefix.dropLast(1) else prefix
+    private val repl = replConfig.repl()
 
     @Operation(summary = "Add a new diagnosis")
     @ApiResponses(value = [
@@ -49,17 +55,10 @@ class DiagnosisController (
     @PostMapping("/create")
     fun createDiagnosis (@SwaggerRequestBody(description = "Request to add a new patient") @RequestBody diagnosisRequest: DiagnosisRequest) : ResponseEntity<String> {
         log.info("Creating diagnosis $diagnosisRequest")
-        val repl = replConfig.repl()
 
         if (diagnosisRequest.diagnosisName.isEmpty()) {
             return ResponseEntity.badRequest().body("Diagnosis name cannot be empty")
         }
-
-        val host = System.getenv().getOrDefault("TRIPLESTORE_URL", "localhost")
-        val dataStore = System.getenv().getOrDefault("TRIPLESTORE_DATASET", "Bedreflyt")
-        val tripleStore = "http://$host:3030/$dataStore"
-        val prefix = System.getenv().getOrDefault("DOMAIN_PREFIX", "http://www.smolang.org/bedreflyt#")
-        val ttlPrefix = if (prefix.isNotEmpty()) prefix.dropLast(1) else prefix
 
         val query = """
             PREFIX : <$prefix>
@@ -114,7 +113,6 @@ class DiagnosisController (
     @GetMapping("/retrieve")
     fun retrieveDiagnosis() : ResponseEntity<List<Any>> {
         log.info("Retrieving diagnosis")
-        val repl = replConfig.repl()
         val diagnosisList = mutableListOf<Any>()
 
         val diagnosis = """
@@ -148,17 +146,10 @@ class DiagnosisController (
     @PostMapping("/update")
     fun updateDiagnosis(@SwaggerRequestBody(description = "Request to update a diagnosis") @RequestBody updateDiagnosisRequest: UpdateDiagnosisRequest) : ResponseEntity<String> {
         log.info("Updating diagnosis $updateDiagnosisRequest")
-        val repl = replConfig.repl()
 
         if (updateDiagnosisRequest.oldDiagnosisName.isEmpty() || updateDiagnosisRequest.newDiagnosisName.isEmpty()) {
             return ResponseEntity.badRequest().body("Diagnosis name cannot be empty")
         }
-
-        val host = System.getenv().getOrDefault("TRIPLESTORE_URL", "localhost")
-        val dataStore = System.getenv().getOrDefault("TRIPLESTORE_DATASET", "Bedreflyt")
-        val tripleStore = "http://$host:3030/$dataStore"
-        val prefix = System.getenv().getOrDefault("DOMAIN_PREFIX", "http://www.smolang.org/bedreflyt#")
-        val ttlPrefix = if (prefix.isNotEmpty()) prefix.dropLast(1) else prefix
 
         val query = """
             PREFIX : <$prefix>
@@ -240,17 +231,10 @@ class DiagnosisController (
     @PostMapping("/delete")
     fun deleteDiagnosis(@SwaggerRequestBody(description = "Request to delete a diagnosis") @RequestBody diagnosisRequest: DiagnosisRequest) : ResponseEntity<String> {
         log.info("Deleting diagnosis $diagnosisRequest")
-        val repl = replConfig.repl()
 
         if (diagnosisRequest.diagnosisName.isEmpty()) {
             return ResponseEntity.badRequest().body("Diagnosis name cannot be empty")
         }
-
-        val host = System.getenv().getOrDefault("TRIPLESTORE_URL", "localhost")
-        val dataStore = System.getenv().getOrDefault("TRIPLESTORE_DATASET", "Bedreflyt")
-        val tripleStore = "http://$host:3030/$dataStore"
-        val prefix = System.getenv().getOrDefault("DOMAIN_PREFIX", "http://www.smolang.org/bedreflyt#")
-        val ttlPrefix = if (prefix.isNotEmpty()) prefix.dropLast(1) else prefix
 
         val query = """
             PREFIX : <$prefix>
