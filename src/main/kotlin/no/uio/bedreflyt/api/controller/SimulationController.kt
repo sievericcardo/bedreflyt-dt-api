@@ -6,8 +6,6 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses
 import no.uio.bedreflyt.api.config.REPLConfig
 import no.uio.bedreflyt.api.service.simulation.DatabaseService
 import no.uio.bedreflyt.api.service.live.PatientService
-import no.uio.bedreflyt.api.service.live.RoomDistributionService
-import no.uio.bedreflyt.api.service.live.RoomService
 import no.uio.bedreflyt.api.model.simulation.RoomDistribution
 import no.uio.microobject.runtime.REPL
 import org.apache.jena.query.QuerySolution
@@ -48,8 +46,6 @@ class SimulationController (
     private val replConfig: REPLConfig,
     private val databaseService: DatabaseService,
     private val patientService: PatientService,
-    private val roomService : RoomService,
-    private val roomDistributionService : RoomDistributionService,
 ) {
 
     private val log : Logger = Logger.getLogger(HomeController::class.java.name)
