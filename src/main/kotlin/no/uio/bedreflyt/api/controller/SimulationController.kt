@@ -301,6 +301,11 @@ class SimulationController (
         try {
             val data = executeJar()
 
+            // If I got error from the JAR, return the error
+            if (data.contains("Error executing JAR")) {
+                return ResponseEntity.internalServerError().body(listOf(data))
+            }
+
             // We need an Element Breaker to separate the information
             val information = data.split("------").filter { it.isNotEmpty() } // EB - split data over ------
 
