@@ -42,9 +42,10 @@ open class REPLConfig {
 
     private fun updateTriplestore(fusekiUrl: String): String {
         // First delete if Fuseki already contains our ontology
+        val prefix = System.getenv().getOrDefault("DOMAIN_PREFIX", "http://www.smolang.org/bedreflyt#")
         val deleteUrl = "$fusekiUrl/update"
         val deleteHeaders = mapOf("Content-Type" to "application/sparql-update")
-        val deleteBody = "WITH <http://www.smolang.org/bedreflyt#> DELETE { ?s ?p ?o } WHERE { ?s ?p ?o }"
+        val deleteBody = "WITH $prefix DELETE { ?s ?p ?o } WHERE { ?s ?p ?o }"
 
         val deleteResponse = makePostRequest(deleteUrl, deleteHeaders, deleteBody)
         println(deleteResponse)
