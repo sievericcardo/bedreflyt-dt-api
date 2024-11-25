@@ -43,6 +43,12 @@ class TaskController (
 ) {
 
     private val log : Logger = Logger.getLogger(TaskController::class.java.name)
+    private val host = System.getenv().getOrDefault("TRIPLESTORE_URL", "localhost")
+    private val dataStore = System.getenv().getOrDefault("TRIPLESTORE_DATASET", "Bedreflyt")
+    private val tripleStore = "http://$host:3030/$dataStore"
+    private val prefix = System.getenv().getOrDefault("DOMAIN_PREFIX", "http://www.smolang.org/bedreflyt#")
+    private val ttlPrefix = if (prefix.isNotEmpty()) prefix.dropLast(1) else prefix
+    private val repl = replConfig.repl()
 
     @Operation(summary = "Create a new task")
     @ApiResponses(value = [
@@ -55,17 +61,10 @@ class TaskController (
     @PostMapping("/create")
     fun createTask(@SwaggerRequestBody(description = "Request to add a new task") @RequestBody taskRequest: TaskRequest) : ResponseEntity<String> {
         log.info("Creating task $taskRequest")
-        val repl = replConfig.repl()
-
-        val host = System.getenv().getOrDefault("TRIPLESTORE_URL", "localhost")
-        val dataStore = System.getenv().getOrDefault("TRIPLESTORE_DATASET", "Bedreflyt")
-        val tripleStore = "http://$host:3030/$dataStore"
-        val prefix = System.getenv().getOrDefault("DOMAIN_PREFIX", "http://www.smolang.org/bedreflyt#")
-        val ttlPrefix = if (prefix.isNotEmpty()) prefix.dropLast(1) else prefix
 
         val task = Task(taskRequest.taskName, taskRequest.averageDuration, taskRequest.bed)
         val query = """
-            PREFIX : <http://www.uio.no/bedreflyt#>
+            PREFIX : <$prefix>
             
             INSERT DATA {
                 :task_${task.taskName} a :Task ;
@@ -120,7 +119,6 @@ class TaskController (
     @GetMapping("/retrieve")
     fun retrieveTasks() : ResponseEntity<List<Any>> {
         log.info("Retrieving tasks")
-        val repl = replConfig.repl()
 
         val taskList = mutableListOf<Any>()
 
@@ -159,16 +157,9 @@ class TaskController (
     @PostMapping("/update")
     fun updateTask(@SwaggerRequestBody(description = "Request to update a task") @RequestBody updateTaskRequest: UpdateTaskRequest) : ResponseEntity<String> {
         log.info("Updating task $updateTaskRequest")
-        val repl = replConfig.repl()
-
-        val host = System.getenv().getOrDefault("TRIPLESTORE_URL", "localhost")
-        val dataStore = System.getenv().getOrDefault("TRIPLESTORE_DATASET", "Bedreflyt")
-        val tripleStore = "http://$host:3030/$dataStore"
-        val prefix = System.getenv().getOrDefault("DOMAIN_PREFIX", "http://www.smolang.org/bedreflyt#")
-        val ttlPrefix = if (prefix.isNotEmpty()) prefix.dropLast(1) else prefix
 
         val query = """
-            PREFIX : <http://www.uio.no/bedreflyt#>
+            PREFIX : <$prefix>
             
             DELETE {
                 :task_${updateTaskRequest.oldTaskName} :taskName "${updateTaskRequest.oldTaskName}" ;
@@ -243,16 +234,9 @@ class TaskController (
     @PostMapping("/delete")
     fun deleteTask(@SwaggerRequestBody(description = "Request to delete a task") @RequestBody taskRequest: TaskRequest) : ResponseEntity<String> {
         log.info("Deleting task $taskRequest")
-        val repl = replConfig.repl()
-
-        val host = System.getenv().getOrDefault("TRIPLESTORE_URL", "localhost")
-        val dataStore = System.getenv().getOrDefault("TRIPLESTORE_DATASET", "Bedreflyt")
-        val tripleStore = "http://$host:3030/$dataStore"
-        val prefix = System.getenv().getOrDefault("DOMAIN_PREFIX", "http://www.smolang.org/bedreflyt#")
-        val ttlPrefix = if (prefix.isNotEmpty()) prefix.dropLast(1) else prefix
 
         val query = """
-            PREFIX : <http://www.uio.no/bedreflyt#>
+            PREFIX : <$prefix>
             
             DELETE {
                 :task_${taskRequest.taskName} a :Task ;
