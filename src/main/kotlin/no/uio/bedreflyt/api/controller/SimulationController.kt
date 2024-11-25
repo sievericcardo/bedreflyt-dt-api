@@ -355,7 +355,7 @@ class SimulationController (
     ])
     @PostMapping("/room-allocation")
     fun simulateScenario (@SwaggerRequestBody(description = "Request to execute a simulation for room allocation") @RequestBody scenario: List<ScenarioRequest>): ResponseEntity<List<String>> {
-        log.info("Simulating scenario")
+        log.info("Simulating scenario with ${scenario.size} requests")
         val repl: REPL = replConfig.repl()
 
         val roomDbUrl = "roomData.db"
@@ -386,7 +386,7 @@ class SimulationController (
     ])
     @PostMapping("/room-allocation-smol")
     fun simulateSmolScenario (@SwaggerRequestBody(description = "Request to execute a simulation for room allocation") @RequestBody scenario: List<ScenarioRequest>): ResponseEntity<List<String>> {
-        log.info("Simulating scenario")
+        log.info("Simulating scenario with ${scenario.size} requests")
         val repl: REPL = replConfig.repl()
 
         val roomDbUrl = "roomData.db"
