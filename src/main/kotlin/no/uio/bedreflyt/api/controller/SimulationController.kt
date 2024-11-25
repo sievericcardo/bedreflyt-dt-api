@@ -8,6 +8,7 @@ import no.uio.bedreflyt.api.service.simulation.DatabaseService
 import no.uio.bedreflyt.api.service.live.PatientService
 import no.uio.bedreflyt.api.service.live.RoomDistributionService
 import no.uio.bedreflyt.api.service.live.RoomService
+import no.uio.bedreflyt.api.model.simulation.RoomDistribution
 import no.uio.microobject.runtime.REPL
 import org.apache.jena.query.QuerySolution
 import org.apache.jena.query.ResultSet
@@ -94,27 +95,6 @@ class SimulationController (
             output.toString()
         } else {
             "Error executing JAR. Exit code: $exitCode\nError Output:\n$errorOutput"
-        }
-    }
-
-    private fun createAndPopulateRoomTables(roomDbUrl: String) {
-        databaseService.createRoomTables(roomDbUrl)
-
-        val rooms = roomService.findAll()
-        rooms.forEach { room ->
-            if (room != null) {
-                databaseService.insertRoom(roomDbUrl, room.id, room.roomDescription)
-            }
-        }
-
-        val roomDistributions = roomDistributionService.findAll()
-        roomDistributions.forEach { roomDistribution ->
-            if (roomDistribution != null) {
-                roomDistribution.room?.id?.let {
-                    databaseService.insertRoomDistribution(roomDbUrl, roomDistribution.roomNumber, roomDistribution.roomNumberModel,
-                        it, roomDistribution.capacity, roomDistribution.bathroom)
-                }
-            }
         }
     }
 
@@ -216,6 +196,43 @@ class SimulationController (
         }
     }
 
+    private fun createAndPopulateRoomDistributions(roomDbUrl: String, repl: REPL): List<RoomDistribution> {
+        val roomDistributions = mutableListOf<RoomDistribution>()
+
+        val roomDistributionsQuery =
+            """
+            SELECT * WHERE {
+                ?obj a prog:RoomDistribution ;
+                    prog:RoomDistribution_roomNumber ?roomNumber ;
+                    prog:RoomDistribution_roomNumberModel ?roomNumberModel ;
+                    prog:RoomDistribution_room ?room ;
+                    prog:RoomDistribution_capacity ?capacity ;
+                    prog:RoomDistribution_bathroom ?bathroom .
+            }"""
+
+        val resultRoomDistributions: ResultSet = repl.interpreter!!.query(roomDistributionsQuery)!!
+
+        if (!resultRoomDistributions.hasNext()) {
+            throw IllegalArgumentException("No room distributions found")
+        }
+        while (resultRoomDistributions.hasNext()) {
+            val solution: QuerySolution = resultRoomDistributions.next()
+            val roomNumber = solution.get("?roomNumber").asLiteral().toString().split("^^")[0].toInt()
+            val roomNumberModel = solution.get("?roomNumberModel").asLiteral().toString().split("^^")[0].toInt()
+            val room = solution.get("?room").asLiteral().toString().split("^^")[0].toLong()
+            val capacity = solution.get("?capacity").asLiteral().toString().split("^^")[0].toInt()
+            val bathroom = solution.get("?bathroom").asLiteral().toString().split("^^")[0].toBoolean()
+            roomDistributions.add(RoomDistribution(roomNumber, roomNumberModel, room.toString(), capacity, bathroom))
+        }
+
+        roomDistributions.forEach { roomDistribution ->
+            databaseService.insertRoomDistribution(roomDbUrl, roomDistribution.roomNumber.toLong(), roomDistribution.roomNumberModel.toLong(),
+                roomDistribution.room.toLong(), roomDistribution.capacity, roomDistribution.bathroom)
+        }
+
+        return roomDistributions
+    }
+
     /**
      * Invoke the solver
      *
@@ -224,11 +241,10 @@ class SimulationController (
      * @param patient - Patient data
      * @return String - Solver response
      */
-    private fun invokeSolver(patient : String) : String {
-        val roomDistributions = roomDistributionService.findAll()
+    private fun invokeSolver(patient : String, roomDistributions: List<RoomDistribution>) : String {
         val rooms = roomDistributions.size
-        val capacities = roomDistributions.map { it?.capacity ?: 0 }
-        val roomCategories = roomDistributions.map { it?.room?.id ?: 0 }
+        val capacities = roomDistributions.map { it.capacity ?: 0 }
+        val roomCategories: List<Long> = roomDistributions.map { it.room.toLong() ?: 0 }
         var  patientNumbers = 0
         val genders = mutableListOf<Boolean>()
         val infectious = mutableListOf<Boolean>()
@@ -297,7 +313,7 @@ class SimulationController (
      *
      * @return ResponseEntity<List<String>> - List of scenarios
      */
-    private fun simulate() : ResponseEntity<List<String>> {
+    private fun simulate(roomDistributions: List<RoomDistribution>) : ResponseEntity<List<String>> {
         try {
             val data = executeJar()
 
@@ -331,7 +347,7 @@ class SimulationController (
 
             groupedInformation.forEach { group ->
                 group.forEach { patient ->
-                    val solveData = invokeSolver(patient)
+                    val solveData = invokeSolver(patient, roomDistributions)
                     scenarios.add(solveData)
                     log.info(solveData)
                 }
@@ -343,37 +359,6 @@ class SimulationController (
             log.log(Level.SEVERE, "Error executing JAR", e)
             return ResponseEntity.internalServerError().body(listOf("Error executing JAR"))
         }
-    }
-
-    @Operation(summary = "Simulate a scenario for room allocation using data from the DB")
-    @ApiResponses(value = [
-        ApiResponse(responseCode = "200", description = "Scenario simulated"),
-        ApiResponse(responseCode = "400", description = "Invalid scenario"),
-        ApiResponse(responseCode = "401", description = "Unauthorized"),
-        ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
-        ApiResponse(responseCode = "500", description = "Internal server error")
-    ])
-    @PostMapping("/room-allocation")
-    fun simulateScenario (@SwaggerRequestBody(description = "Request to execute a simulation for room allocation") @RequestBody scenario: List<ScenarioRequest>): ResponseEntity<List<String>> {
-        log.info("Simulating scenario with ${scenario.size} requests")
-        val repl: REPL = replConfig.repl()
-
-        val roomDbUrl = "roomData.db"
-        createAndPopulateRoomTables(roomDbUrl)
-
-        val scenarioDbUrl = "scData.db"
-        createAndPopulatePatientTables(scenarioDbUrl, scenario)
-
-        val treatmentDbUrl = "trData.db"
-        createAndPopulateTreatmentTables(treatmentDbUrl, repl)
-
-        val sim = simulate()
-
-        databaseService.deleteDatabase(roomDbUrl)
-        databaseService.deleteDatabase(scenarioDbUrl)
-        databaseService.deleteDatabase(treatmentDbUrl)
-
-        return sim
     }
 
     @Operation(summary = "Simulate a scenario for room allocation using smol")
@@ -412,31 +397,7 @@ class SimulationController (
             databaseService.insertRoom(roomDbUrl, roomId, roomDescription)
         }
 
-        val roomDistributions =
-            """
-               SELECT * WHERE {
-                ?obj a prog:RoomDistribution ;
-                    prog:RoomDistribution_roomNumber ?roomNumber ;
-                    prog:RoomDistribution_roomNumberModel ?roomNumberModel ;
-                    prog:RoomDistribution_room ?room ;
-                    prog:RoomDistribution_capacity ?capacity ;
-                    prog:RoomDistribution_bathroom ?bathroom .
-            }"""
-
-        val resultRoomDistribution: ResultSet = repl.interpreter!!.query(roomDistributions)!!
-
-        if (!resultRoomDistribution.hasNext()) {
-            return ResponseEntity.badRequest().body(listOf("No room distributions found"))
-        }
-        while (resultRoomDistribution.hasNext()) {
-            val solution: QuerySolution = resultRoomDistribution.next()
-            val roomNumber = solution.get("?roomNumber").asLiteral().toString().split("^^")[0].toLong()
-            val roomNumberModel = solution.get("?roomNumberModel").asLiteral().toString().split("^^")[0].toLong()
-            val room = solution.get("?room").asLiteral().toString().split("^^")[0].toLong()
-            val capacity = solution.get("?capacity").asLiteral().toString().split("^^")[0].toInt()
-            val bathroom = solution.get("?bathroom").asLiteral().toString().split("^^")[0].toBoolean()
-            databaseService.insertRoomDistribution(roomDbUrl, roomNumber, roomNumberModel, room, capacity, bathroom)
-        }
+        val roomDistributions = createAndPopulateRoomDistributions(roomDbUrl, repl)
 
         val scenarioDbUrl = "scData.db"
         createAndPopulatePatientTables(scenarioDbUrl, scenario)
@@ -444,7 +405,7 @@ class SimulationController (
         val treatmentDbUrl = "trData.db"
         createAndPopulateTreatmentTables(treatmentDbUrl, repl)
 
-        val sim = simulate()
+        val sim = simulate(roomDistributions)
 
         databaseService.deleteDatabase(roomDbUrl)
         databaseService.deleteDatabase(scenarioDbUrl)
