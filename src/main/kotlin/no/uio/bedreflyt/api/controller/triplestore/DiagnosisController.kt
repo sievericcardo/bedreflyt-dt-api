@@ -4,14 +4,7 @@ import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.responses.ApiResponses
 import no.uio.bedreflyt.api.config.REPLConfig
-import no.uio.bedreflyt.api.model.triplestore.Diagnosis
 import no.uio.bedreflyt.api.service.triplestore.TriplestoreService
-import org.apache.jena.query.QuerySolution
-import org.apache.jena.query.ResultSet
-import org.apache.jena.update.UpdateExecutionFactory
-import org.apache.jena.update.UpdateFactory
-import org.apache.jena.update.UpdateProcessor
-import org.apache.jena.update.UpdateRequest
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.GetMapping
 import io.swagger.v3.oas.annotations.parameters.RequestBody as SwaggerRequestBody
