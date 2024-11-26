@@ -5,6 +5,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.responses.ApiResponses
 import no.uio.bedreflyt.api.config.REPLConfig
 import no.uio.bedreflyt.api.model.triplestore.RoomDistribution
+import no.uio.bedreflyt.api.service.triplestore.TriplestoreService
 import org.apache.jena.query.QuerySolution
 import org.apache.jena.query.ResultSet
 import org.apache.jena.update.UpdateExecutionFactory
@@ -45,7 +46,8 @@ data class UpdateRoomDistributionRequest (
 @RestController
 @RequestMapping("/api/fuseki/roomDistribution")
 class RoomDistributionController (
-    private val replConfig: REPLConfig
+    private val replConfig: REPLConfig,
+    private val triplestoreService: TriplestoreService
 ) {
 
     private val log : Logger = Logger.getLogger(RoomDistributionController::class.java.name)
@@ -68,27 +70,14 @@ class RoomDistributionController (
     fun addRoomDistribution(@SwaggerRequestBody(description = "Room distribution to add") @RequestBody roomDistributionRequest: RoomDistributionRequest) : ResponseEntity<String> {
         log.info("Adding room distribution")
 
-        val query = """
-            PREFIX : <$prefix>
-            
-            INSERT DATA {
-                :roomDistribution${roomDistributionRequest.roomNumber} a :RoomDistribution ;
-                    :roomNumber ${roomDistributionRequest.roomNumber} ;
-                    :roomNumberModel ${roomDistributionRequest.roomNumberModel} ;
-                    :room ${roomDistributionRequest.room} ;
-                    :capacity ${roomDistributionRequest.capacity} ;
-                    :bathroom ${roomDistributionRequest.bathroom} .
-            }
-        """.trimIndent()
-
-        val updateRequest: UpdateRequest = UpdateFactory.create(query)
-        val fusekiEndpoint = "$tripleStore/update"
-        val updateProcessor: UpdateProcessor = UpdateExecutionFactory.createRemote(updateRequest, fusekiEndpoint)
-
-        try {
-            updateProcessor.execute()
-        } catch (e: Exception) {
-            return ResponseEntity.badRequest().body("Error: the update query could not be executed.")
+        val bathroomInt = if (roomDistributionRequest.bathroom) 1 else 0
+        if (!triplestoreService.createRoomDistribution(
+                roomDistributionRequest.roomNumber,
+                roomDistributionRequest.roomNumberModel,
+                roomDistributionRequest.room,
+                roomDistributionRequest.capacity,
+                bathroomInt)) {
+            return ResponseEntity.badRequest().body("Error: the room distribution could not be added.")
         }
 
         repl.interpreter!!.tripleManager.regenerateTripleStoreModel()
@@ -128,35 +117,8 @@ class RoomDistributionController (
     ])
     @GetMapping("/retrieve")
     fun getRoomDistributions() : ResponseEntity<List<Any>> {
-        val query = """
-            SELECT ?roomNumber ?roomNumberModel ?room ?capacity ?bathroom
-            WHERE {
-                ?obj a prog:RoomDistribution ;
-                    prog:RoomDistribution_roomNumber ?roomNumber ;
-                    prog:RoomDistribution_roomNumberModel ?roomNumberModel ;
-                    prog:RoomDistribution_room ?room ;
-                    prog:RoomDistribution_capacity ?capacity ;
-                    prog:RoomDistribution_bathroom ?bathroom .
-            }
-        """.trimIndent()
-
-        val resultSet: ResultSet = repl.interpreter!!.query(query)!!
-
-        val roomDistributions = mutableListOf<RoomDistribution>()
-
-        if (!resultSet.hasNext()) {
-            return ResponseEntity.badRequest().body(listOf("No room distributions found"))
-        }
-        while (resultSet.hasNext()) {
-            val qs: QuerySolution = resultSet.next()
-            val roomNumber = qs.get("roomNumber").asLiteral().toString().split("^^")[0].toInt()
-            val roomNumberModel = qs.get("roomNumberModel").asLiteral().toString().split("^^")[0].toInt()
-            val room = qs.get("room").asLiteral().toString().split("^^")[0].toLong()
-            val capacity = qs.get("capacity").asLiteral().toString().split("^^")[0].toInt()
-            val bathroom = qs.get("bathroom").asLiteral().toString().toBoolean()
-            roomDistributions.add(RoomDistribution(roomNumber, roomNumberModel, room, capacity, bathroom))
-        }
-
+        log.info("Retrieving room distributions")
+        val roomDistributions = triplestoreService.getAllRoomDistributions()?: return ResponseEntity.badRequest().body(listOf("No room distributions found"))
         return ResponseEntity.ok(roomDistributions)
     }
 
@@ -172,43 +134,18 @@ class RoomDistributionController (
     fun updateRoomDistribution(@SwaggerRequestBody(description = "Request to update a room distribution") @RequestBody updateRoomDistributionRequest: UpdateRoomDistributionRequest) : ResponseEntity<String> {
         log.info("Updating room distribution")
 
-        val query = """
-            PREFIX : <$prefix>
-            
-            DELETE {
-                :roomDistribution${updateRoomDistributionRequest.oldRoomNumber} a :RoomDistribution ;
-                    :roomNumber ${updateRoomDistributionRequest.oldRoomNumber} ;
-                    :roomNumberModel ${updateRoomDistributionRequest.oldRoomNumberModel} ;
-                    :room ${updateRoomDistributionRequest.oldRoom} ;
-                    :capacity ${updateRoomDistributionRequest.oldCapacity} ;
-                    :bathroom ${updateRoomDistributionRequest.oldBathroom} .
-            }
-            INSERT {
-                :roomDistribution${updateRoomDistributionRequest.newRoomNumber} a :RoomDistribution ;
-                    :roomNumber ${updateRoomDistributionRequest.newRoomNumber} ;
-                    :roomNumberModel ${updateRoomDistributionRequest.newRoomNumberModel} ;
-                    :room ${updateRoomDistributionRequest.newRoom} ;
-                    :capacity ${updateRoomDistributionRequest.newCapacity} ;
-                    :bathroom ${updateRoomDistributionRequest.newBathroom} .
-            }
-            WHERE {
-                :roomDistribution${updateRoomDistributionRequest.oldRoomNumber} a :RoomDistribution ;
-                    :roomNumber ${updateRoomDistributionRequest.oldRoomNumber} ;
-                    :roomNumberModel ${updateRoomDistributionRequest.oldRoomNumberModel} ;
-                    :room ${updateRoomDistributionRequest.oldRoom} ;
-                    :capacity ${updateRoomDistributionRequest.oldCapacity} ;
-                    :bathroom ${updateRoomDistributionRequest.oldBathroom} .
-            }
-        """.trimIndent()
-
-        val updateRequest: UpdateRequest = UpdateFactory.create(query)
-        val fusekiEndpoint = "$tripleStore/update"
-        val updateProcessor: UpdateProcessor = UpdateExecutionFactory.createRemote(updateRequest, fusekiEndpoint)
-
-        try {
-            updateProcessor.execute()
-        } catch (e: Exception) {
-            return ResponseEntity.badRequest().body("Error: the update query could not be executed.")
+        if(!triplestoreService.updateRoomDistribution(
+                updateRoomDistributionRequest.oldRoomNumber,
+                updateRoomDistributionRequest.oldRoomNumberModel,
+                updateRoomDistributionRequest.oldRoom,
+                updateRoomDistributionRequest.oldCapacity,
+                if (updateRoomDistributionRequest.oldBathroom) 1 else 0,
+                updateRoomDistributionRequest.newRoomNumber,
+                updateRoomDistributionRequest.newRoomNumberModel,
+                updateRoomDistributionRequest.newRoom,
+                updateRoomDistributionRequest.newCapacity,
+                if (updateRoomDistributionRequest.newBathroom) 1 else 0)) {
+            return ResponseEntity.badRequest().body("Error: the room distribution could not be updated.")
         }
 
         repl.interpreter!!.tripleManager.regenerateTripleStoreModel()
@@ -257,35 +194,13 @@ class RoomDistributionController (
     fun deleteRoomDistribution(@SwaggerRequestBody(description = "Request to delete a room distribution") @RequestBody roomDistributionRequest: RoomDistributionRequest) : ResponseEntity<String> {
         log.info("Deleting room distribution")
 
-        val query = """
-            PREFIX : <$prefix>
-            
-            DELETE {
-                :roomDistribution${roomDistributionRequest.roomNumber} a :RoomDistribution ;
-                    :roomNumber ${roomDistributionRequest.roomNumber} ;
-                    :roomNumberModel ${roomDistributionRequest.roomNumberModel} ;
-                    :room ${roomDistributionRequest.room} ;
-                    :capacity ${roomDistributionRequest.capacity} ;
-                    :bathroom ${roomDistributionRequest.bathroom} .
-            }
-            WHERE {
-                :roomDistribution${roomDistributionRequest.roomNumber} a :RoomDistribution ;
-                    :roomNumber ${roomDistributionRequest.roomNumber} ;
-                    :roomNumberModel ${roomDistributionRequest.roomNumberModel} ;
-                    :room ${roomDistributionRequest.room} ;
-                    :capacity ${roomDistributionRequest.capacity} ;
-                    :bathroom ${roomDistributionRequest.bathroom} .
-            }
-        """.trimIndent()
-
-        val updateRequest: UpdateRequest = UpdateFactory.create(query)
-        val fusekiEndpoint = "$tripleStore/update"
-        val updateProcessor: UpdateProcessor = UpdateExecutionFactory.createRemote(updateRequest, fusekiEndpoint)
-
-        try {
-            updateProcessor.execute()
-        } catch (e: Exception) {
-            return ResponseEntity.badRequest().body("Error: the update query could not be executed.")
+        if(!triplestoreService.deleteRoomDistribution(
+                roomDistributionRequest.roomNumber,
+                roomDistributionRequest.roomNumberModel,
+                roomDistributionRequest.room,
+                roomDistributionRequest.capacity,
+                if (roomDistributionRequest.bathroom) 1 else 0)) {
+            return ResponseEntity.badRequest().body("Error: the room distribution could not be deleted.")
         }
 
         repl.interpreter!!.tripleManager.regenerateTripleStoreModel()
