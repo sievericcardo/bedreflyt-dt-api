@@ -117,7 +117,7 @@ class JourneyStepController (
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
     @GetMapping("/retrieve")
-    fun retrieveJourneySteps() : ResponseEntity<List<Any>> {
+    fun retrieveJourneySteps() : ResponseEntity<Map<String, List<Any>>> {
         log.info("Retrieving journey steps")
 
         val query = """
@@ -135,7 +135,7 @@ class JourneyStepController (
         val journeySteps = mutableListOf<JourneyStep>()
 
         if (!resultSet.hasNext()) {
-            return ResponseEntity.badRequest().body(listOf("No diagnosis found"))
+            return ResponseEntity.badRequest().body(mapOf("error" to listOf("No journey steps found")))
         }
         while (resultSet.hasNext()) {
             val solution: QuerySolution = resultSet.next()
@@ -145,7 +145,20 @@ class JourneyStepController (
             journeySteps.add(JourneyStep(diagnosis, journeyOrder, task))
         }
 
-        return ResponseEntity.ok(journeySteps)
+        val journeyStepsDict = mutableMapOf<String, MutableList<JourneyStep>>()
+        journeySteps.forEach { journeyStep ->
+            if (journeyStepsDict.containsKey(journeyStep.diagnosis)) {
+                journeyStepsDict[journeyStep.diagnosis]!!.add(journeyStep)
+            } else {
+                journeyStepsDict[journeyStep.diagnosis] = mutableListOf(journeyStep)
+            }
+        }
+
+        journeyStepsDict.forEach { (_, journeySteps) ->
+            journeySteps.sortBy { it.orderInJourney }
+        }
+
+        return ResponseEntity.ok(journeyStepsDict)
     }
 
     @Operation(summary = "Update a journey step")
