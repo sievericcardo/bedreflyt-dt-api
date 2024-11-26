@@ -10,6 +10,7 @@ import no.uio.bedreflyt.api.model.live.Patient
 import no.uio.bedreflyt.api.service.simulation.DatabaseService
 import no.uio.bedreflyt.api.service.live.PatientService
 import no.uio.bedreflyt.api.model.simulation.RoomDistribution
+import no.uio.bedreflyt.api.service.triplestore.TriplestoreService
 import no.uio.microobject.runtime.REPL
 import org.apache.jena.query.QuerySolution
 import org.apache.jena.query.ResultSet
@@ -48,6 +49,7 @@ data class SolverRequest (
 class SimulationController (
     private val replConfig: REPLConfig,
     private val databaseService: DatabaseService,
+    private val triplestoreService: TriplestoreService,
     private val patientService: PatientService,
 ) {
 
@@ -131,26 +133,10 @@ class SimulationController (
     private fun createAndPopulateTreatmentTables(treatmentDbUrl: String, repl: REPL) {
         databaseService.createTreatmentTables(treatmentDbUrl)
 
-        val tasks =
-            """
-           SELECT * WHERE {
-            ?obj a prog:Task ;
-                prog:Task_taskName ?taskName ;
-                prog:Task_durationAverage ?averageDuration ;
-                prog:Task_bed ?bedCategory .
-        }"""
+        val tasks = triplestoreService.getAllTasks() ?: throw IllegalArgumentException("No tasks found")
 
-        val resultTasks: ResultSet = repl.interpreter!!.query(tasks)!!
-
-        if (!resultTasks.hasNext()) {
-            throw IllegalArgumentException("No tasks found")
-        }
-        while (resultTasks.hasNext()) {
-            val solution: QuerySolution = resultTasks.next()
-            val taskName = solution.get("?taskName").asLiteral().toString()
-            val bedCategory = solution.get("?bedCategory").asLiteral().toString().split("^^")[0].toInt()
-            val averageDuration = solution.get("?averageDuration").asLiteral().toString().split("^^")[0].toDouble().toInt()
-            databaseService.insertTask(treatmentDbUrl, taskName, bedCategory, averageDuration)
+        tasks.forEach { task ->
+            databaseService.insertTask(treatmentDbUrl, task.taskName, task.bed, task.averageDuration.toInt())
         }
 
         val taskDependencies =
@@ -173,63 +159,31 @@ class SimulationController (
             databaseService.insertTaskDependency(treatmentDbUrl, taskName, taskDependency)
         }
 
-        val treatments = """
-        SELECT * WHERE {
-            ?obj a prog:JourneyStep ;
-                prog:JourneyStep_diagnosis ?diagnosis ;
-                prog:JourneyStep_journeyOrder ?journeyOrder ;
-                prog:JourneyStep_task ?task .
-        }"""
+        val treatments = triplestoreService.getAllTreatments() ?: throw IllegalArgumentException("No treatments found")
 
-        val resultTreatments: ResultSet = repl.interpreter!!.query(treatments)!!
-
-        if (!resultTreatments.hasNext()) {
-            throw IllegalArgumentException("No treatments found")
-        }
-        while (resultTreatments.hasNext()) {
-            val solution: QuerySolution = resultTreatments.next()
-            val diagnosis = solution.get("?diagnosis").asLiteral().toString()
-            val orderInJourney = solution.get("?journeyOrder").asLiteral().toString().split("^^")[0].toInt()
-            val task = solution.get("?task").asLiteral().toString()
-            databaseService.insertTreatment(treatmentDbUrl, diagnosis, orderInJourney, task)
+        treatments.forEach { treatment ->
+            databaseService.insertTreatment(
+                treatmentDbUrl,
+                treatment.diagnosis,
+                treatment.orderInJourney,
+                treatment.task
+            )
         }
     }
 
     private fun createAndPopulateRoomDistributions(roomDbUrl: String, repl: REPL): List<RoomDistribution> {
-        val roomDistributions = mutableListOf<RoomDistribution>()
-
-        val roomDistributionsQuery =
-            """
-            SELECT * WHERE {
-                ?obj a prog:RoomDistribution ;
-                    prog:RoomDistribution_roomNumber ?roomNumber ;
-                    prog:RoomDistribution_roomNumberModel ?roomNumberModel ;
-                    prog:RoomDistribution_room ?room ;
-                    prog:RoomDistribution_capacity ?capacity ;
-                    prog:RoomDistribution_bathroom ?bathroom .
-            }"""
-
-        val resultRoomDistributions: ResultSet = repl.interpreter!!.query(roomDistributionsQuery)!!
-
-        if (!resultRoomDistributions.hasNext()) {
-            throw IllegalArgumentException("No room distributions found")
-        }
-        while (resultRoomDistributions.hasNext()) {
-            val solution: QuerySolution = resultRoomDistributions.next()
-            val roomNumber = solution.get("?roomNumber").asLiteral().toString().split("^^")[0].toInt()
-            val roomNumberModel = solution.get("?roomNumberModel").asLiteral().toString().split("^^")[0].toInt()
-            val room = solution.get("?room").asLiteral().toString().split("^^")[0].toLong()
-            val capacity = solution.get("?capacity").asLiteral().toString().split("^^")[0].toInt()
-            val bathroom = solution.get("?bathroom").asLiteral().toString().split("^^")[0].toBoolean()
-            roomDistributions.add(RoomDistribution(roomNumber, roomNumberModel, room.toString(), capacity, bathroom))
-        }
+        val roomDistributions = triplestoreService.getAllRoomDistributions()
+            ?: throw IllegalArgumentException("No room distributions found")
+        val simulationRoomDistribution = mutableListOf<RoomDistribution>()
 
         roomDistributions.forEach { roomDistribution ->
             databaseService.insertRoomDistribution(roomDbUrl, roomDistribution.roomNumber.toLong(), roomDistribution.roomNumberModel.toLong(),
                 roomDistribution.room.toLong(), roomDistribution.capacity, roomDistribution.bathroom)
+            simulationRoomDistribution.add(RoomDistribution(roomDistribution.roomNumber, roomDistribution.roomNumberModel, roomDistribution.room.toString(),
+                roomDistribution.capacity, roomDistribution.bathroom))
         }
 
-        return roomDistributions
+        return simulationRoomDistribution
     }
 
     /**
@@ -412,24 +366,14 @@ class SimulationController (
         val roomDbUrl = "roomData.db"
         databaseService.createRoomTables(roomDbUrl)
 
-        val rooms =
-            """
-               SELECT * WHERE {
-                ?obj a prog:Room ;
-                    prog:Room_bedCategory ?bedCategory ;
-                    prog:Room_roomDescription ?roomDescription .
-            }"""
+        val roomList = triplestoreService.getAllRooms()
 
-        val resultRooms: ResultSet = repl.interpreter!!.query(rooms)!!
-
-        if (!resultRooms.hasNext()) {
+        if (roomList == null) {
             return ResponseEntity.badRequest().body(listOf(listOf(mapOf("error" to "No rooms found"))))
         }
-        while (resultRooms.hasNext()) {
-            val solution: QuerySolution = resultRooms.next()
-            val roomId = solution.get("?bedCategory").asLiteral().toString().split("^^")[0].toLong()
-            val roomDescription = solution.get("?roomDescription").asLiteral().toString()
-            databaseService.insertRoom(roomDbUrl, roomId, roomDescription)
+
+        roomList.forEach() { room ->
+            databaseService.insertRoom(roomDbUrl, room.bedCategory, room.roomDescription)
         }
 
         val roomDistributions = createAndPopulateRoomDistributions(roomDbUrl, repl)
