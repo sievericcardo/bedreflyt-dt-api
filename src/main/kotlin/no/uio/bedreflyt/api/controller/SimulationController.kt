@@ -1,9 +1,12 @@
 package no.uio.bedreflyt.api.controller
 
+import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
+import com.fasterxml.jackson.module.kotlin.readValue
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.responses.ApiResponses
 import no.uio.bedreflyt.api.config.REPLConfig
+import no.uio.bedreflyt.api.model.live.Patient
 import no.uio.bedreflyt.api.service.simulation.DatabaseService
 import no.uio.bedreflyt.api.service.live.PatientService
 import no.uio.bedreflyt.api.model.simulation.RoomDistribution
@@ -237,7 +240,7 @@ class SimulationController (
      * @param patient - Patient data
      * @return String - Solver response
      */
-    private fun invokeSolver(patient : String, roomDistributions: List<RoomDistribution>) : String {
+    private fun invokeSolver(patient : String, roomDistributions: List<RoomDistribution>) : List<Map<String, Any>> {
         val rooms = roomDistributions.size
         val capacities = roomDistributions.map { it.capacity ?: 0 }
         val roomCategories: List<Long> = roomDistributions.map { it.room.toLong() ?: 0 }
@@ -248,6 +251,7 @@ class SimulationController (
         val previous = mutableListOf<Int>()
 
         val singlePatient = patient.split("\n")
+        val patientMap = mutableMapOf<Int, Patient>()
 
         singlePatient.forEach { line ->
             val patientData = line.split(",")
@@ -265,6 +269,8 @@ class SimulationController (
                     infectious.add(patientInfo.infectious)
                     patientDistances.add(patientDistance.toInt())
                     previous.add(patientInfo.roomNumber)
+
+                    patientMap[patientNumbers-1] = patientInfoList[0]
                 } else {
                     patientNumbers -= 1
                 }
@@ -296,9 +302,40 @@ class SimulationController (
             val solverUrl = "http://$solverEndpoint:8000/api/solve"
             val response = restTemplate.postForEntity(solverUrl, request, String::class.java)
 
-            return (response.body!!)
+            if (response.body!!.contains("Model is unsat")) {
+                return listOf(mapOf("error" to "Model is unsatisfiable for ${solverRequest.no_rooms} rooms and ${solverRequest.no_patients} patients"))
+            }
+
+            // Parse the JSON string into a map
+            val mapper = jacksonObjectMapper()
+            val jsonData: List<Map<String, Any>> = mapper.readValue(response.body!!)
+
+            // Transform the data into the desired structure
+            val transformedData = jsonData.flatMap { roomData ->
+                roomData.map { (roomNumber, roomInfo) ->
+                    val roomInfoMap = roomInfo as Map<String, Any>
+                    val patientNumbers = (roomInfoMap["patients"] as List<*>).map { it.toString().toInt() }
+                    val patients = patientNumbers.map { number ->
+                        val patient = patientMap[number]!!
+                        mapOf(
+                            "name" to patient.patientId,
+                            "age" to patient.age
+                        )
+                    }
+                    val gender = if (roomInfoMap["gender"] as String == "True") "Male" else "Female"
+
+                    mapOf(
+                        "Room $roomNumber" to mapOf(
+                            "patients" to patients,
+                            "gender" to gender
+                        )
+                    )
+                }
+            }
+
+            return transformedData
         } else {
-            return ""
+            return listOf(mapOf("warning" to "No patients found"))
         }
     }
 
@@ -309,13 +346,13 @@ class SimulationController (
      *
      * @return ResponseEntity<List<String>> - List of scenarios
      */
-    private fun simulate(roomDistributions: List<RoomDistribution>) : ResponseEntity<List<String>> {
+    private fun simulate(roomDistributions: List<RoomDistribution>) : ResponseEntity<List<List<Map<String, Any>>>> {
         try {
             val data = executeJar()
 
             // If I got error from the JAR, return the error
             if (data.contains("Error executing JAR")) {
-                return ResponseEntity.internalServerError().body(listOf(data))
+                return ResponseEntity.internalServerError().body(listOf(listOf(mapOf("error" to data))))
             }
 
             // We need an Element Breaker to separate the information
@@ -339,13 +376,15 @@ class SimulationController (
                 groupedInformation.add(currentGroup)
             }
 
-            val scenarios = mutableListOf<String>()
+            val scenarios = mutableListOf<List<Map<String, Any>>>()
 
             groupedInformation.forEach { group ->
                 group.forEach { patient ->
                     val solveData = invokeSolver(patient, roomDistributions)
                     scenarios.add(solveData)
-                    log.info(solveData)
+
+//                    scenarios.add(solveData)
+                    log.info(solveData.toString())
                 }
             }
 
@@ -353,7 +392,7 @@ class SimulationController (
         } catch (e: Exception) {
             "Error executing JAR: ${e.message}"
             log.log(Level.SEVERE, "Error executing JAR", e)
-            return ResponseEntity.internalServerError().body(listOf("Error executing JAR"))
+            return ResponseEntity.internalServerError().body(listOf(listOf(mapOf("error" to "Error executing JAR"))))
         }
     }
 
@@ -366,7 +405,7 @@ class SimulationController (
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
     @PostMapping("/room-allocation-smol")
-    fun simulateSmolScenario (@SwaggerRequestBody(description = "Request to execute a simulation for room allocation") @RequestBody scenario: List<ScenarioRequest>): ResponseEntity<List<String>> {
+    fun simulateSmolScenario (@SwaggerRequestBody(description = "Request to execute a simulation for room allocation") @RequestBody scenario: List<ScenarioRequest>): ResponseEntity<List<List<Map<String, Any>>>> {
         log.info("Simulating scenario with ${scenario.size} requests")
         val repl: REPL = replConfig.repl()
 
@@ -384,7 +423,7 @@ class SimulationController (
         val resultRooms: ResultSet = repl.interpreter!!.query(rooms)!!
 
         if (!resultRooms.hasNext()) {
-            return ResponseEntity.badRequest().body(listOf("No rooms found"))
+            return ResponseEntity.badRequest().body(listOf(listOf(mapOf("error" to "No rooms found"))))
         }
         while (resultRooms.hasNext()) {
             val solution: QuerySolution = resultRooms.next()
