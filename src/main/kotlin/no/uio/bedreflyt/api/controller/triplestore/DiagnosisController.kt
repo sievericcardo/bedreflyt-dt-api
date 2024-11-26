@@ -5,6 +5,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.responses.ApiResponses
 import no.uio.bedreflyt.api.config.REPLConfig
 import no.uio.bedreflyt.api.model.triplestore.Diagnosis
+import no.uio.bedreflyt.api.service.triplestore.TriplestoreService
 import org.apache.jena.query.QuerySolution
 import org.apache.jena.query.ResultSet
 import org.apache.jena.update.UpdateExecutionFactory
@@ -33,7 +34,8 @@ data class UpdateDiagnosisRequest (
 @RestController
 @RequestMapping("/api/fuseki/diagnosis")
 class DiagnosisController (
-    private val replConfig: REPLConfig
+    private val replConfig: REPLConfig,
+    private val triplestoreService: TriplestoreService
 ) {
 
     private val log : Logger = Logger.getLogger(DiagnosisController::class.java.name)
@@ -56,27 +58,8 @@ class DiagnosisController (
     fun createDiagnosis (@SwaggerRequestBody(description = "Request to add a new patient") @RequestBody diagnosisRequest: DiagnosisRequest) : ResponseEntity<String> {
         log.info("Creating diagnosis $diagnosisRequest")
 
-        if (diagnosisRequest.diagnosisName.isEmpty()) {
-            return ResponseEntity.badRequest().body("Diagnosis name cannot be empty")
-        }
-
-        val query = """
-            PREFIX : <$prefix>
-            
-            INSERT DATA {
-                :diagnosis_${diagnosisRequest.diagnosisName} a :Diagnosis ;
-                 :diagnosisName "${diagnosisRequest.diagnosisName}" .
-            }
-        """.trimIndent()
-
-        val updateRequest: UpdateRequest = UpdateFactory.create(query)
-        val fusekiEndpoint = "$tripleStore/update"
-        val updateProcessor: UpdateProcessor = UpdateExecutionFactory.createRemote(updateRequest, fusekiEndpoint)
-
-        try {
-            updateProcessor.execute()
-        } catch (e: Exception) {
-            return ResponseEntity.badRequest().body("Error: the update query could not be executed.")
+        if (!triplestoreService.createDiagnosis(diagnosisRequest.diagnosisName)) {
+            return ResponseEntity.badRequest().body("Diagnosis already exists")
         }
 
         repl.interpreter!!.tripleManager.regenerateTripleStoreModel()
@@ -113,24 +96,7 @@ class DiagnosisController (
     @GetMapping("/retrieve")
     fun retrieveDiagnosis() : ResponseEntity<List<Any>> {
         log.info("Retrieving diagnosis")
-        val diagnosisList = mutableListOf<Any>()
-
-        val diagnosis = """
-            SELECT * WHERE {
-                ?obj a prog:Diagnosis ;
-                    prog:Diagnosis_diagnosisName ?name .
-            }"""
-
-        val resultDiagnosis: ResultSet = repl.interpreter!!.query(diagnosis)!!
-
-        if (!resultDiagnosis.hasNext()) {
-            return ResponseEntity.badRequest().body(listOf("No diagnosis found"))
-        }
-        while (resultDiagnosis.hasNext()) {
-            val solution: QuerySolution = resultDiagnosis.next()
-            val name = solution.get("?diagnosis").asLiteral().toString()
-            diagnosisList.add(Diagnosis(name))
-        }
+        val diagnosisList = triplestoreService.getAllDiagnosis() ?: return ResponseEntity.badRequest().body(listOf("No diagnosis found"))
 
         return ResponseEntity.ok(diagnosisList)
     }
@@ -151,33 +117,8 @@ class DiagnosisController (
             return ResponseEntity.badRequest().body("Diagnosis name cannot be empty")
         }
 
-        val query = """
-            PREFIX : <$prefix>
-            
-            DELETE {
-                :diagnosis_${updateDiagnosisRequest.oldDiagnosisName} a :Diagnosis ;
-                 :diagnosisName "${updateDiagnosisRequest.oldDiagnosisName}" .
-            }
-            
-            INSERT {
-                :diagnosis_${updateDiagnosisRequest.newDiagnosisName} a :Diagnosis ;
-                 :diagnosisName "${updateDiagnosisRequest.newDiagnosisName}" .
-            }
-            
-            WHERE {
-                :diagnosis_${updateDiagnosisRequest.oldDiagnosisName} a :Diagnosis ;
-                 :diagnosisName "${updateDiagnosisRequest.oldDiagnosisName}" .
-            }
-        """.trimIndent()
-
-        val updateRequest: UpdateRequest = UpdateFactory.create(query)
-        val fusekiEndpoint = "$tripleStore/update"
-        val updateProcessor: UpdateProcessor = UpdateExecutionFactory.createRemote(updateRequest, fusekiEndpoint)
-
-        try {
-            updateProcessor.execute()
-        } catch (e: Exception) {
-            return ResponseEntity.badRequest().body("Error: the update query could not be executed.")
+        if(!triplestoreService.updateDiagnosis(updateDiagnosisRequest.oldDiagnosisName, updateDiagnosisRequest.newDiagnosisName)) {
+            return ResponseEntity.badRequest().body("Diagnosis does not exist")
         }
 
         repl.interpreter!!.tripleManager.regenerateTripleStoreModel()
@@ -236,28 +177,8 @@ class DiagnosisController (
             return ResponseEntity.badRequest().body("Diagnosis name cannot be empty")
         }
 
-        val query = """
-            PREFIX : <$prefix>
-            
-            DELETE {
-                :diagnosis_${diagnosisRequest.diagnosisName} a :Diagnosis ;
-                 :diagnosisName "${diagnosisRequest.diagnosisName}" .
-            }
-            
-            WHERE {
-                :diagnosis_${diagnosisRequest.diagnosisName} a :Diagnosis ;
-                 :diagnosisName "${diagnosisRequest.diagnosisName}" .
-            }
-        """.trimIndent()
-
-        val updateRequest: UpdateRequest = UpdateFactory.create(query)
-        val fusekiEndpoint = "$tripleStore/update"
-        val updateProcessor: UpdateProcessor = UpdateExecutionFactory.createRemote(updateRequest, fusekiEndpoint)
-
-        try {
-            updateProcessor.execute()
-        } catch (e: Exception) {
-            return ResponseEntity.badRequest().body("Error: the update query could not be executed.")
+        if(!triplestoreService.deleteDiagnosis(diagnosisRequest.diagnosisName)) {
+            return ResponseEntity.badRequest().body("Diagnosis does not exist")
         }
 
         repl.interpreter!!.tripleManager.regenerateTripleStoreModel()
