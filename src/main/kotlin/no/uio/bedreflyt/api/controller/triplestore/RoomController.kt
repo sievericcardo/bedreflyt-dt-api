@@ -5,6 +5,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.responses.ApiResponses
 import no.uio.bedreflyt.api.config.REPLConfig
 import no.uio.bedreflyt.api.model.triplestore.Room
+import no.uio.bedreflyt.api.service.triplestore.TriplestoreService
 import org.apache.jena.query.QuerySolution
 import org.apache.jena.query.ResultSet
 import org.apache.jena.update.UpdateExecutionFactory
@@ -36,7 +37,8 @@ data class UpdateRoomRequest (
 @RestController
 @RequestMapping("/api/fuseki/room")
 class RoomController (
-    private val replConfig: REPLConfig
+    private val replConfig: REPLConfig,
+    private val triplestoreService: TriplestoreService
 ) {
 
     private val log : Logger = Logger.getLogger(RoomController::class.java.name)
@@ -59,24 +61,8 @@ class RoomController (
     fun addRoom(@SwaggerRequestBody(description = "Journey step to add") @RequestBody roomRequest: RoomRequest) : ResponseEntity<String> {
         log.info("Adding journey step")
 
-        val query = """
-            PREFIX : <$prefix>
-            
-            INSERT DATA {
-                :room${roomRequest.bedCategory} a :Room ;
-                    :bedCategory ${roomRequest.bedCategory} ;
-                    :roomDescription "${roomRequest.roomDescription}" .
-            }
-        """.trimIndent()
-
-        val updateRequest: UpdateRequest = UpdateFactory.create(query)
-        val fusekiEndpoint = "$tripleStore/update"
-        val updateProcessor: UpdateProcessor = UpdateExecutionFactory.createRemote(updateRequest, fusekiEndpoint)
-
-        try {
-            updateProcessor.execute()
-        } catch (e: Exception) {
-            return ResponseEntity.badRequest().body("Error: the update query could not be executed.")
+        if (!triplestoreService.createRoom(roomRequest.bedCategory, roomRequest.roomDescription)) {
+            return ResponseEntity.badRequest().body("Error: the room could not be added.")
         }
 
         repl.interpreter!!.tripleManager.regenerateTripleStoreModel()
@@ -113,29 +99,8 @@ class RoomController (
     ])
     @GetMapping("/retrieve")
     fun getRooms() : ResponseEntity<List<Any>> {
-        val query = """
-            SELECT ?bedCategory ?roomDescription
-            WHERE {
-                ?obj a prog:Room ;
-                    prog:Room_bedCategory ?bedCategory ;
-                    prog:Room_roomDescription ?roomDescription .
-            }
-        """.trimIndent()
-
-        val resultSet: ResultSet = repl.interpreter!!.query(query)!!
-
-        val rooms = mutableListOf<Room>()
-
-        if (!resultSet.hasNext()) {
-            return ResponseEntity.badRequest().body(listOf("No diagnosis found"))
-        }
-        while (resultSet.hasNext()) {
-            val qs: QuerySolution = resultSet.next()
-            val bedCategory = qs.get("bedCategory").asLiteral().toString().split("^^")[0].toLong()
-            val roomDescription = qs.get("roomDescription").asLiteral().toString()
-            rooms.add(Room(bedCategory, roomDescription))
-        }
-
+        log.info("Getting rooms")
+        val rooms = triplestoreService.getAllRooms() ?: return ResponseEntity.badRequest().body(listOf("No rooms found"))
         return ResponseEntity.ok(rooms)
     }
 
@@ -151,34 +116,8 @@ class RoomController (
     fun updateRoom(@SwaggerRequestBody(description = "Request to update a room") @RequestBody updateRoomRequest: UpdateRoomRequest) : ResponseEntity<String> {
         log.info("Updating room")
 
-        val query = """
-            PREFIX : <$prefix>
-            
-            DELETE {
-                :room${updateRoomRequest.oldBedCategory} a :Room ;
-                    :bedCategory ${updateRoomRequest.oldBedCategory} ;
-                    :roomDescription "${updateRoomRequest.oldRoomDescription}" .
-            }
-            INSERT {
-                :room${updateRoomRequest.newBedCategory} a :Room ;
-                    :bedCategory ${updateRoomRequest.newBedCategory} ;
-                    :roomDescription "${updateRoomRequest.newRoomDescription}" .
-            }
-            WHERE {
-                :room${updateRoomRequest.oldBedCategory} a :Room ;
-                    :bedCategory ${updateRoomRequest.oldBedCategory} ;
-                    :roomDescription "${updateRoomRequest.oldRoomDescription}" .
-            }
-        """.trimIndent()
-
-        val updateRequest: UpdateRequest = UpdateFactory.create(query)
-        val fusekiEndpoint = "$tripleStore/update"
-        val updateProcessor: UpdateProcessor = UpdateExecutionFactory.createRemote(updateRequest, fusekiEndpoint)
-
-        try {
-            updateProcessor.execute()
-        } catch (e: Exception) {
-            return ResponseEntity.badRequest().body("Error: the update query could not be executed.")
+        if(!triplestoreService.updateRoom(updateRoomRequest.oldBedCategory, updateRoomRequest.oldRoomDescription, updateRoomRequest.newBedCategory, updateRoomRequest.newRoomDescription)) {
+            return ResponseEntity.badRequest().body("Error: the room could not be updated.")
         }
 
         repl.interpreter!!.tripleManager.regenerateTripleStoreModel()
@@ -221,29 +160,8 @@ class RoomController (
     fun deleteRoom(@SwaggerRequestBody(description = "Request to delete a room") @RequestBody roomRequest: RoomRequest) : ResponseEntity<String> {
         log.info("Deleting room")
 
-        val query = """
-            PREFIX : <$prefix>
-            
-            DELETE {
-                :room${roomRequest.bedCategory} a :Room ;
-                    :bedCategory ${roomRequest.bedCategory} ;
-                    :roomDescription "${roomRequest.roomDescription}" .
-            }
-            WHERE {
-                :room${roomRequest.bedCategory} a :Room ;
-                    :bedCategory ${roomRequest.bedCategory} ;
-                    :roomDescription "${roomRequest.roomDescription}" .
-            }
-        """.trimIndent()
-
-        val updateRequest: UpdateRequest = UpdateFactory.create(query)
-        val fusekiEndpoint = "$tripleStore/update"
-        val updateProcessor: UpdateProcessor = UpdateExecutionFactory.createRemote(updateRequest, fusekiEndpoint)
-
-        try {
-            updateProcessor.execute()
-        } catch (e: Exception) {
-            return ResponseEntity.badRequest().body("Error: the update query could not be executed.")
+        if(!triplestoreService.deleteRoom(roomRequest.bedCategory, roomRequest.roomDescription)) {
+            return ResponseEntity.badRequest().body("Error: the room could not be deleted.")
         }
 
         repl.interpreter!!.tripleManager.regenerateTripleStoreModel()
