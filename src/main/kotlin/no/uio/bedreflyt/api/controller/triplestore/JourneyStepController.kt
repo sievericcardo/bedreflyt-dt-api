@@ -5,6 +5,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.responses.ApiResponses
 import no.uio.bedreflyt.api.config.REPLConfig
 import no.uio.bedreflyt.api.model.triplestore.JourneyStep
+import no.uio.bedreflyt.api.service.triplestore.TriplestoreService
 import org.apache.jena.query.QuerySolution
 import org.apache.jena.query.ResultSet
 import org.apache.jena.update.UpdateExecutionFactory
@@ -39,7 +40,8 @@ data class UpdateJourneyStepRequest (
 @RestController
 @RequestMapping("/api/fuseki/journey-step")
 class JourneyStepController (
-    private val replConfig: REPLConfig
+    private val replConfig: REPLConfig,
+    private val triplestoreService: TriplestoreService
 ) {
 
     private val log : Logger = Logger.getLogger(JourneyStepController::class.java.name)
@@ -62,25 +64,8 @@ class JourneyStepController (
     fun addJourneyStep(@SwaggerRequestBody(description = "Journey step to add") @RequestBody journeyStep: JourneyStepRequest) : ResponseEntity<String> {
         log.info("Adding journey step")
 
-        val query = """
-            PREFIX : <$prefix>
-            
-            INSERT DATA {
-                :journeyStep${journeyStep.journeyOrder}_${journeyStep.diagnosis} a :JourneyStep ;
-                    :diagnosis "${journeyStep.diagnosis}" ;
-                    :journeyOrder ${journeyStep.journeyOrder} ;
-                    :task "${journeyStep.task}" .
-            }
-        """.trimIndent()
-
-        val updateRequest: UpdateRequest = UpdateFactory.create(query)
-        val fusekiEndpoint = "$tripleStore/update"
-        val updateProcessor: UpdateProcessor = UpdateExecutionFactory.createRemote(updateRequest, fusekiEndpoint)
-
-        try {
-            updateProcessor.execute()
-        } catch (e: Exception) {
-            return ResponseEntity.badRequest().body("Error: the update query could not be executed.")
+        if(!triplestoreService.createTreatment(journeyStep.diagnosis, journeyStep.journeyOrder, journeyStep.task)) {
+            return ResponseEntity.badRequest().body("Error: the diagnosis does not exist.")
         }
 
         repl.interpreter!!.tripleManager.regenerateTripleStoreModel()
@@ -119,31 +104,7 @@ class JourneyStepController (
     @GetMapping("/retrieve")
     fun retrieveJourneySteps() : ResponseEntity<Map<String, List<Any>>> {
         log.info("Retrieving journey steps")
-
-        val query = """
-            SELECT ?diagnosis ?journeyOrder ?task
-            WHERE {
-                ?obj a prog:JourneyStep ;
-                    prog:JourneyStep_diagnosis ?diagnosis ;
-                    prog:JourneyStep_journeyOrder ?journeyOrder ;
-                    prog:JourneyStep_task ?task .
-            }
-        """.trimIndent()
-
-        val resultSet: ResultSet = repl.interpreter!!.query(query)!!
-
-        val journeySteps = mutableListOf<JourneyStep>()
-
-        if (!resultSet.hasNext()) {
-            return ResponseEntity.badRequest().body(mapOf("error" to listOf("No journey steps found")))
-        }
-        while (resultSet.hasNext()) {
-            val solution: QuerySolution = resultSet.next()
-            val diagnosis = solution.get("?diagnosis").asLiteral().toString()
-            val journeyOrder = solution.get("?journeyOrder").asLiteral().toString().split("^^")[0].toInt()
-            val task = solution.get("?task").asLiteral().toString()
-            journeySteps.add(JourneyStep(diagnosis, journeyOrder, task))
-        }
+        val journeySteps = triplestoreService.getAllTreatments() ?: return ResponseEntity.badRequest().body(mapOf("error" to listOf("No journey steps found")))
 
         val journeyStepsDict = mutableMapOf<String, MutableList<JourneyStep>>()
         journeySteps.forEach { journeyStep ->
@@ -173,36 +134,8 @@ class JourneyStepController (
     fun updateJourneyStep(@SwaggerRequestBody(description = "Journey step to update") @RequestBody journeyStep: UpdateJourneyStepRequest) : ResponseEntity<String> {
         log.info("Updating journey step")
 
-        val query = """
-            PREFIX : <$prefix>
-            
-            DELETE {
-                :journeyStep${journeyStep.oldJourneyOrder}_${journeyStep.oldDiagnosis} :diagnosis "${journeyStep.oldDiagnosis}" ;
-                    :journeyOrder ${journeyStep.oldJourneyOrder} ;
-                    :task "${journeyStep.oldTask}" .
-            }
-            INSERT {
-                :journeyStep${journeyStep.newJourneyOrder}_${journeyStep.newDiagnosis} a :JourneyStep ;
-                    :diagnosis "${journeyStep.newDiagnosis}" ;
-                    :journeyOrder ${journeyStep.newJourneyOrder} ;
-                    :task "${journeyStep.newTask}" .
-            }
-            WHERE {
-                :journeyStep${journeyStep.oldJourneyOrder}_${journeyStep.oldDiagnosis} a :JourneyStep ;
-                    :diagnosis "${journeyStep.oldDiagnosis}" ;
-                    :journeyOrder ${journeyStep.oldJourneyOrder} ;
-                    :task "${journeyStep.oldTask}" .
-            }
-        """.trimIndent()
-
-        val updateRequest: UpdateRequest = UpdateFactory.create(query)
-        val fusekiEndpoint = "$tripleStore/update"
-        val updateProcessor: UpdateProcessor = UpdateExecutionFactory.createRemote(updateRequest, fusekiEndpoint)
-
-        try {
-            updateProcessor.execute()
-        } catch (e: Exception) {
-            return ResponseEntity.badRequest().body("Error: the update query could not be executed.")
+        if(!triplestoreService.updateTreatment(journeyStep.oldDiagnosis, journeyStep.oldJourneyOrder, journeyStep.oldTask, journeyStep.newDiagnosis, journeyStep.newJourneyOrder, journeyStep.newTask)) {
+            return ResponseEntity.badRequest().body("Error: the journey step could not be updated.")
         }
 
         repl.interpreter!!.tripleManager.regenerateTripleStoreModel()
@@ -251,31 +184,8 @@ class JourneyStepController (
     fun deleteJourneyStep(@SwaggerRequestBody(description = "Journey step to delete") @RequestBody journeyStep: JourneyStepRequest) : ResponseEntity<String> {
         log.info("Deleting journey step")
 
-        val query = """
-            PREFIX : <$prefix>
-            
-            DELETE {
-                :journeyStep${journeyStep.journeyOrder}_${journeyStep.diagnosis} a :JourneyStep ;
-                    :diagnosis "${journeyStep.diagnosis}" ;
-                    :journeyOrder ${journeyStep.journeyOrder} ;
-                    :task "${journeyStep.task}" .
-            }
-            WHERE {
-                :journeyStep${journeyStep.journeyOrder}_${journeyStep.diagnosis} a :JourneyStep ;
-                    :diagnosis "${journeyStep.diagnosis}" ;
-                    :journeyOrder ${journeyStep.journeyOrder} ;
-                    :task "${journeyStep.task}" .
-            }
-        """.trimIndent()
-
-        val updateRequest: UpdateRequest = UpdateFactory.create(query)
-        val fusekiEndpoint = "$tripleStore/update"
-        val updateProcessor: UpdateProcessor = UpdateExecutionFactory.createRemote(updateRequest, fusekiEndpoint)
-
-        try {
-            updateProcessor.execute()
-        } catch (e: Exception) {
-            return ResponseEntity.badRequest().body("Error: the update query could not be executed.")
+        if(!triplestoreService.deleteTreatment(journeyStep.diagnosis, journeyStep.journeyOrder, journeyStep.task)) {
+            return ResponseEntity.badRequest().body("Error: the journey step could not be deleted.")
         }
 
         repl.interpreter!!.tripleManager.regenerateTripleStoreModel()
