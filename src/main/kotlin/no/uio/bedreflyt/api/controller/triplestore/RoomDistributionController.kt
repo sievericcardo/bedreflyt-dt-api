@@ -37,7 +37,7 @@ data class UpdateRoomDistributionRequest (
 )
 
 @RestController
-@RequestMapping("/api/fuseki/roomDistribution")
+@RequestMapping("/api/fuseki/room-distribution")
 class RoomDistributionController (
     private val replConfig: REPLConfig,
     private val triplestoreService: TriplestoreService
