@@ -5,6 +5,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.responses.ApiResponses
 import no.uio.bedreflyt.api.config.REPLConfig
 import no.uio.bedreflyt.api.model.triplestore.Task
+import no.uio.bedreflyt.api.service.triplestore.TriplestoreService
 import org.apache.jena.query.QuerySolution
 import org.apache.jena.query.ResultSet
 import org.apache.jena.update.UpdateExecutionFactory
@@ -39,7 +40,8 @@ data class UpdateTaskRequest (
 @RestController
 @RequestMapping("/api/fuseki/task")
 class TaskController (
-    private val replConfig: REPLConfig
+    private val replConfig: REPLConfig,
+    private val triplestoreService: TriplestoreService
 ) {
 
     private val log : Logger = Logger.getLogger(TaskController::class.java.name)
@@ -63,25 +65,8 @@ class TaskController (
         log.info("Creating task $taskRequest")
 
         val task = Task(taskRequest.taskName, taskRequest.averageDuration, taskRequest.bed)
-        val query = """
-            PREFIX : <$prefix>
-            
-            INSERT DATA {
-                :task_${task.taskName} a :Task ;
-                    :taskName "${task.taskName}" ;
-                    :averageDuration ${task.averageDuration} ;
-                    :bed ${task.bed} .
-            }
-        """
-
-        val updateRequest: UpdateRequest = UpdateFactory.create(query)
-        val fusekiEndpoint = "$tripleStore/update"
-        val updateProcessor: UpdateProcessor = UpdateExecutionFactory.createRemote(updateRequest, fusekiEndpoint)
-
-        try {
-            updateProcessor.execute()
-        } catch (e: Exception) {
-            return ResponseEntity.badRequest().body("Error: the update query could not be executed.")
+        if(!triplestoreService.createTask(task.taskName, task.averageDuration, task.bed)) {
+            return ResponseEntity.badRequest().body("Error: the task could not be created.")
         }
 
         repl.interpreter!!.tripleManager.regenerateTripleStoreModel()
@@ -119,30 +104,7 @@ class TaskController (
     @GetMapping("/retrieve")
     fun retrieveTasks() : ResponseEntity<List<Any>> {
         log.info("Retrieving tasks")
-
-        val taskList = mutableListOf<Any>()
-
-        val diagnosis = """
-            SELECT * WHERE {
-                ?obj a prog:Task ;
-                    prog:Task_taskName ?name ;
-                    prog:Task_averageDuration ?averageDuration ;
-                    prog:Task_bed ?bed .
-            }"""
-
-        val resultDiagnosis: ResultSet = repl.interpreter!!.query(diagnosis)!!
-
-        if (!resultDiagnosis.hasNext()) {
-            return ResponseEntity.badRequest().body(listOf("No diagnosis found"))
-        }
-        while (resultDiagnosis.hasNext()) {
-            val solution: QuerySolution = resultDiagnosis.next()
-            val name = solution.get("?name").asLiteral().toString()
-            val averageDuration = solution.get("?averageDuration").asLiteral().toString().split("^^")[0].toDouble()
-            val bed = solution.get("?bed").asLiteral().toString().split("^^")[0].toInt()
-            taskList.add(Task(name, averageDuration, bed))
-        }
-
+        val taskList = triplestoreService.getAllTasks() ?: return ResponseEntity.badRequest().body(listOf("No tasks found"))
         return ResponseEntity.ok(taskList)
     }
 
@@ -158,35 +120,8 @@ class TaskController (
     fun updateTask(@SwaggerRequestBody(description = "Request to update a task") @RequestBody updateTaskRequest: UpdateTaskRequest) : ResponseEntity<String> {
         log.info("Updating task $updateTaskRequest")
 
-        val query = """
-            PREFIX : <$prefix>
-            
-            DELETE {
-                :task_${updateTaskRequest.oldTaskName} :taskName "${updateTaskRequest.oldTaskName}" ;
-                    :averageDuration ${updateTaskRequest.oldAverageDuration} ;
-                    :bed ${updateTaskRequest.oldBed} .
-            }
-            INSERT {
-                :task_${updateTaskRequest.newTaskName} a :Task ;
-                    :taskName "${updateTaskRequest.newTaskName}" ;
-                    :averageDuration ${updateTaskRequest.newAverageDuration} ;
-                    :bed ${updateTaskRequest.newBed} .
-            }
-            WHERE {
-                :task_${updateTaskRequest.oldTaskName} :taskName "${updateTaskRequest.oldTaskName}" ;
-                    :averageDuration ${updateTaskRequest.oldAverageDuration} ;
-                    :bed ${updateTaskRequest.oldBed} .
-            }
-        """
-
-        val updateRequest: UpdateRequest = UpdateFactory.create(query)
-        val fusekiEndpoint = "$tripleStore/update"
-        val updateProcessor: UpdateProcessor = UpdateExecutionFactory.createRemote(updateRequest, fusekiEndpoint)
-
-        try {
-            updateProcessor.execute()
-        } catch (e: Exception) {
-            return ResponseEntity.badRequest().body("Error: the update query could not be executed.")
+        if(!triplestoreService.updateTask(updateTaskRequest.oldTaskName, updateTaskRequest.oldAverageDuration, updateTaskRequest.oldBed, updateTaskRequest.newTaskName, updateTaskRequest.newAverageDuration,  updateTaskRequest.newBed)) {
+            return ResponseEntity.badRequest().body("Error: the task could not be updated.")
         }
 
         repl.interpreter!!.tripleManager.regenerateTripleStoreModel()
@@ -235,31 +170,8 @@ class TaskController (
     fun deleteTask(@SwaggerRequestBody(description = "Request to delete a task") @RequestBody taskRequest: TaskRequest) : ResponseEntity<String> {
         log.info("Deleting task $taskRequest")
 
-        val query = """
-            PREFIX : <$prefix>
-            
-            DELETE {
-                :task_${taskRequest.taskName} a :Task ;
-                    :taskName "${taskRequest.taskName}" ;
-                    :averageDuration ${taskRequest.averageDuration} ;
-                    :bed ${taskRequest.bed} .
-            }
-            WHERE {
-                :task_${taskRequest.taskName} a :Task ;
-                    :taskName "${taskRequest.taskName}" ;
-                    :averageDuration ${taskRequest.averageDuration} ;
-                    :bed ${taskRequest.bed} .
-            }
-        """
-
-        val updateRequest: UpdateRequest = UpdateFactory.create(query)
-        val fusekiEndpoint = "$tripleStore/update"
-        val updateProcessor: UpdateProcessor = UpdateExecutionFactory.createRemote(updateRequest, fusekiEndpoint)
-
-        try {
-            updateProcessor.execute()
-        } catch (e: Exception) {
-            return ResponseEntity.badRequest().body("Error: the update query could not be executed.")
+        if(!triplestoreService.deleteTask(taskRequest.taskName, taskRequest.averageDuration, taskRequest.bed)) {
+            return ResponseEntity.badRequest().body("Error: the task could not be deleted.")
         }
 
         repl.interpreter!!.tripleManager.regenerateTripleStoreModel()
