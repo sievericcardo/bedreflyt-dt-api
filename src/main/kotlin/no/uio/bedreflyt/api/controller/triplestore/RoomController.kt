@@ -52,7 +52,7 @@ class RoomController (
     ])
     @PostMapping("/create")
     fun addRoom(@SwaggerRequestBody(description = "Journey step to add") @RequestBody roomRequest: RoomRequest) : ResponseEntity<String> {
-        log.info("Adding journey step")
+        log.info("Adding room")
 
         if (!triplestoreService.createRoom(roomRequest.bedCategory, roomRequest.roomDescription)) {
             return ResponseEntity.badRequest().body("Error: the room could not be added.")
