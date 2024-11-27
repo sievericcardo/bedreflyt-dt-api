@@ -148,7 +148,7 @@ class PatientController (
 
         val patients = patientService.findByPatientId(patientRequest.patientId)
 
-        patients.forEach() { patient ->
+        patients.forEach { patient ->
             patientService.deletePatient(patient)
         }
 
@@ -184,7 +184,7 @@ class PatientController (
         ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
-    @GetMapping("/all")
+    @GetMapping("/retrieve")
     fun getAllPatients() : ResponseEntity<HashMap<String, List<Patient>>> {
         log.info("Getting all patients")
         val patients = patientService.findAll()

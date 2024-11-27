@@ -4,5 +4,4 @@ class Patient (
     val id: String,
     val gender: String,
     var genderModel: Boolean
-) {
-}
+)

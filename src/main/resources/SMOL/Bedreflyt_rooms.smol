@@ -3,7 +3,7 @@ class RoomModel extends KindModel()
     override Unit adaptAddition()
         List<Room> newRooms = construct("
             PREFIX ast: <http://www.smolang.org/bedreflyt#>
-            SELECT ?roomDescription ?bedCategory {
+            SELECT DISTINCT ?roomDescription ?bedCategory {
                 ?x a ast:Room ;
                     ast:roomDescription ?roomDescription ;
                     ast:bedCategory ?bedCategory .
@@ -52,18 +52,29 @@ class RoomModel extends KindModel()
                 Room wrongRoom = wrongRooms.content;
                 List<Room> lx = wrongRooms;
                 wrongRooms = wrongRooms.next;
-                destroy(lx);
 
                 print("RECONFIG> Misconfigured room to remove: ");
                 print("          Room Description: " ++ wrongRoom.roomDescription);
                 print("          Bed Category: " ++ intToString(wrongRoom.bedCategory));
+
+                destroy(wrongRoom);
+                destroy(lx);
             end
+
+            destroy(wrongRooms);
 
             print("RECONFIG> Room(s) removed");
         end
     end
 
     override Unit adaptDefect()
+        print("RECONFIG> Checking for defects in the Room(s)");
+        // this.checkBedChanged();
+        this.checkDescriptionChanged();
+        print("RECONFIG> Defects checked for the Room(s)");
+    end
+
+    Unit checkBedChanged()
         List<RoomDefectBedCategory> wrongRoomBedCategories = construct("
             PREFIX ast: <http://www.smolang.org/bedreflyt#>
             SELECT DISTINCT ?obj ?bedCategoryNew {
@@ -93,6 +104,38 @@ class RoomModel extends KindModel()
             end
 
             print("RECONFIG> Room Bed Category updated");
+        end
+    end
+
+    Unit checkDescriptionChanged()
+        List<RoomDefectDescription> wrongRoomDescriptions = construct("
+            PREFIX ast: <http://www.smolang.org/bedreflyt#>
+            SELECT DISTINCT ?obj ?roomDescriptionNew {
+                ?obj a prog:Room ;
+                    prog:Room_bedCategory ?bedCategory ;
+                    prog:Room_roomDescription ?roomDescription .
+                ?y a ast:Room ;
+                    ast:bedCategory ?bedCategory ;
+                    ast:roomDescription ?roomDescriptionNew .
+                FILTER (?roomDescription != ?roomDescriptionNew)
+            }");
+
+        if wrongRoomDescriptions != null then
+            print("RECONFIG> Misconfigured Room Description detected: repairing the model");
+            while wrongRoomDescriptions != null do
+                RoomDefectDescription wrongRoomDescription = wrongRoomDescriptions.content;
+                List<RoomDefectDescription> lx = wrongRoomDescriptions;
+                wrongRoomDescriptions = wrongRoomDescriptions.next;
+                destroy(lx);
+
+                print("RECONFIG> Misconfigured room description to update: ");
+                print("          Room Description: " ++ wrongRoomDescription.obj.roomDescription);
+                print("          New Room Description: " ++ wrongRoomDescription.roomDescriptionNew);
+
+                wrongRoomDescription.obj.roomDescription = wrongRoomDescription.roomDescriptionNew;
+            end
+
+            print("RECONFIG> Room Description updated");
         end
     end
 end

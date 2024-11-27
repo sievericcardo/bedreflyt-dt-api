@@ -1,9 +1,9 @@
-package no.uio.bedreflyt.api.model.simulation
+package no.uio.bedreflyt.api.model.triplestore
 
 class RoomDistribution (
     val roomNumber : Int,
     val roomNumberModel : Int,
-    val room: String,
+    val room: Long,
     val capacity: Int,
     val bathroom: Boolean
 )

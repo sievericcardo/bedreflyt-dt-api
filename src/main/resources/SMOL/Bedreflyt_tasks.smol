@@ -3,7 +3,7 @@ class TaskModel extends KindModel ()
     override Unit adaptAddition()
         List<Task> newTasks = construct("
             PREFIX ast: <http://www.smolang.org/bedreflyt#>
-            SELECT ?taskName ?bed ?durationAverage {
+            SELECT DISTINCT ?taskName ?bed ?durationAverage {
                 ?x a ast:Task ;
                     ast:taskName ?taskName ;
                     ast:bed ?bed ;
@@ -51,7 +51,6 @@ class TaskModel extends KindModel ()
                 Task wrongTask = wrongTasks.content;
                 List<Task> lx = wrongTasks;
                 wrongTasks = wrongTasks.next;
-                destroy(lx);
 
                 print("RECONFIG> Misconfigured task to remove: ");
                 print("          Task Id: " ++ wrongTask.taskName);
@@ -59,7 +58,10 @@ class TaskModel extends KindModel ()
                 print("          Duration Average: " ++ doubleToString(wrongTask.durationAverage));
 
                 destroy(wrongTask);
+                destroy(lx);
             end
+
+            destroy(wrongTasks);
 
             print("RECONFIG> Task(s) removed");
         end
@@ -67,19 +69,55 @@ class TaskModel extends KindModel ()
 
     override Unit adaptDefect()
         print("RECONFIG> Checking for defects in the Task(s)");
+        // this.checkNameChanged();
         this.checkBedChanged();
-        this.checkDurationChanged();
+        // this.checkDurationChanged();
         print("RECONFIG> Defects checked for the Task(s)");
+    end
+
+    Unit checkNameChanged()
+        List<TaskDefectName> taskDefectNames = construct("
+            PREFIX ast: <http://www.smolang.org/bedreflyt#>
+            SELECT DISTINCT ?obj ?taskNameNew {
+                ?obj a prog:Task ;
+                    prog:Task_taskName ?taskName ;
+                    prog:Task_bed ?bed ;
+                    prog:Task_durationAverage ?durationAverage .
+                ?y a ast:Task ;
+                    ast:taskName ?taskNameNew ;
+                    ast:bed ?bed ;
+                    ast:averageDuration ?durationAverage .
+                FILTER (?taskName != ?taskNameNew)
+            }");
+
+        if taskDefectNames != null then
+            print("RECONFIG> Task(s) with name defect detected: repairing the model");
+            while taskDefectNames != null do
+                TaskDefectName taskDefectName = taskDefectNames.content;
+                List<TaskDefectName> lx = taskDefectNames;
+                taskDefectNames = taskDefectNames.next;
+                destroy(lx);
+
+                print("RECONFIG> Task with name defect detected: ");
+                print("          Task: " ++ taskDefectName.obj.taskName);
+                print("          New Task Name: " ++ taskDefectName.taskNameNew);
+
+                // Repair the defect
+                taskDefectName.obj.taskName = taskDefectName.taskNameNew;
+            end
+
+            print("RECONFIG> Task(s) with name defect repaired");
+        end
     end
 
     Unit checkBedChanged()
         List<TaskDefectBed> taskDefectBeds = construct("
             PREFIX ast: <http://www.smolang.org/bedreflyt#>
-            SELECT DISTINCT ?task ?bedNew {
-                ?obj a prog:JourneyStep ;
-                     prog:JourneyStep_diagnosis ?diagnosis ;
-                    prog:JourneyStep_journeyOrder ?journeyOrder ;
-                    prog:JourneyStep_task ?task .
+            SELECT DISTINCT ?obj ?bedNew {
+                ?obj a prog:Task ;
+                    prog:Task_taskName ?taskName ;
+                    prog:Task_bed ?bed ;
+                    prog:Task_durationAverage ?durationAverage .
                 ?y a ast:Task ;
                     ast:taskName ?taskName ;
                     ast:bed ?bedNew ;
@@ -110,11 +148,11 @@ class TaskModel extends KindModel ()
     Unit checkDurationChanged()
         List<TaskDefectDuration> taskDefectDurations = construct("
             PREFIX ast: <http://www.smolang.org/bedreflyt#>
-            SELECT DISTINCT ?task ?durationAverageNew {
-                ?obj a prog:JourneyStep ;
-                     prog:JourneyStep_diagnosis ?diagnosis ;
-                    prog:JourneyStep_journeyOrder ?journeyOrder ;
-                    prog:JourneyStep_task ?task .
+            SELECT DISTINCT ?obj ?durationAverageNew {
+                ?obj a prog:Task ;
+                    prog:Task_taskName ?taskName ;
+                    prog:Task_bed ?bed ;
+                    prog:Task_durationAverage ?durationAverage .
                 ?y a ast:Task ;
                     ast:taskName ?taskName ;
                     ast:bed ?bed ;

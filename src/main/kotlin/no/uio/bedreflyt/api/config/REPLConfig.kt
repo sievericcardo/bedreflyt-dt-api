@@ -1,17 +1,67 @@
 package no.uio.bedreflyt.api.config
 
 import jakarta.annotation.PostConstruct
+import no.uio.microobject.ast.expr.LiteralExpr
 import no.uio.microobject.main.Settings
 import no.uio.microobject.main.ReasonerMode
 import no.uio.microobject.runtime.REPL
+import no.uio.microobject.type.STRINGTYPE
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
-import org.springframework.context.annotation.Lazy
+import java.io.File
+import java.net.HttpURLConnection
+import java.net.URI
 
 @Configuration
 open class REPLConfig {
 
     private lateinit var repl: REPL
+
+    private fun makePostRequest(url: String, headers: Map<String, String>, body: String): String {
+        val connection = URI(url).toURL().openConnection() as HttpURLConnection
+        try {
+            // Configure the connection
+            connection.requestMethod = "POST"
+            connection.doOutput = true
+            headers.forEach { (key, value) ->
+                connection.setRequestProperty(key, value)
+            }
+
+            // Write the body
+            connection.outputStream.use { outputStream ->
+                outputStream.write(body.toByteArray(Charsets.UTF_8))
+            }
+
+            // Read the response
+            return connection.inputStream.bufferedReader().use { it.readText() }
+        } catch (e: Exception) {
+            // Handle error response
+            return connection.errorStream?.bufferedReader()?.use { it.readText() } ?: e.message.orEmpty()
+        } finally {
+            connection.disconnect()
+        }
+    }
+
+    private fun updateTriplestore(fusekiUrl: String): String {
+        // First delete if Fuseki already contains our ontology
+        val prefix = System.getenv().getOrDefault("DOMAIN_PREFIX", "http://www.smolang.org/bedreflyt#")
+        val deleteUrl = "$fusekiUrl/update"
+        val deleteHeaders = mapOf("Content-Type" to "application/sparql-update")
+        val deleteBody = "WITH $prefix DELETE { ?s ?p ?o } WHERE { ?s ?p ?o }"
+
+        val deleteResponse = makePostRequest(deleteUrl, deleteHeaders, deleteBody)
+        println(deleteResponse)
+
+        // Then upload the new ontology
+        val uploadUrl = "$fusekiUrl/data"
+        val ontologyData = File("bedreflyt.ttl").readText()
+        val uploadHeaders = mapOf("Content-Type" to "text/turtle;charset=utf-8")
+
+        val uploadResponse = makePostRequest(uploadUrl, uploadHeaders, ontologyData)
+        println(uploadResponse)
+
+        return uploadResponse
+    }
 
     @PostConstruct
     fun initRepl() {
@@ -28,6 +78,8 @@ open class REPLConfig {
         val triplestoreUrl = "http://$triplestore:3030/$triplestoreDataset"
         val domainPrefixUri = System.getenv("DOMAIN_PREFIX_URI") ?: ""
         val reasoner = ReasonerMode.off
+
+        println(updateTriplestore(triplestoreUrl))
 
         if (System.getenv("EXTRA_PREFIXES") != null) {
             val prefixes = System.getenv("EXTRA_PREFIXES")!!.split(";")
@@ -62,5 +114,17 @@ open class REPLConfig {
     @Bean
     open fun repl(): REPL {
         return repl
+    }
+
+    @Bean
+    open fun regenerateSingleModel() : (String) -> Unit = { modelName: String ->
+        val escapedModelName = "\"$modelName\""
+        repl.interpreter!!.tripleManager.regenerateTripleStoreModel()
+        repl.interpreter!!.evalCall(
+            repl.interpreter!!.getObjectNames("AssetModel")[0],
+            "AssetModel",
+            "reconfigureSingleModel",
+            mapOf("mod" to LiteralExpr(escapedModelName, STRINGTYPE))
+        )
     }
 }

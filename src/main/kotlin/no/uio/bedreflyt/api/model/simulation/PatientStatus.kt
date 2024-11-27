@@ -4,5 +4,4 @@ class PatientStatus (
     val patientId: String,
     val infectious: Boolean,
     val room : String
-) {
-}
+)

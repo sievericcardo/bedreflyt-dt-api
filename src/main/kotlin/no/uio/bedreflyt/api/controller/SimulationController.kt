@@ -1,13 +1,16 @@
 package no.uio.bedreflyt.api.controller
 
+import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
+import com.fasterxml.jackson.module.kotlin.readValue
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.responses.ApiResponses
 import no.uio.bedreflyt.api.config.REPLConfig
-import no.uio.bedreflyt.api.service.DatabaseService
+import no.uio.bedreflyt.api.model.live.Patient
+import no.uio.bedreflyt.api.service.simulation.DatabaseService
 import no.uio.bedreflyt.api.service.live.PatientService
-import no.uio.bedreflyt.api.service.live.RoomDistributionService
-import no.uio.bedreflyt.api.service.live.RoomService
+import no.uio.bedreflyt.api.model.simulation.RoomDistribution
+import no.uio.bedreflyt.api.service.triplestore.TriplestoreService
 import no.uio.microobject.runtime.REPL
 import org.apache.jena.query.QuerySolution
 import org.apache.jena.query.ResultSet
@@ -46,9 +49,8 @@ data class SolverRequest (
 class SimulationController (
     private val replConfig: REPLConfig,
     private val databaseService: DatabaseService,
+    private val triplestoreService: TriplestoreService,
     private val patientService: PatientService,
-    private val roomService : RoomService,
-    private val roomDistributionService : RoomDistributionService,
 ) {
 
     private val log : Logger = Logger.getLogger(HomeController::class.java.name)
@@ -97,6 +99,93 @@ class SimulationController (
         }
     }
 
+    private fun createAndPopulatePatientTables(scenarioDbUrl: String, scenario: List<ScenarioRequest>) {
+        databaseService.createPatientTable(scenarioDbUrl)
+
+        val patients = patientService.findAll()
+        patients.forEach { patient ->
+            if (patient != null) {
+                databaseService.insertPatient(scenarioDbUrl, patient.patientId, patient.gender)
+                databaseService.insertPatientStatus(scenarioDbUrl, patient.patientId, patient.infectious, patient.roomNumber)
+            }
+        }
+
+        scenario.forEach { scenarioRequest ->
+            scenarioRequest.patientId?.let { patientId ->
+                scenarioRequest.treatmentName?.let { treatmentName ->
+                    try {
+                        patientService.findByPatientId(patientId)
+                    } catch (e: EmptyResultDataAccessException) {
+                        throw IllegalArgumentException("Patient not found")
+                    }
+
+                    databaseService.insertScenario(
+                        scenarioDbUrl,
+                        scenarioRequest.batch,
+                        scenarioRequest.patientId,
+                        treatmentName
+                    )
+                }
+            }
+        }
+    }
+
+    private fun createAndPopulateTreatmentTables(treatmentDbUrl: String, repl: REPL) {
+        databaseService.createTreatmentTables(treatmentDbUrl)
+
+        val tasks = triplestoreService.getAllTasks() ?: throw IllegalArgumentException("No tasks found")
+
+        tasks.forEach { task ->
+            databaseService.insertTask(treatmentDbUrl, task.taskName, task.bed, task.averageDuration.toInt())
+        }
+
+        val taskDependencies =
+            """
+           SELECT * WHERE {
+            ?obj a prog:TaskDependency ;
+                prog:TaskDependency_taskName ?taskName ;
+                prog:TaskDependency_taskDependency ?taskDependency .
+        }"""
+
+        val resultTaskDependencies: ResultSet = repl.interpreter!!.query(taskDependencies)!!
+
+        if (!resultTaskDependencies.hasNext()) {
+            throw IllegalArgumentException("No task dependencies found")
+        }
+        while (resultTaskDependencies.hasNext()) {
+            val solution: QuerySolution = resultTaskDependencies.next()
+            val taskName = solution.get("?taskName").asLiteral().toString()
+            val taskDependency = solution.get("?taskDependency").asLiteral().toString()
+            databaseService.insertTaskDependency(treatmentDbUrl, taskName, taskDependency)
+        }
+
+        val treatments = triplestoreService.getAllTreatments() ?: throw IllegalArgumentException("No treatments found")
+
+        treatments.forEach { treatment ->
+            databaseService.insertTreatment(
+                treatmentDbUrl,
+                treatment.diagnosis,
+                treatment.orderInJourney,
+                treatment.task
+            )
+        }
+    }
+
+    private fun createAndPopulateRoomDistributions(roomDbUrl: String, repl: REPL): List<RoomDistribution> {
+        val roomDistributions = triplestoreService.getAllRoomDistributions()
+            ?: throw IllegalArgumentException("No room distributions found")
+        val simulationRoomDistribution = mutableListOf<RoomDistribution>()
+
+        roomDistributions.forEach { roomDistribution ->
+            databaseService.insertRoomDistribution(roomDbUrl, roomDistribution.roomNumber.toLong(), roomDistribution.roomNumberModel.toLong(),
+                roomDistribution.room.toLong(), roomDistribution.capacity, roomDistribution.bathroom)
+            simulationRoomDistribution.add(RoomDistribution(roomDistribution.roomNumber, roomDistribution.roomNumberModel, roomDistribution.room.toString(),
+                roomDistribution.capacity, roomDistribution.bathroom))
+        }
+
+        return simulationRoomDistribution
+    }
+
     /**
      * Invoke the solver
      *
@@ -105,11 +194,10 @@ class SimulationController (
      * @param patient - Patient data
      * @return String - Solver response
      */
-    private fun invokeSolver(patient : String) : String {
-        val roomDistributions = roomDistributionService.findAll()
+    private fun invokeSolver(patient : String, roomDistributions: List<RoomDistribution>) : List<Map<String, Any>> {
         val rooms = roomDistributions.size
-        val capacities = roomDistributions.map { it?.capacity ?: 0 }
-        val roomCategories = roomDistributions.map { it?.room?.id ?: 0 }
+        val capacities = roomDistributions.map { it.capacity ?: 0 }
+        val roomCategories: List<Long> = roomDistributions.map { it.room.toLong() ?: 0 }
         var  patientNumbers = 0
         val genders = mutableListOf<Boolean>()
         val infectious = mutableListOf<Boolean>()
@@ -117,6 +205,7 @@ class SimulationController (
         val previous = mutableListOf<Int>()
 
         val singlePatient = patient.split("\n")
+        val patientMap = mutableMapOf<Int, Patient>()
 
         singlePatient.forEach { line ->
             val patientData = line.split(",")
@@ -129,11 +218,13 @@ class SimulationController (
                 val patientInfoList = patientService.findByPatientId(patientId)
                 if (patientInfoList.isNotEmpty()) {
                     val patientInfo = patientInfoList[0]
-                    val gender = if (patientInfo.gender == "Male") true else false
+                    val gender = patientInfo.gender == "Male"
                     genders.add(gender)
                     infectious.add(patientInfo.infectious)
                     patientDistances.add(patientDistance.toInt())
                     previous.add(patientInfo.roomNumber)
+
+                    patientMap[patientNumbers-1] = patientInfoList[0]
                 } else {
                     patientNumbers -= 1
                 }
@@ -165,9 +256,40 @@ class SimulationController (
             val solverUrl = "http://$solverEndpoint:8000/api/solve"
             val response = restTemplate.postForEntity(solverUrl, request, String::class.java)
 
-            return (response.body!!)
+            if (response.body!!.contains("Model is unsat")) {
+                return listOf(mapOf("error" to "Model is unsatisfiable for ${solverRequest.no_rooms} rooms and ${solverRequest.no_patients} patients"))
+            }
+
+            // Parse the JSON string into a map
+            val mapper = jacksonObjectMapper()
+            val jsonData: List<Map<String, Any>> = mapper.readValue(response.body!!)
+
+            // Transform the data into the desired structure
+            val transformedData = jsonData.flatMap { roomData ->
+                roomData.map { (roomNumber, roomInfo) ->
+                    val roomInfoMap = roomInfo as Map<String, Any>
+                    val patientNumbers = (roomInfoMap["patients"] as List<*>).map { it.toString().toInt() }
+                    val patients = patientNumbers.map { number ->
+                        val patient = patientMap[number]!!
+                        mapOf(
+                            "name" to patient.patientId,
+                            "age" to patient.age
+                        )
+                    }
+                    val gender = if (roomInfoMap["gender"] as String == "True") "Male" else "Female"
+
+                    mapOf(
+                        "Room $roomNumber" to mapOf(
+                            "patients" to patients,
+                            "gender" to gender
+                        )
+                    )
+                }
+            }
+
+            return transformedData
         } else {
-            return "No patients to solve"
+            return listOf(mapOf("warning" to "No patients found"))
         }
     }
 
@@ -178,9 +300,14 @@ class SimulationController (
      *
      * @return ResponseEntity<List<String>> - List of scenarios
      */
-    private fun simulate() : ResponseEntity<List<String>> {
+    private fun simulate(roomDistributions: List<RoomDistribution>) : ResponseEntity<List<List<Map<String, Any>>>> {
         try {
             val data = executeJar()
+
+            // If I got error from the JAR, return the error
+            if (data.contains("Error executing JAR")) {
+                return ResponseEntity.internalServerError().body(listOf(listOf(mapOf("error" to data))))
+            }
 
             // We need an Element Breaker to separate the information
             val information = data.split("------").filter { it.isNotEmpty() } // EB - split data over ------
@@ -203,13 +330,15 @@ class SimulationController (
                 groupedInformation.add(currentGroup)
             }
 
-            val scenarios = mutableListOf<String>()
+            val scenarios = mutableListOf<List<Map<String, Any>>>()
 
             groupedInformation.forEach { group ->
-                group.forEach() { patient ->
-                    val solveData = invokeSolver(patient)
+                group.forEach { patient ->
+                    val solveData = invokeSolver(patient, roomDistributions)
                     scenarios.add(solveData)
-                    log.info(solveData)
+
+//                    scenarios.add(solveData)
+                    log.info(solveData.toString())
                 }
             }
 
@@ -217,146 +346,8 @@ class SimulationController (
         } catch (e: Exception) {
             "Error executing JAR: ${e.message}"
             log.log(Level.SEVERE, "Error executing JAR", e)
-            return ResponseEntity.internalServerError().body(listOf("Error executing JAR"))
+            return ResponseEntity.internalServerError().body(listOf(listOf(mapOf("error" to "Error executing JAR"))))
         }
-    }
-
-    @Operation(summary = "Simulate a scenario for room allocation using data from the DB")
-    @ApiResponses(value = [
-        ApiResponse(responseCode = "200", description = "Scenario simulated"),
-        ApiResponse(responseCode = "400", description = "Invalid scenario"),
-        ApiResponse(responseCode = "401", description = "Unauthorized"),
-        ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
-        ApiResponse(responseCode = "500", description = "Internal server error")
-    ])
-    @PostMapping("/room-allocation")
-    fun simulateScenario (@SwaggerRequestBody(description = "Request to execute a simulation for room allocation") @RequestBody scenario: List<ScenarioRequest>): ResponseEntity<List<String>> {
-        log.info("Simulating scenario")
-        val repl: REPL = replConfig.repl()
-
-        val roomDbUrl = "roomData.db"
-        databaseService.createRoomTables(roomDbUrl)
-
-        val rooms = roomService.findAll()
-        rooms.forEach { room ->
-            if (room != null) {
-                databaseService.insertRoom(roomDbUrl, room.id, room.roomDescription)
-            }
-        }
-
-        val roomDistributions = roomDistributionService.findAll()
-        roomDistributions.forEach { roomDistribution ->
-            if (roomDistribution != null) {
-                roomDistribution.room?.id?.let {
-                    databaseService.insertRoomDistribution(roomDbUrl, roomDistribution.roomNumber, roomDistribution.roomNumberModel,
-                        it, roomDistribution.capacity, roomDistribution.bathroom)
-                }
-            }
-        }
-
-        val scenarioDbUrl = "scData.db"
-        databaseService.createPatientTable(scenarioDbUrl)
-
-        val patients = patientService.findAll()
-        patients.forEach { patient ->
-            if (patient != null) {
-                databaseService.insertPatient(scenarioDbUrl, patient.patientId, patient.gender)
-                databaseService.insertPatientStatus(scenarioDbUrl, patient.patientId, patient.infectious, patient.roomNumber)
-            }
-        }
-
-        scenario.forEach { scenarioRequest ->
-            scenarioRequest.patientId?.let { patientId ->
-                scenarioRequest.treatmentName?.let { treatmentName ->
-                    try {
-                        patientService.findByPatientId(patientId)
-                    } catch (e: EmptyResultDataAccessException) {
-                        return ResponseEntity.badRequest().body(listOf("Patient not found"))
-                    }
-
-                    databaseService.insertScenario(
-                        scenarioDbUrl,
-                        scenarioRequest.batch,
-                        scenarioRequest.patientId,
-                        treatmentName
-                    )
-                }
-            }
-        }
-
-        val treatmentDbUrl = "trData.db"
-        databaseService.createTreatmentTables(treatmentDbUrl)
-
-        val tasks =
-            """
-               SELECT * WHERE {
-                ?obj a prog:Task ;
-                    prog:Task_taskName ?taskName ;
-                    prog:Task_durationAverage ?averageDuration ;
-                    prog:Task_bed ?bedCategory .
-            }"""
-
-        val resultTasks: ResultSet = repl.interpreter!!.query(tasks)!!
-
-        if (!resultTasks.hasNext()) {
-            return ResponseEntity.badRequest().body(listOf("No tasks found"))
-        }
-        while (resultTasks.hasNext()) {
-            val solution: QuerySolution = resultTasks.next()
-            val taskName = solution.get("?taskName").asLiteral().toString()
-            val bedCategory = solution.get("?bedCategory").asLiteral().toString().split("^^")[0].toInt()
-            val averageDuration = solution.get("?averageDuration").asLiteral().toString().split("^^")[0].toDouble().toInt()
-            databaseService.insertTask(treatmentDbUrl, taskName, bedCategory, averageDuration)
-        }
-
-        val taskDependencies =
-            """
-               SELECT * WHERE {
-                ?obj a prog:TaskDependency ;
-                    prog:TaskDependency_taskName ?taskName ;
-                    prog:TaskDependency_taskDependency ?taskDependency .
-            }"""
-
-        val resultTaskDependencies: ResultSet = repl.interpreter!!.query(taskDependencies)!!
-
-        if (!resultTaskDependencies.hasNext()) {
-            return ResponseEntity.badRequest().body(listOf("No task dependencies found"))
-        }
-        while (resultTaskDependencies.hasNext()) {
-            val solution: QuerySolution = resultTaskDependencies.next()
-            val taskName = solution.get("?taskName").asLiteral().toString()
-            val taskDependency = solution.get("?taskDependency").asLiteral().toString()
-            databaseService.insertTaskDependency(treatmentDbUrl, taskName, taskDependency)
-        }
-
-        val treatments = """
-            SELECT * WHERE {
-                ?obj a prog:JourneyStep ;
-                    prog:JourneyStep_diagnosis ?diagnosis ;
-                    prog:JourneyStep_journeyOrder ?journeyOrder ;
-                    prog:JourneyStep_task ?task .
-            }"""
-
-        val resultTreatments: ResultSet = repl.interpreter!!.query(treatments)!!
-
-        if (!resultTreatments.hasNext()) {
-            return ResponseEntity.badRequest().body(listOf("No treatments found"))
-        }
-        while (resultTreatments.hasNext()) {
-            val solution: QuerySolution = resultTreatments.next()
-            val diagnosis = solution.get("?diagnosis").asLiteral().toString()
-            val orderInJourney = solution.get("?journeyOrder").asLiteral().toString().split("^^")[0].toInt()
-            val task = solution.get("?task").asLiteral().toString()
-            databaseService.insertTreatment(treatmentDbUrl, diagnosis, orderInJourney, task)
-        }
-
-        val sim = simulate()
-
-        databaseService.deleteDatabase(roomDbUrl)
-        databaseService.deleteDatabase(scenarioDbUrl)
-        databaseService.deleteDatabase(treatmentDbUrl)
-
-        return sim
     }
 
     @Operation(summary = "Simulate a scenario for room allocation using smol")
@@ -368,156 +359,32 @@ class SimulationController (
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
     @PostMapping("/room-allocation-smol")
-    fun simulateSmolScenario (@SwaggerRequestBody(description = "Request to execute a simulation for room allocation") @RequestBody scenario: List<ScenarioRequest>): ResponseEntity<List<String>> {
-        log.info("Simulating scenario")
+    fun simulateSmolScenario (@SwaggerRequestBody(description = "Request to execute a simulation for room allocation") @RequestBody scenario: List<ScenarioRequest>): ResponseEntity<List<List<Map<String, Any>>>> {
+        log.info("Simulating scenario with ${scenario.size} requests")
         val repl: REPL = replConfig.repl()
 
         val roomDbUrl = "roomData.db"
         databaseService.createRoomTables(roomDbUrl)
 
-        val rooms =
-            """
-               SELECT * WHERE {
-                ?obj a prog:Room ;
-                    prog:Room_bedCategory ?bedCategory ;
-                    prog:Room_roomDescription ?roomDescription .
-            }"""
+        val roomList = triplestoreService.getAllRooms()
 
-        val resultRooms: ResultSet = repl.interpreter!!.query(rooms)!!
-
-        if (!resultRooms.hasNext()) {
-            return ResponseEntity.badRequest().body(listOf("No rooms found"))
-        }
-        while (resultRooms.hasNext()) {
-            val solution: QuerySolution = resultRooms.next()
-            val roomId = solution.get("?bedCategory").asLiteral().toString().split("^^")[0].toLong()
-            val roomDescription = solution.get("?roomDescription").asLiteral().toString()
-            databaseService.insertRoom(roomDbUrl, roomId, roomDescription)
+        if (roomList == null) {
+            return ResponseEntity.badRequest().body(listOf(listOf(mapOf("error" to "No rooms found"))))
         }
 
-        val roomDistributions =
-            """
-               SELECT * WHERE {
-                ?obj a prog:RoomDistribution ;
-                    prog:RoomDistribution_roomNumber ?roomNumber ;
-                    prog:RoomDistribution_roomNumberModel ?roomNumberModel ;
-                    prog:RoomDistribution_room ?room ;
-                    prog:RoomDistribution_capacity ?capacity ;
-                    prog:RoomDistribution_bathroom ?bathroom .
-            }"""
-
-        val resultRoomDistribution: ResultSet = repl.interpreter!!.query(roomDistributions)!!
-
-        if (!resultRoomDistribution.hasNext()) {
-            return ResponseEntity.badRequest().body(listOf("No room distributions found"))
+        roomList.forEach() { room ->
+            databaseService.insertRoom(roomDbUrl, room.bedCategory, room.roomDescription)
         }
-        while (resultRoomDistribution.hasNext()) {
-            val solution: QuerySolution = resultRoomDistribution.next()
-            val roomNumber = solution.get("?roomNumber").asLiteral().toString().split("^^")[0].toLong()
-            val roomNumberModel = solution.get("?roomNumberModel").asLiteral().toString().split("^^")[0].toLong()
-            val room = solution.get("?room").asLiteral().toString().split("^^")[0].toLong()
-            val capacity = solution.get("?capacity").asLiteral().toString().split("^^")[0].toInt()
-            val bathroom = solution.get("?bathroom").asLiteral().toString().split("^^")[0].toBoolean()
-            databaseService.insertRoomDistribution(roomDbUrl, roomNumber, roomNumberModel, room, capacity, bathroom)
-        }
+
+        val roomDistributions = createAndPopulateRoomDistributions(roomDbUrl, repl)
 
         val scenarioDbUrl = "scData.db"
-        databaseService.createPatientTable(scenarioDbUrl)
-
-        val patients = patientService.findAll()
-        patients.forEach { patient ->
-            if (patient != null) {
-                databaseService.insertPatient(scenarioDbUrl, patient.patientId, patient.gender)
-                databaseService.insertPatientStatus(scenarioDbUrl, patient.patientId, patient.infectious, patient.roomNumber)
-            }
-        }
-
-        scenario.forEach { scenarioRequest ->
-            scenarioRequest.patientId?.let { patientId ->
-                scenarioRequest.treatmentName?.let { treatmentName ->
-                    try {
-                        patientService.findByPatientId(patientId)
-                    } catch (e: EmptyResultDataAccessException) {
-                        return ResponseEntity.badRequest().body(listOf("Patient not found"))
-                    }
-
-                    databaseService.insertScenario(
-                        scenarioDbUrl,
-                        scenarioRequest.batch,
-                        scenarioRequest.patientId,
-                        treatmentName
-                    )
-                }
-            }
-        }
+        createAndPopulatePatientTables(scenarioDbUrl, scenario)
 
         val treatmentDbUrl = "trData.db"
-        databaseService.createTreatmentTables(treatmentDbUrl)
+        createAndPopulateTreatmentTables(treatmentDbUrl, repl)
 
-        val tasks =
-            """
-               SELECT * WHERE {
-                ?obj a prog:Task ;
-                    prog:Task_taskName ?taskName ;
-                    prog:Task_durationAverage ?averageDuration ;
-                    prog:Task_bed ?bedCategory .
-            }"""
-
-        val resultTasks: ResultSet = repl.interpreter!!.query(tasks)!!
-
-        if (!resultTasks.hasNext()) {
-            return ResponseEntity.badRequest().body(listOf("No tasks found"))
-        }
-        while (resultTasks.hasNext()) {
-            val solution: QuerySolution = resultTasks.next()
-            val taskName = solution.get("?taskName").asLiteral().toString()
-            val bedCategory = solution.get("?bedCategory").asLiteral().toString().split("^^")[0].toInt()
-            val averageDuration = solution.get("?averageDuration").asLiteral().toString().split("^^")[0].toDouble().toInt()
-            databaseService.insertTask(treatmentDbUrl, taskName, bedCategory, averageDuration)
-        }
-
-        val taskDependencies =
-            """
-               SELECT * WHERE {
-                ?obj a prog:TaskDependency ;
-                    prog:TaskDependency_taskName ?taskName ;
-                    prog:TaskDependency_taskDependency ?taskDependency .
-            }"""
-
-        val resultTaskDependencies: ResultSet = repl.interpreter!!.query(taskDependencies)!!
-
-        if (!resultTaskDependencies.hasNext()) {
-            return ResponseEntity.badRequest().body(listOf("No task dependencies found"))
-        }
-        while (resultTaskDependencies.hasNext()) {
-            val solution: QuerySolution = resultTaskDependencies.next()
-            val taskName = solution.get("?taskName").asLiteral().toString()
-            val taskDependency = solution.get("?taskDependency").asLiteral().toString()
-            databaseService.insertTaskDependency(treatmentDbUrl, taskName, taskDependency)
-        }
-
-        val treatments = """
-            SELECT * WHERE {
-                ?obj a prog:JourneyStep ;
-                    prog:JourneyStep_diagnosis ?diagnosis ;
-                    prog:JourneyStep_journeyOrder ?journeyOrder ;
-                    prog:JourneyStep_task ?task .
-            }"""
-
-        val resultTreatments: ResultSet = repl.interpreter!!.query(treatments)!!
-
-        if (!resultTreatments.hasNext()) {
-            return ResponseEntity.badRequest().body(listOf("No treatments found"))
-        }
-        while (resultTreatments.hasNext()) {
-            val solution: QuerySolution = resultTreatments.next()
-            val diagnosis = solution.get("?diagnosis").asLiteral().toString()
-            val orderInJourney = solution.get("?journeyOrder").asLiteral().toString().split("^^")[0].toInt()
-            val task = solution.get("?task").asLiteral().toString()
-            databaseService.insertTreatment(treatmentDbUrl, diagnosis, orderInJourney, task)
-        }
-
-        val sim = simulate()
+        val sim = simulate(roomDistributions)
 
         databaseService.deleteDatabase(roomDbUrl)
         databaseService.deleteDatabase(scenarioDbUrl)
@@ -525,6 +392,4 @@ class SimulationController (
 
         return sim
     }
-
-
 }

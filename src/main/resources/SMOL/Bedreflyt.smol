@@ -27,6 +27,21 @@ class AssetModel extends Twin (List<KindModel> mods)
 
         print("RECONFIG> Asset model reconfigured");
     end
+
+    Unit reconfigureSingleModel(String mod)
+        print("RECONFIG> Reconfiguring the asset model...");
+
+        List<KindModel> ms = this.mods;
+        while ms != null do
+            if ms.content.name == mod then
+                print("RECONFIG> Reconfiguring " ++ ms.content.name);
+                ms.content.adaptModel();
+            end
+            ms = ms.next;
+        end
+
+        print("RECONFIG> Reconfiguring DONE...");
+    end
 end
 
 main
