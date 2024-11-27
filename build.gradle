@@ -6,7 +6,7 @@ plugins {
 }
 
 group = 'no.uio'
-version = '0.3'
+version = '0.4'
 base {
     archivesName = 'bedreflyt-api'
 }
