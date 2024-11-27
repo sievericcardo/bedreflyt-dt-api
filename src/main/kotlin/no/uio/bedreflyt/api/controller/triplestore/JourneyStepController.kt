@@ -61,12 +61,7 @@ class JourneyStepController (
         if(!triplestoreService.createTreatment(journeyStep.diagnosis, journeyStep.journeyOrder, journeyStep.task)) {
             return ResponseEntity.badRequest().body("Error: the diagnosis does not exist.")
         }
-
-        repl.interpreter!!.tripleManager.regenerateTripleStoreModel()
-        repl.interpreter!!.evalCall(
-            repl.interpreter!!.getObjectNames("AssetModel")[0],
-            "AssetModel",
-            "reconfigure")
+        replConfig.regenerateSingleModel().invoke("journey steps")
 
         // Append to the file bedreflyt.ttl
         val path = "bedreflyt.ttl"
@@ -131,13 +126,7 @@ class JourneyStepController (
         if(!triplestoreService.updateTreatment(journeyStep.oldDiagnosis, journeyStep.oldJourneyOrder, journeyStep.oldTask, journeyStep.newDiagnosis, journeyStep.newJourneyOrder, journeyStep.newTask)) {
             return ResponseEntity.badRequest().body("Error: the journey step could not be updated.")
         }
-
-        repl.interpreter!!.tripleManager.regenerateTripleStoreModel()
-        repl.interpreter!!.evalCall(
-            repl.interpreter!!.getObjectNames("AssetModel")[0],
-            "AssetModel",
-            "reconfigure"
-        )
+        replConfig.regenerateSingleModel().invoke("journey steps")
 
         // Append to the file bedreflyt.ttl
         val path = "bedreflyt.ttl"
@@ -181,13 +170,7 @@ class JourneyStepController (
         if(!triplestoreService.deleteTreatment(journeyStep.diagnosis, journeyStep.journeyOrder, journeyStep.task)) {
             return ResponseEntity.badRequest().body("Error: the journey step could not be deleted.")
         }
-
-        repl.interpreter!!.tripleManager.regenerateTripleStoreModel()
-        repl.interpreter!!.evalCall(
-            repl.interpreter!!.getObjectNames("AssetModel")[0],
-            "AssetModel",
-            "reconfigure"
-        )
+        replConfig.regenerateSingleModel().invoke("journey steps")
 
         // Append to the file bedreflyt.ttl
         val path = "bedreflyt.ttl"

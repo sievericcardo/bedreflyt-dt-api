@@ -1,9 +1,11 @@
 package no.uio.bedreflyt.api.config
 
 import jakarta.annotation.PostConstruct
+import no.uio.microobject.ast.expr.LiteralExpr
 import no.uio.microobject.main.Settings
 import no.uio.microobject.main.ReasonerMode
 import no.uio.microobject.runtime.REPL
+import no.uio.microobject.type.STRINGTYPE
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import java.io.File
@@ -112,5 +114,17 @@ open class REPLConfig {
     @Bean
     open fun repl(): REPL {
         return repl
+    }
+
+    @Bean
+    open fun regenerateSingleModel() : (String) -> Unit = { modelName: String ->
+        val escapedModelName = "\"$modelName\""
+        repl.interpreter!!.tripleManager.regenerateTripleStoreModel()
+        repl.interpreter!!.evalCall(
+            repl.interpreter!!.getObjectNames("AssetModel")[0],
+            "AssetModel",
+            "reconfigureSingleModel",
+            mapOf("mod" to LiteralExpr(escapedModelName, STRINGTYPE))
+        )
     }
 }

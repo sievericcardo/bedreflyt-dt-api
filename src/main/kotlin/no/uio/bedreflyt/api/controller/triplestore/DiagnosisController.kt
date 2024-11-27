@@ -5,6 +5,8 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.responses.ApiResponses
 import no.uio.bedreflyt.api.config.REPLConfig
 import no.uio.bedreflyt.api.service.triplestore.TriplestoreService
+import no.uio.microobject.ast.expr.LiteralExpr
+import no.uio.microobject.type.STRINGTYPE
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.GetMapping
 import io.swagger.v3.oas.annotations.parameters.RequestBody as SwaggerRequestBody
@@ -54,12 +56,7 @@ class DiagnosisController (
         if (!triplestoreService.createDiagnosis(diagnosisRequest.diagnosisName)) {
             return ResponseEntity.badRequest().body("Diagnosis already exists")
         }
-
-        repl.interpreter!!.tripleManager.regenerateTripleStoreModel()
-        repl.interpreter!!.evalCall(
-            repl.interpreter!!.getObjectNames("AssetModel")[0],
-            "AssetModel",
-            "reconfigure")
+        replConfig.regenerateSingleModel().invoke("diagnosis")
 
         // Append to the file bedreflyt.ttl
         val path = "bedreflyt.ttl"
@@ -113,13 +110,7 @@ class DiagnosisController (
         if(!triplestoreService.updateDiagnosis(updateDiagnosisRequest.oldDiagnosisName, updateDiagnosisRequest.newDiagnosisName)) {
             return ResponseEntity.badRequest().body("Diagnosis does not exist")
         }
-
-        repl.interpreter!!.tripleManager.regenerateTripleStoreModel()
-        repl.interpreter!!.evalCall(
-            repl.interpreter!!.getObjectNames("AssetModel")[0],
-            "AssetModel",
-            "reconfigure"
-        )
+        replConfig.regenerateSingleModel().invoke("diagnosis")
 
         // Update the object in the file bedreflyt.ttl
         val path = "bedreflyt.ttl"
@@ -173,13 +164,7 @@ class DiagnosisController (
         if(!triplestoreService.deleteDiagnosis(diagnosisRequest.diagnosisName)) {
             return ResponseEntity.badRequest().body("Diagnosis does not exist")
         }
-
-        repl.interpreter!!.tripleManager.regenerateTripleStoreModel()
-        repl.interpreter!!.evalCall(
-            repl.interpreter!!.getObjectNames("AssetModel")[0],
-            "AssetModel",
-            "reconfigure"
-        )
+        replConfig.regenerateSingleModel().invoke("diagnosis")
 
         // Remove the object from the file bedreflyt.ttl
         val path = "bedreflyt.ttl"

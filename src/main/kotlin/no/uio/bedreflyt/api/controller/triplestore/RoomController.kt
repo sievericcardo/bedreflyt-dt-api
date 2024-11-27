@@ -57,12 +57,7 @@ class RoomController (
         if (!triplestoreService.createRoom(roomRequest.bedCategory, roomRequest.roomDescription)) {
             return ResponseEntity.badRequest().body("Error: the room could not be added.")
         }
-
-        repl.interpreter!!.tripleManager.regenerateTripleStoreModel()
-        repl.interpreter!!.evalCall(
-            repl.interpreter!!.getObjectNames("AssetModel")[0],
-            "AssetModel",
-            "reconfigure")
+        replConfig.regenerateSingleModel().invoke("rooms")
 
         // Append to the file bedreflyt.ttl
         val path = "bedreflyt.ttl"
@@ -112,12 +107,7 @@ class RoomController (
         if(!triplestoreService.updateRoom(updateRoomRequest.oldBedCategory, updateRoomRequest.oldRoomDescription, updateRoomRequest.newBedCategory, updateRoomRequest.newRoomDescription)) {
             return ResponseEntity.badRequest().body("Error: the room could not be updated.")
         }
-
-        repl.interpreter!!.tripleManager.regenerateTripleStoreModel()
-        repl.interpreter!!.evalCall(
-            repl.interpreter!!.getObjectNames("AssetModel")[0],
-            "AssetModel",
-            "reconfigure")
+        replConfig.regenerateSingleModel().invoke("rooms")
 
         // Append to the file bedreflyt.ttl
         val path = "bedreflyt.ttl"
@@ -156,12 +146,7 @@ class RoomController (
         if(!triplestoreService.deleteRoom(roomRequest.bedCategory, roomRequest.roomDescription)) {
             return ResponseEntity.badRequest().body("Error: the room could not be deleted.")
         }
-
-        repl.interpreter!!.tripleManager.regenerateTripleStoreModel()
-        repl.interpreter!!.evalCall(
-            repl.interpreter!!.getObjectNames("AssetModel")[0],
-            "AssetModel",
-            "reconfigure")
+        replConfig.regenerateSingleModel().invoke("rooms")
 
         // Append to the file bedreflyt.ttl
         val path = "bedreflyt.ttl"

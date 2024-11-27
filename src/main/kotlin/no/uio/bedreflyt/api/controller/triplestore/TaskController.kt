@@ -62,12 +62,7 @@ class TaskController (
         if(!triplestoreService.createTask(task.taskName, task.averageDuration, task.bed)) {
             return ResponseEntity.badRequest().body("Error: the task could not be created.")
         }
-
-        repl.interpreter!!.tripleManager.regenerateTripleStoreModel()
-        repl.interpreter!!.evalCall(
-            repl.interpreter!!.getObjectNames("AssetModel")[0],
-            "AssetModel",
-            "reconfigure")
+        replConfig.regenerateSingleModel().invoke("tasks")
 
         // Append to the file bedreflyt.ttl
         val path = "bedreflyt.ttl"
@@ -117,13 +112,7 @@ class TaskController (
         if(!triplestoreService.updateTask(updateTaskRequest.oldTaskName, updateTaskRequest.oldAverageDuration, updateTaskRequest.oldBed, updateTaskRequest.newTaskName, updateTaskRequest.newAverageDuration,  updateTaskRequest.newBed)) {
             return ResponseEntity.badRequest().body("Error: the task could not be updated.")
         }
-
-        repl.interpreter!!.tripleManager.regenerateTripleStoreModel()
-        repl.interpreter!!.evalCall(
-            repl.interpreter!!.getObjectNames("AssetModel")[0],
-            "AssetModel",
-            "reconfigure"
-        )
+        replConfig.regenerateSingleModel().invoke("tasks")
 
         // Append to the file bedreflyt.ttl
         val path = "bedreflyt.ttl"
@@ -167,13 +156,7 @@ class TaskController (
         if(!triplestoreService.deleteTask(taskRequest.taskName, taskRequest.averageDuration, taskRequest.bed)) {
             return ResponseEntity.badRequest().body("Error: the task could not be deleted.")
         }
-
-        repl.interpreter!!.tripleManager.regenerateTripleStoreModel()
-        repl.interpreter!!.evalCall(
-            repl.interpreter!!.getObjectNames("AssetModel")[0],
-            "AssetModel",
-            "reconfigure"
-        )
+        replConfig.regenerateSingleModel().invoke("tasks")
 
         // Append to the file bedreflyt.ttl
         val path = "bedreflyt.ttl"

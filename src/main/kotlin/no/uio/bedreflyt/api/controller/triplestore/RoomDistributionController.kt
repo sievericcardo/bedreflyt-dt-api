@@ -72,12 +72,7 @@ class RoomDistributionController (
                 bathroomInt)) {
             return ResponseEntity.badRequest().body("Error: the room distribution could not be added.")
         }
-
-        repl.interpreter!!.tripleManager.regenerateTripleStoreModel()
-        repl.interpreter!!.evalCall(
-            repl.interpreter!!.getObjectNames("AssetModel")[0],
-            "AssetModel",
-            "reconfigure")
+        replConfig.regenerateSingleModel().invoke("room distributions")
 
         // Append to the file bedreflyt.ttl
         val path = "bedreflyt.ttl"
@@ -142,12 +137,7 @@ class RoomDistributionController (
                 newBath)) {
             return ResponseEntity.badRequest().body("Error: the room distribution could not be updated.")
         }
-
-        repl.interpreter!!.tripleManager.regenerateTripleStoreModel()
-        repl.interpreter!!.evalCall(
-            repl.interpreter!!.getObjectNames("AssetModel")[0],
-            "AssetModel",
-            "reconfigure")
+        replConfig.regenerateSingleModel().invoke("room distributions")
 
         // Append to the file bedreflyt.ttl
         val path = "bedreflyt.ttl"
@@ -198,12 +188,7 @@ class RoomDistributionController (
                 bath)) {
             return ResponseEntity.badRequest().body("Error: the room distribution could not be deleted.")
         }
-
-        repl.interpreter!!.tripleManager.regenerateTripleStoreModel()
-        repl.interpreter!!.evalCall(
-            repl.interpreter!!.getObjectNames("AssetModel")[0],
-            "AssetModel",
-            "reconfigure")
+        replConfig.regenerateSingleModel().invoke("room distributions")
 
         // Append to the file bedreflyt.ttl
         val path = "bedreflyt.ttl"
