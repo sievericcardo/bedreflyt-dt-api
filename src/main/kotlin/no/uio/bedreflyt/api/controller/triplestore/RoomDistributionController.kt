@@ -92,7 +92,7 @@ class RoomDistributionController (
                 :roomNumberModel ${roomDistributionRequest.roomNumberModel} ;
                 :room ${roomDistributionRequest.room} ;
                 :capacity ${roomDistributionRequest.capacity} ;
-                :bathroom ${roomDistributionRequest.bathroom} .
+                :bathroom $bathroomInt .
         """.trimIndent()
 
         File(path).writeText(newContent)
@@ -127,17 +127,19 @@ class RoomDistributionController (
     fun updateRoomDistribution(@SwaggerRequestBody(description = "Request to update a room distribution") @RequestBody updateRoomDistributionRequest: UpdateRoomDistributionRequest) : ResponseEntity<String> {
         log.info("Updating room distribution")
 
+        val oldBath = if (updateRoomDistributionRequest.oldBathroom) 1 else 0
+        val newBath = if (updateRoomDistributionRequest.newBathroom) 1 else 0
         if(!triplestoreService.updateRoomDistribution(
                 updateRoomDistributionRequest.oldRoomNumber,
                 updateRoomDistributionRequest.oldRoomNumberModel,
                 updateRoomDistributionRequest.oldRoom,
                 updateRoomDistributionRequest.oldCapacity,
-                if (updateRoomDistributionRequest.oldBathroom) 1 else 0,
+                oldBath,
                 updateRoomDistributionRequest.newRoomNumber,
                 updateRoomDistributionRequest.newRoomNumberModel,
                 updateRoomDistributionRequest.newRoom,
                 updateRoomDistributionRequest.newCapacity,
-                if (updateRoomDistributionRequest.newBathroom) 1 else 0)) {
+                newBath)) {
             return ResponseEntity.badRequest().body("Error: the room distribution could not be updated.")
         }
 
@@ -158,7 +160,7 @@ class RoomDistributionController (
                 :roomNumberModel ${updateRoomDistributionRequest.oldRoomNumberModel} ;
                 :room ${updateRoomDistributionRequest.oldRoom} ;
                 :capacity ${updateRoomDistributionRequest.oldCapacity} ;
-                :bathroom ${updateRoomDistributionRequest.oldBathroom} .
+                :bathroom $oldBath.
         """.trimIndent(), """
             ###  http://$ttlPrefix/roomDistribution${updateRoomDistributionRequest.newRoomNumber}
             :roomDistribution${updateRoomDistributionRequest.newRoomNumber} rdf:type owl:NamedIndividual ,
@@ -167,7 +169,7 @@ class RoomDistributionController (
                 :roomNumberModel ${updateRoomDistributionRequest.newRoomNumberModel} ;
                 :room ${updateRoomDistributionRequest.newRoom} ;
                 :capacity ${updateRoomDistributionRequest.newCapacity} ;
-                :bathroom ${updateRoomDistributionRequest.newBathroom} .
+                :bathroom $newBath .
         """.trimIndent())
 
         File(path).writeText(newContent)
@@ -187,12 +189,13 @@ class RoomDistributionController (
     fun deleteRoomDistribution(@SwaggerRequestBody(description = "Request to delete a room distribution") @RequestBody roomDistributionRequest: RoomDistributionRequest) : ResponseEntity<String> {
         log.info("Deleting room distribution")
 
+        val bath = if (roomDistributionRequest.bathroom) 1 else 0
         if(!triplestoreService.deleteRoomDistribution(
                 roomDistributionRequest.roomNumber,
                 roomDistributionRequest.roomNumberModel,
                 roomDistributionRequest.room,
                 roomDistributionRequest.capacity,
-                if (roomDistributionRequest.bathroom) 1 else 0)) {
+                bath)) {
             return ResponseEntity.badRequest().body("Error: the room distribution could not be deleted.")
         }
 
@@ -213,7 +216,7 @@ class RoomDistributionController (
                 :roomNumberModel ${roomDistributionRequest.roomNumberModel} ;
                 :room ${roomDistributionRequest.room} ;
                 :capacity ${roomDistributionRequest.capacity} ;
-                :bathroom ${roomDistributionRequest.bathroom} .
+                :bathroom $bath .
         """.trimIndent(), "")
 
         File(path).writeText(newContent)
