@@ -53,7 +53,7 @@ class TriplestoreService (
             INSERT DATA {
                 :room$bedCategory a :Room ;
                     :bedCategory $bedCategory ;
-                    :roomDescription "roomDescription" .
+                    :roomDescription "$roomDescription" .
             }
         """.trimIndent()
 
@@ -197,8 +197,9 @@ class TriplestoreService (
             val roomNumberModel = solution.get("?roomNumberModel").asLiteral().toString().split("^^")[0].toInt()
             val room = solution.get("?room").asLiteral().toString().split("^^")[0].toLong()
             val capacity = solution.get("?capacity").asLiteral().toString().split("^^")[0].toInt()
-            val bathroom = solution.get("?bathroom").asLiteral().toString().split("^^")[0].toBoolean()
-            roomDistributions.add(RoomDistribution(roomNumber, roomNumberModel, room, capacity, bathroom))
+            val bathroom = solution.get("?bathroom").asLiteral().toString().split("^^")[0].toInt()
+            val bathBool = bathroom == 1
+            roomDistributions.add(RoomDistribution(roomNumber, roomNumberModel, room, capacity, bathBool))
         }
 
         return roomDistributions
