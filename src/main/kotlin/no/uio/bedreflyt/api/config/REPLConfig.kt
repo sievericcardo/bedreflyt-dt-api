@@ -79,7 +79,7 @@ open class REPLConfig {
         val domainPrefixUri = System.getenv("DOMAIN_PREFIX_URI") ?: ""
         val reasoner = ReasonerMode.off
 
-        println(updateTriplestore(triplestoreUrl))
+//        println(updateTriplestore(triplestoreUrl))
 
         if (System.getenv("EXTRA_PREFIXES") != null) {
             val prefixes = System.getenv("EXTRA_PREFIXES")!!.split(";")
