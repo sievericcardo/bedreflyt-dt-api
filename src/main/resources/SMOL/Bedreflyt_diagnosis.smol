@@ -3,7 +3,7 @@ class DiagnosisModel extends KindModel()
     override Unit adaptAddition()
         List<Diagnosis> newDiagnoses = construct("
             PREFIX ast: <http://www.smolang.org/bedreflyt#>
-            SELECT ?diagnosisName {
+            SELECT DISTINCT ?diagnosisName {
                 ?x a ast:Diagnosis ;
                     ast:diagnosisName ?diagnosisName .
                 FILTER NOT EXISTS {
@@ -47,12 +47,15 @@ class DiagnosisModel extends KindModel()
                 Diagnosis wrongDiagnosis = wrongDiagnoses.content;
                 List<Diagnosis> lx = wrongDiagnoses;
                 wrongDiagnoses = wrongDiagnoses.next;
-                destroy(lx);
 
                 print("RECONFIG> Misconfigured diagnosis to remove: ");
                 print("          Diagnosis Name: " ++ wrongDiagnosis.diagnosisName);
 
+                destroy(wrongDiagnosis);
+                destroy(lx);
             end
+
+            destroy(wrongDiagnoses);
 
             print("RECONFIG> Diagnosis(es) removed");
         end

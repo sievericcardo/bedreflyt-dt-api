@@ -3,7 +3,7 @@ class JourneyStepModel extends KindModel()
     override Unit adaptAddition()
         List<JourneyStep> newJourneySteps = construct("
             PREFIX ast: <http://www.smolang.org/bedreflyt#>
-            SELECT ?diagnosis ?journeyOrder ?task {
+            SELECT DISTINCT ?diagnosis ?journeyOrder ?task {
                 ?x a ast:JourneyStep ;
                     ast:diagnosis ?diagnosis ;
                     ast:orderInJourney ?journeyOrder ;
@@ -57,13 +57,17 @@ class JourneyStepModel extends KindModel()
                 JourneyStep wrongJourneyStep = wrongJourneySteps.content;
                 List<JourneyStep> lx = wrongJourneySteps;
                 wrongJourneySteps = wrongJourneySteps.next;
-                destroy(lx);
 
                 print("RECONFIG> Misconfigured journey step to remove: ");
                 print("          Diagnosis: " ++ wrongJourneyStep.diagnosis);
                 print("          Journey Order: " ++ intToString(wrongJourneyStep.journeyOrder));
                 print("          Task: " ++ wrongJourneyStep.task);
+
+                destroy(wrongJourneyStep);
+                destroy(lx);
             end
+
+            destroy(wrongJourneySteps);
 
             print("RECONFIG> JourneyStep(s) removed");
         end
@@ -71,11 +75,47 @@ class JourneyStepModel extends KindModel()
 
     override Unit adaptDefect()
         print("RECONFIG> Checking for defects in the Journey Step(s)");
-        this.checkOrderChanged();
-        this.checkTaskChanged();
+        // this.checkDiagnosisChanged();
+        // this.checkOrderChanged();
+        // this.checkTaskChanged();
         print("RECONFIG> Defects checked in the Journey Step(s)");
     end
-    
+
+    Unit checkDiagnosisChanged()
+        List<JourneyStepDefectDiagnosis> wrongJourneySteps = construct("
+            PREFIX ast: <http://www.smolang.org/bedreflyt#>
+            SELECT DISTINCT ?obj ?diagnosisNew {
+                ?obj a prog:JourneyStep ;
+                     prog:JourneyStep_diagnosis ?diagnosis ;
+                     prog:JourneyStep_journeyOrder ?journeyOrder ;
+                     prog:JourneyStep_task ?task .
+                ?y a ast:JourneyStep ;
+                    ast:diagnosis ?diagnosisNew ;
+                    ast:orderInJourney ?journeyOrder ;
+                    ast:task ?task .
+                FILTER (?diagnosis != ?diagnosisNew)
+            }");
+
+        if wrongJourneySteps != null then
+            print("RECONFIG> Misconfigured JourneyStep(s) detected: repairing the model");
+            while wrongJourneySteps != null do
+                JourneyStepDefectDiagnosis wrongJourneyStep = wrongJourneySteps.content;
+                List<JourneyStepDefectDiagnosis> lx = wrongJourneySteps;
+                wrongJourneySteps = wrongJourneySteps.next;
+                destroy(lx);
+
+                print("RECONFIG> Misconfigured journey step to adjust: ");
+                print("          Old Diagnosis: " ++ wrongJourneyStep.obj.diagnosis);
+                print("          New Diagnosis: " ++ wrongJourneyStep.diagnosisNew);
+                print("          Journey Order: " ++ intToString(wrongJourneyStep.obj.journeyOrder));
+                print("          Task: " ++ wrongJourneyStep.obj.task);
+
+                wrongJourneyStep.obj.diagnosis = wrongJourneyStep.diagnosisNew;
+            end
+
+            print("RECONFIG> JourneyStep(s) removed");
+        end
+    end
 
     Unit checkOrderChanged()
         List<JourneyStepDefectOrder> wrongJourneySteps = construct("
@@ -102,6 +142,7 @@ class JourneyStepModel extends KindModel()
 
                 print("RECONFIG> Misconfigured journey step to adjust: ");
                 print("          Diagnosis: " ++ wrongJourneyStep.obj.diagnosis);
+                print("          Old Journey Order: " ++ intToString(wrongJourneyStep.obj.journeyOrde));
                 print("          Journey Order: " ++ intToString(wrongJourneyStep.journeyOrderNew));
                 print("          Task: " ++ wrongJourneyStep.obj.task);
 

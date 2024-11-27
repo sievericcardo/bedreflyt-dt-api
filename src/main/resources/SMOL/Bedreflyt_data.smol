@@ -22,7 +22,15 @@ class RoomDistribution extends Twin (Int roomNumber, Int roomNumberModel, Int ro
 end
 
 class TaskDefectBed extends Twin (Task obj, Int bedNew) end
+class TaskDefectName extends Twin (Task obj, String taskNameNew) end
 class TaskDefectDuration extends Twin (Task obj, Double durationAverageNew) end
+class JourneyStepDefectDiagnosis extends Twin (JourneyStep obj, String diagnosisNew) end
 class JourneyStepDefectOrder extends Twin (JourneyStep obj, Int journeyOrderNew) end
 class JourneyStepDefectTask extends Twin (JourneyStep obj, String taskNew) end
 class RoomDefectBedCategory extends Twin (Room obj, Int bedCategoryNew) end
+class RoomDefectDescription extends Twin (Room obj, String roomDescriptionNew) end
+class RoomDistributionDefectRoomNumber extends Twin (RoomDistribution obj, Int roomNumberNew) end
+class RoomDistributionDefectRoomNumberModel extends Twin (RoomDistribution obj, Int roomNumberModelNew) end
+class RoomDistributionDefectRoom extends Twin (RoomDistribution obj, Int roomNew) end
+class RoomDistributionDefectCapacity extends Twin (RoomDistribution obj, Int capacityNew) end
+class RoomDistributionDefectBathroom extends Twin (RoomDistribution obj, Int bathroomNew) end
