@@ -69,7 +69,7 @@ class JourneyStepController (
         val newContent = """
             $fileContent
             
-            ###  http://$ttlPrefix/journeyStep${journeyStep.journeyOrder}_${journeyStep.diagnosis}
+            ###  $ttlPrefix/journeyStep${journeyStep.journeyOrder}_${journeyStep.diagnosis}
             :journeyStep${journeyStep.journeyOrder}_${journeyStep.diagnosis} rdf:type owl:NamedIndividual ,
                             :JourneyStep ;
                 :diagnosis "${journeyStep.diagnosis}" ;
@@ -121,6 +121,7 @@ class JourneyStepController (
     ])
     @PostMapping("/update")
     fun updateJourneyStep(@SwaggerRequestBody(description = "Journey step to update") @RequestBody journeyStep: UpdateJourneyStepRequest) : ResponseEntity<String> {
+        return ResponseEntity.internalServerError().body("Not implemented")
         log.info("Updating journey step")
 
         if(!triplestoreService.updateTreatment(journeyStep.oldDiagnosis, journeyStep.oldJourneyOrder, journeyStep.oldTask, journeyStep.newDiagnosis, journeyStep.newJourneyOrder, journeyStep.newTask)) {
@@ -130,27 +131,24 @@ class JourneyStepController (
 
         // Append to the file bedreflyt.ttl
         val path = "bedreflyt.ttl"
-        val fileContent = File(path).readText(Charsets.UTF_8)
-        val newContent = fileContent.replace(
-            """
-            ###  http://$ttlPrefix/journeyStep${journeyStep.oldJourneyOrder}_${journeyStep.oldDiagnosis}
+        val oldContent = """
+            ###  $ttlPrefix/journeyStep${journeyStep.oldJourneyOrder}_${journeyStep.oldDiagnosis}
             :journeyStep${journeyStep.oldJourneyOrder}_${journeyStep.oldDiagnosis} rdf:type owl:NamedIndividual ,
                             :JourneyStep ;
                 :diagnosis "${journeyStep.oldDiagnosis}" ;
                 :journeyOrder ${journeyStep.oldJourneyOrder} ;
                 :task "${journeyStep.oldTask}" .
-            """.trimIndent(),
-            """
-            ###  http://$ttlPrefix/journeyStep${journeyStep.oldJourneyOrder}_${journeyStep.oldDiagnosis}
-            :journeyStep${journeyStep.oldJourneyOrder}_${journeyStep.oldDiagnosis} rdf:type owl:NamedIndividual ,
+            """.trimIndent()
+        val newContent = """
+            ###  $ttlPrefix/journeyStep${journeyStep.newJourneyOrder}_${journeyStep.newDiagnosis}
+            :journeyStep${journeyStep.newJourneyOrder}_${journeyStep.newDiagnosis} rdf:type owl:NamedIndividual ,
                             :JourneyStep ;
                 :diagnosis "${journeyStep.newDiagnosis}" ;
                 :journeyOrder ${journeyStep.newJourneyOrder} ;
                 :task "${journeyStep.newTask}" .
             """.trimIndent()
-        )
 
-        File(path).writeText(newContent)
+        triplestoreService.replaceContentIgnoringSpaces(path, oldContent, newContent)
 
         return ResponseEntity.ok("Journey step updated")
     }
@@ -174,20 +172,16 @@ class JourneyStepController (
 
         // Append to the file bedreflyt.ttl
         val path = "bedreflyt.ttl"
-        val fileContent = File(path).readText(Charsets.UTF_8)
-        val newContent = fileContent.replace(
-            """
-            ###  http://$ttlPrefix/journeyStep${journeyStep.journeyOrder}_${journeyStep.diagnosis}
+        val oldContent = """
+            ###  $ttlPrefix/journeyStep${journeyStep.journeyOrder}_${journeyStep.diagnosis}
             :journeyStep${journeyStep.journeyOrder}_${journeyStep.diagnosis} rdf:type owl:NamedIndividual ,
                             :JourneyStep ;
                 :diagnosis "${journeyStep.diagnosis}" ;
                 :journeyOrder ${journeyStep.journeyOrder} ;
                 :task "${journeyStep.task}" .
-            """.trimIndent(),
-            ""
-        )
+            """.trimIndent()
 
-        File(path).writeText(newContent)
+        triplestoreService.replaceContentIgnoringSpaces(path, oldContent, "")
 
         return ResponseEntity.ok("Journey step deleted")
     }

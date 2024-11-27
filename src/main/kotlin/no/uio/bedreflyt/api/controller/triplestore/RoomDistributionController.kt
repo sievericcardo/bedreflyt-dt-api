@@ -80,7 +80,7 @@ class RoomDistributionController (
         val newContent = """
             $fileContent
             
-            ###  http://$ttlPrefix/roomDistribution${roomDistributionRequest.roomNumber}
+            ###  $ttlPrefix/roomDistribution${roomDistributionRequest.roomNumber}
             :roomDistribution${roomDistributionRequest.roomNumber} rdf:type owl:NamedIndividual ,
                             :RoomDistribution ;
                 :roomNumber ${roomDistributionRequest.roomNumber} ;
@@ -141,18 +141,18 @@ class RoomDistributionController (
 
         // Append to the file bedreflyt.ttl
         val path = "bedreflyt.ttl"
-        val fileContent = File(path).readText(Charsets.UTF_8)
-        val newContent = fileContent.replace("""
-            ###  http://$ttlPrefix/roomDistribution${updateRoomDistributionRequest.oldRoomNumber}
+        val oldContent = """
+            ###  $ttlPrefix/roomDistribution${updateRoomDistributionRequest.oldRoomNumber}
             :roomDistribution${updateRoomDistributionRequest.oldRoomNumber} rdf:type owl:NamedIndividual ,
                             :RoomDistribution ;
                 :roomNumber ${updateRoomDistributionRequest.oldRoomNumber} ;
                 :roomNumberModel ${updateRoomDistributionRequest.oldRoomNumberModel} ;
                 :room ${updateRoomDistributionRequest.oldRoom} ;
                 :capacity ${updateRoomDistributionRequest.oldCapacity} ;
-                :bathroom $oldBath.
-        """.trimIndent(), """
-            ###  http://$ttlPrefix/roomDistribution${updateRoomDistributionRequest.newRoomNumber}
+                :bathroom $oldBath .
+        """.trimIndent()
+        val newContent = """
+            ###  $ttlPrefix/roomDistribution${updateRoomDistributionRequest.newRoomNumber}
             :roomDistribution${updateRoomDistributionRequest.newRoomNumber} rdf:type owl:NamedIndividual ,
                             :RoomDistribution ;
                 :roomNumber ${updateRoomDistributionRequest.newRoomNumber} ;
@@ -160,9 +160,9 @@ class RoomDistributionController (
                 :room ${updateRoomDistributionRequest.newRoom} ;
                 :capacity ${updateRoomDistributionRequest.newCapacity} ;
                 :bathroom $newBath .
-        """.trimIndent())
+        """.trimIndent()
 
-        File(path).writeText(newContent)
+        triplestoreService.replaceContentIgnoringSpaces(path, oldContent, newContent)
 
         return ResponseEntity.ok("Room distribution updated")
     }
@@ -192,9 +192,8 @@ class RoomDistributionController (
 
         // Append to the file bedreflyt.ttl
         val path = "bedreflyt.ttl"
-        val fileContent = File(path).readText(Charsets.UTF_8)
-        val newContent = fileContent.replace("""
-            ###  http://$ttlPrefix/roomDistribution${roomDistributionRequest.roomNumber}
+        val oldContent = """
+            ###  $ttlPrefix/roomDistribution${roomDistributionRequest.roomNumber}
             :roomDistribution${roomDistributionRequest.roomNumber} rdf:type owl:NamedIndividual ,
                             :RoomDistribution ;
                 :roomNumber ${roomDistributionRequest.roomNumber} ;
@@ -202,9 +201,9 @@ class RoomDistributionController (
                 :room ${roomDistributionRequest.room} ;
                 :capacity ${roomDistributionRequest.capacity} ;
                 :bathroom $bath .
-        """.trimIndent(), "")
+        """.trimIndent()
 
-        File(path).writeText(newContent)
+        triplestoreService.replaceContentIgnoringSpaces(path, oldContent, "")
 
         return ResponseEntity.ok("Room distribution deleted")
     }

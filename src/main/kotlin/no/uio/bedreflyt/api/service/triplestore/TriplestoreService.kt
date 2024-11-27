@@ -9,6 +9,7 @@ import org.apache.jena.update.UpdateFactory
 import org.apache.jena.update.UpdateProcessor
 import org.apache.jena.update.UpdateRequest
 import org.springframework.stereotype.Service
+import java.io.File
 
 @Service
 class TriplestoreService (
@@ -21,6 +22,35 @@ class TriplestoreService (
     private val prefix = System.getenv().getOrDefault("DOMAIN_PREFIX", "http://www.smolang.org/bedreflyt#")
     private val ttlPrefix = if (prefix.isNotEmpty()) prefix.dropLast(1) else prefix
     private val repl = replConfig.repl()
+
+    fun replaceContentIgnoringSpaces(filePath: String, oldContent: String, newContent: String) {
+        // Read the file content
+        val file = File(filePath)
+        if (!file.exists()) {
+            println("File does not exist: $filePath")
+            return
+        }
+
+        val fileContent = file.readText(Charsets.UTF_8)
+
+        // Normalize whitespace by trimming leading and trailing spaces and removing extra indentations
+        val normalizedContent = fileContent.trimIndent()
+
+        // Normalize the old and new strings as well
+        val normalizedNewContent = newContent.trimIndent()
+
+        val oldContentRegex = Regex(
+            oldContent.lines().joinToString("\n") {
+                "\\s*${Regex.escape(it.trim())}"
+            }
+        )
+
+        val updatedContent = normalizedContent.replace(oldContentRegex, normalizedNewContent)
+
+        // Write the updated content back to the file
+        file.writeText(updatedContent)
+        println("Content replaced successfully in file: $filePath")
+    }
 
     /*
      * Create operations
@@ -151,7 +181,7 @@ class TriplestoreService (
 
         val query =
             """
-               SELECT * WHERE {
+               SELECT DISTINCT ?bedCategory ?roomDescription WHERE {
                 ?obj a prog:Room ;
                     prog:Room_bedCategory ?bedCategory ;
                     prog:Room_roomDescription ?roomDescription .
@@ -177,7 +207,7 @@ class TriplestoreService (
         val roomDistributions: MutableList<RoomDistribution> = mutableListOf()
 
         val query =  """
-            SELECT * WHERE {
+            SELECT DISTINCT ?roomNumber ?roomNumberModel ?room ?capacity ?bathroom WHERE {
                 ?obj a prog:RoomDistribution ;
                     prog:RoomDistribution_roomNumber ?roomNumber ;
                     prog:RoomDistribution_roomNumberModel ?roomNumberModel ;
@@ -210,7 +240,7 @@ class TriplestoreService (
 
         val query =
             """
-           SELECT * WHERE {
+           SELECT DISTINCT ?taskName ?averageDuration ?bedCategory WHERE {
             ?obj a prog:Task ;
                 prog:Task_taskName ?taskName ;
                 prog:Task_durationAverage ?averageDuration ;
@@ -238,7 +268,7 @@ class TriplestoreService (
         val treatments: MutableList<JourneyStep> = mutableListOf()
 
         val query = """
-        SELECT * WHERE {
+        SELECT DISTINCT ?diagnosis ?journeyOrder ?task WHERE {
             ?obj a prog:JourneyStep ;
                 prog:JourneyStep_diagnosis ?diagnosis ;
                 prog:JourneyStep_journeyOrder ?journeyOrder ;
@@ -266,7 +296,7 @@ class TriplestoreService (
         val diagnosis: MutableList<Diagnosis> = mutableListOf()
 
         val query = """
-            SELECT * WHERE {
+            SELECT DISTINCT ?name WHERE {
                 ?obj a prog:Diagnosis ;
                     prog:Diagnosis_diagnosisName ?name .
             }"""
@@ -402,7 +432,8 @@ class TriplestoreService (
             PREFIX : <$prefix>
             
             DELETE {
-                :task_$oldTaskName :taskName "$oldTaskName" ;
+                :task_$oldTaskName a :Task ;
+                    :taskName "$oldTaskName" ;
                     :averageDuration $oldAverageDuration ;
                     :bed $oldBed .
             }
@@ -413,7 +444,8 @@ class TriplestoreService (
                     :bed $newBed .
             }
             WHERE {
-                :task_$oldTaskName :taskName "$oldTaskName" ;
+               :task_$oldTaskName a :Task ;
+                    :taskName "$oldTaskName" ;
                     :averageDuration $oldAverageDuration ;
                     :bed $oldBed .
             }

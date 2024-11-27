@@ -64,7 +64,7 @@ class DiagnosisController (
         val newContent = """
             $fileContent
             
-            ###  http://$ttlPrefix/diagnosis_${diagnosisRequest.diagnosisName}
+            ###  $ttlPrefix/diagnosis_${diagnosisRequest.diagnosisName}
             :diagnosis_${diagnosisRequest.diagnosisName} rdf:type owl:NamedIndividual ,
                             :Diagnosis ;
                 :diagnosisName "${diagnosisRequest.diagnosisName}" .
@@ -114,33 +114,20 @@ class DiagnosisController (
 
         // Update the object in the file bedreflyt.ttl
         val path = "bedreflyt.ttl"
-        val fileContent = File(path).readText(Charsets.UTF_8)
-        val newContent = fileContent.replace(
-            """
-            ###  http://$ttlPrefix/diagnosis_${updateDiagnosisRequest.oldDiagnosisName}
+        val oldContent = """
+            ###  $ttlPrefix/diagnosis_${updateDiagnosisRequest.oldDiagnosisName}
             :diagnosis_${updateDiagnosisRequest.oldDiagnosisName} rdf:type owl:NamedIndividual ,
                             :Diagnosis ;
                 :diagnosisName "${updateDiagnosisRequest.oldDiagnosisName}" .
-            """.trimIndent(), """
-            ###  http://$ttlPrefix/diagnosis_${updateDiagnosisRequest.newDiagnosisName}
+            """.trimIndent()
+        val newContent = """
+            ###  $ttlPrefix/diagnosis_${updateDiagnosisRequest.newDiagnosisName}
             :diagnosis_${updateDiagnosisRequest.newDiagnosisName} rdf:type owl:NamedIndividual ,
                             :Diagnosis ;
                 :diagnosisName "${updateDiagnosisRequest.newDiagnosisName}" .
             """.trimIndent()
-        ).replace(
-            """
-            :diagnosis_${updateDiagnosisRequest.oldDiagnosisName} rdf:type owl:NamedIndividual ,
-                            :Diagnosis ;
-                :diagnosisName "${updateDiagnosisRequest.oldDiagnosisName}" .
-            """.trimIndent(), """
-            ###  http://$ttlPrefix/diagnosis_${updateDiagnosisRequest.newDiagnosisName}
-            :diagnosis_${updateDiagnosisRequest.newDiagnosisName} rdf:type owl:NamedIndividual ,
-                            :Diagnosis ;
-                :diagnosisName "${updateDiagnosisRequest.newDiagnosisName}" .
-            """.trimIndent()
-        )
 
-        File(path).writeText(newContent)
+        triplestoreService.replaceContentIgnoringSpaces(path, oldContent, newContent)
 
         return ResponseEntity.ok("Diagnosis updated")
     }
@@ -168,23 +155,14 @@ class DiagnosisController (
 
         // Remove the object from the file bedreflyt.ttl
         val path = "bedreflyt.ttl"
-        val fileContent = File(path).readText(Charsets.UTF_8)
-        val newContent = fileContent.replace(
-            """
-            ###  http://$ttlPrefix/diagnosis_${diagnosisRequest.diagnosisName}
+        val oldContent = """
+            ###  $ttlPrefix/diagnosis_${diagnosisRequest.diagnosisName}
             :diagnosis_${diagnosisRequest.diagnosisName} rdf:type owl:NamedIndividual ,
                             :Diagnosis ;
                 :diagnosisName "${diagnosisRequest.diagnosisName}" .
-            """.trimIndent(), ""
-        ).replace(
-            """
-            :diagnosis_${diagnosisRequest.diagnosisName} rdf:type owl:NamedIndividual ,
-                            :Diagnosis ;
-                :diagnosisName "${diagnosisRequest.diagnosisName}" .
-            """.trimIndent(), ""
-        )
+            """.trimIndent()
 
-        File(path).writeText(newContent)
+        triplestoreService.replaceContentIgnoringSpaces(path, oldContent, "")
 
         return ResponseEntity.ok("Diagnosis deleted")
     }

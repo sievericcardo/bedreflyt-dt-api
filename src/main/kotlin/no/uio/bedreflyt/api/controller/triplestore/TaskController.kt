@@ -70,7 +70,7 @@ class TaskController (
         val newContent = """
             $fileContent
             
-            ###  http://$ttlPrefix/diagnosis_${task.taskName}
+            ###  $ttlPrefix/task_${task.taskName}
             :task_${task.taskName} rdf:type owl:NamedIndividual ,
                             :Task ;
                 :taskName "${task.taskName}" ;
@@ -116,27 +116,24 @@ class TaskController (
 
         // Append to the file bedreflyt.ttl
         val path = "bedreflyt.ttl"
-        val fileContent = File(path).readText(Charsets.UTF_8)
-        val newContent = fileContent.replace(
-            """
-            ###  http://$ttlPrefix/task_${updateTaskRequest.oldTaskName}
+        val oldContent = """
+            ###  $ttlPrefix/task_${updateTaskRequest.oldTaskName}
            :task_${updateTaskRequest.oldTaskName} rdf:type owl:NamedIndividual ,
                             :Task ;
                 :taskName "${updateTaskRequest.oldTaskName}" ;
                 :averageDuration "${updateTaskRequest.oldAverageDuration}"^^xsd:double ;
                 :bed "${updateTaskRequest.oldBed}"^^xsd:integer .
-        """.trimIndent(),
-            """
-            ###  http://$ttlPrefix/task_${updateTaskRequest.newTaskName}
+        """.trimIndent()
+        val newContent = """
+            ###  $ttlPrefix/task_${updateTaskRequest.newTaskName}
             :task_${updateTaskRequest.newTaskName} rdf:type owl:NamedIndividual ,
                              :Task ;
                  :taskName "${updateTaskRequest.newTaskName}" ;
                  :averageDuration "${updateTaskRequest.newAverageDuration}"^^xsd:double ;
                  :bed "${updateTaskRequest.newBed}"^^xsd:integer .
         """.trimIndent()
-        )
 
-        File(path).writeText(newContent)
+        triplestoreService.replaceContentIgnoringSpaces(path, oldContent, newContent)
 
         return ResponseEntity.ok("Task updated")
     }
@@ -160,20 +157,16 @@ class TaskController (
 
         // Append to the file bedreflyt.ttl
         val path = "bedreflyt.ttl"
-        val fileContent = File(path).readText(Charsets.UTF_8)
-        val newContent = fileContent.replace(
-            """
-            ###  http://$ttlPrefix/task_${taskRequest.taskName}
+        val oldContent = """
+            ###  $ttlPrefix/task_${taskRequest.taskName}
             :task_${taskRequest.taskName} rdf:type owl:NamedIndividual ,
                             :Task ;
                 :taskName "${taskRequest.taskName}" ;
                 :averageDuration "${taskRequest.averageDuration}"^^xsd:double ;
                 :bed "${taskRequest.bed}"^^xsd:integer .
-        """.trimIndent(),
-            ""
-        )
+        """.trimIndent()
 
-        File(path).writeText(newContent)
+        triplestoreService.replaceContentIgnoringSpaces(path, oldContent, "")
 
         return ResponseEntity.ok("Task deleted")
     }

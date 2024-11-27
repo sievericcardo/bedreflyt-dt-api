@@ -65,7 +65,7 @@ class RoomController (
         val newContent = """
             $fileContent
             
-            ###  http://$ttlPrefix/room${roomRequest.bedCategory}
+            ###  $ttlPrefix/room${roomRequest.bedCategory}
             :room${roomRequest.bedCategory} rdf:type owl:NamedIndividual ,
                             :Room ;
                 :bedCategory ${roomRequest.bedCategory} ;
@@ -109,24 +109,25 @@ class RoomController (
         }
         replConfig.regenerateSingleModel().invoke("rooms")
 
-        // Append to the file bedreflyt.ttl
-        val path = "bedreflyt.ttl"
-        val fileContent = File(path).readText(Charsets.UTF_8)
-        val newContent = fileContent.replace("""
-            ###  http://$ttlPrefix/room${updateRoomRequest.oldBedCategory}
+        val oldContent = """
+            ###  $ttlPrefix/room${updateRoomRequest.oldBedCategory}
             :room${updateRoomRequest.oldBedCategory} rdf:type owl:NamedIndividual ,
                             :Room ;
                 :bedCategory ${updateRoomRequest.oldBedCategory} ;
                 :roomDescription "${updateRoomRequest.oldRoomDescription}" .
-        """.trimIndent(), """
-            ###  http://$ttlPrefix/room${updateRoomRequest.newBedCategory}
+            """.trimIndent()
+        val newContent = """
+            ###  $ttlPrefix/room${updateRoomRequest.newBedCategory}
             :room${updateRoomRequest.newBedCategory} rdf:type owl:NamedIndividual ,
                             :Room ;
                 :bedCategory ${updateRoomRequest.newBedCategory} ;
                 :roomDescription "${updateRoomRequest.newRoomDescription}" .
-        """.trimIndent())
+        """.trimIndent()
 
-        File(path).writeText(newContent)
+        // Append to the file bedreflyt.ttl
+        val path = "bedreflyt.ttl"
+
+        triplestoreService.replaceContentIgnoringSpaces(path, oldContent, newContent)
 
         return ResponseEntity.ok("Room updated")
     }
@@ -150,16 +151,15 @@ class RoomController (
 
         // Append to the file bedreflyt.ttl
         val path = "bedreflyt.ttl"
-        val fileContent = File(path).readText(Charsets.UTF_8)
-        val newContent = fileContent.replace("""
-            ###  http://$ttlPrefix/room${roomRequest.bedCategory}
+        val oldContent = """
+            ###  $ttlPrefix/room${roomRequest.bedCategory}
             :room${roomRequest.bedCategory} rdf:type owl:NamedIndividual ,
                             :Room ;
                 :bedCategory ${roomRequest.bedCategory} ;
                 :roomDescription "${roomRequest.roomDescription}" .
-        """.trimIndent(), "")
+        """.trimIndent()
 
-        File(path).writeText(newContent)
+        triplestoreService.replaceContentIgnoringSpaces(path, oldContent, "")
 
         return ResponseEntity.ok("Room deleted")
     }
