@@ -396,9 +396,9 @@ class SimulationController (
 
         val sim = simulate(roomDistributions)
 
-//        databaseService.deleteDatabase(roomDbUrl)
-//        databaseService.deleteDatabase(scenarioDbUrl)
-//        databaseService.deleteDatabase(treatmentDbUrl)
+        databaseService.deleteDatabase(roomDbUrl)
+        databaseService.deleteDatabase(scenarioDbUrl)
+        databaseService.deleteDatabase(treatmentDbUrl)
 
         return sim
     }
