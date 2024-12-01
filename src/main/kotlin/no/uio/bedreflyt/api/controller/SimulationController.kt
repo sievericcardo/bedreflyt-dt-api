@@ -65,6 +65,8 @@ class SimulationController (
     private fun executeJar() : String {
         val command = listOf("java", "-jar", "bedreflyt.jar")
 
+        log.info("Executing JAR with command: $command")
+
         // Start the process
         val process = ProcessBuilder(command)
             .redirectErrorStream(false) // Do not redirect error stream so we can capture separately
@@ -79,6 +81,8 @@ class SimulationController (
             }
         }
 
+        log.info("Standard Output size: ${output.length}")
+
         // Capture error output
         val errorOutput = StringBuilder()
         BufferedReader(InputStreamReader(process.errorStream)).use { reader ->
@@ -88,8 +92,12 @@ class SimulationController (
             }
         }
 
+        log.info("Error Output: $errorOutput")
+
         // Wait for process to complete
         val exitCode = process.waitFor()
+
+        log.info("Exit code: $exitCode")
 
         // Return combined output or error output based on the exit code
         return if (exitCode == 0) {
@@ -384,11 +392,13 @@ class SimulationController (
         val treatmentDbUrl = "trData.db"
         createAndPopulateTreatmentTables(treatmentDbUrl, repl)
 
+        log.info("Tables populated, invoking ABS with ${scenario.size} requests")
+
         val sim = simulate(roomDistributions)
 
-        databaseService.deleteDatabase(roomDbUrl)
-        databaseService.deleteDatabase(scenarioDbUrl)
-        databaseService.deleteDatabase(treatmentDbUrl)
+//        databaseService.deleteDatabase(roomDbUrl)
+//        databaseService.deleteDatabase(scenarioDbUrl)
+//        databaseService.deleteDatabase(treatmentDbUrl)
 
         return sim
     }
