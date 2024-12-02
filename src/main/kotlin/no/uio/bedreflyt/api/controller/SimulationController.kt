@@ -110,22 +110,18 @@ class SimulationController (
     private fun createAndPopulatePatientTables(scenarioDbUrl: String, scenario: List<ScenarioRequest>) {
         databaseService.createPatientTable(scenarioDbUrl)
 
-        val patients = patientService.findAll()
-        patients.forEach { patient ->
-            if (patient != null) {
-                databaseService.insertPatient(scenarioDbUrl, patient.patientId, patient.gender)
-                databaseService.insertPatientStatus(scenarioDbUrl, patient.patientId, patient.infectious, patient.roomNumber)
-            }
-        }
-
         scenario.forEach { scenarioRequest ->
             scenarioRequest.patientId?.let { patientId ->
+                try {
+                    val patients = patientService.findByPatientId(patientId)
+
+                    databaseService.insertPatient(scenarioDbUrl, patients[0].patientId, patients[0].gender)
+                    databaseService.insertPatientStatus(scenarioDbUrl, patients[0].patientId, patients[0].infectious, patients[0].roomNumber)
+                } catch (e: EmptyResultDataAccessException) {
+                    throw IllegalArgumentException("Patient not found")
+                }
+
                 scenarioRequest.treatmentName?.let { treatmentName ->
-                    try {
-                        patientService.findByPatientId(patientId)
-                    } catch (e: EmptyResultDataAccessException) {
-                        throw IllegalArgumentException("Patient not found")
-                    }
 
                     databaseService.insertScenario(
                         scenarioDbUrl,
