@@ -115,8 +115,12 @@ class SimulationController (
                 try {
                     val patients = patientService.findByPatientId(patientId)
 
-                    databaseService.insertPatient(scenarioDbUrl, patients[0].patientId, patients[0].gender)
-                    databaseService.insertPatientStatus(scenarioDbUrl, patients[0].patientId, patients[0].infectious, patients[0].roomNumber)
+                    if (patients.isNotEmpty()) {
+                        databaseService.insertPatient(scenarioDbUrl, patients[0].patientId, patients[0].gender)
+                        databaseService.insertPatientStatus(scenarioDbUrl, patients[0].patientId, patients[0].infectious, patients[0].roomNumber)
+                    } else {
+                        throw IllegalArgumentException("Patient not found")
+                    }
                 } catch (e: EmptyResultDataAccessException) {
                     throw IllegalArgumentException("Patient not found")
                 }
@@ -202,7 +206,7 @@ class SimulationController (
         val rooms = roomDistributions.size
         val capacities = roomDistributions.map { it.capacity ?: 0 }
         val roomCategories: List<Long> = roomDistributions.map { it.room.toLong() ?: 0 }
-        var  patientNumbers = 0
+        var patientNumbers = 0
         val genders = mutableListOf<Boolean>()
         val infectious = mutableListOf<Boolean>()
         val patientDistances = mutableListOf<Int>()
@@ -283,7 +287,7 @@ class SimulationController (
                     val gender = if (roomInfoMap["gender"] as String == "True") "Male" else "Female"
 
                     mapOf(
-                        "Room $roomNumber" to mapOf(
+                        "Room ${roomDistributions[roomNumber.toInt()].roomNumber}" to mapOf(
                             "patients" to patients,
                             "gender" to gender
                         )
@@ -340,8 +344,6 @@ class SimulationController (
                 group.forEach { patient ->
                     val solveData = invokeSolver(patient, roomDistributions)
                     scenarios.add(solveData)
-
-//                    scenarios.add(solveData)
                     log.info(solveData.toString())
                 }
             }
@@ -372,13 +374,11 @@ class SimulationController (
 
         val roomList = triplestoreService.getAllRooms()
 
-        if (roomList == null) {
-            return ResponseEntity.badRequest().body(listOf(listOf(mapOf("error" to "No rooms found"))))
-        }
-
-        roomList.forEach() { room ->
-            databaseService.insertRoom(roomDbUrl, room.bedCategory, room.roomDescription)
-        }
+        roomList?.let {
+            it.forEach { room ->
+                databaseService.insertRoom(roomDbUrl, room.bedCategory, room.roomDescription)
+            }
+        } ?: return ResponseEntity.badRequest().body(listOf(listOf(mapOf("error" to "No rooms found"))))
 
         val roomDistributions = createAndPopulateRoomDistributions(roomDbUrl, repl)
 
