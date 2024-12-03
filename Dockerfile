@@ -14,7 +14,7 @@ COPY bedreflyt.jar /app/bedreflyt.jar
 COPY src/main/resources/SMOL /app/SMOL
 
 # Expose the port that the application will run on
-EXPOSE 8080
+EXPOSE 8090
 
 # Run the jar file
 ENTRYPOINT ["java", "-jar", "/app/bedreflyt-api.jar"]
