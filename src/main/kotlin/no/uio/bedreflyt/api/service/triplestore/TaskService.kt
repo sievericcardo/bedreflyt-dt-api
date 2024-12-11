@@ -73,6 +73,32 @@ class TaskService (
         return tasks
     }
 
+    fun getTaskByTaskName(taskName: String) : Task? {
+        val query = """
+            PREFIX : <$prefix>
+            
+            SELECT DISTINCT ?taskName ?averageDuration ?bed WHERE {
+                ?obj a prog:Task ;
+                    prog:Task_taskName "$taskName" ;
+                    prog:Task_durationAverage ?averageDuration ;
+                    prog:Task_bed ?bed .
+            }
+        """
+
+        val resultTask: ResultSet = repl.interpreter!!.query(query)!!
+
+        if (!resultTask.hasNext()) {
+            return null
+        }
+
+        val solution: QuerySolution = resultTask.next()
+        val taskName = solution.get("?taskName").asLiteral().toString()
+        val averageDuration = solution.get("?averageDuration").asLiteral().toString().split("^^")[0].toDouble()
+        val bed = solution.get("?bed").asLiteral().toString().split("^^")[0].toInt()
+
+        return Task(taskName, averageDuration, bed)
+    }
+
     fun updateTask(oldTaskName: String, oldAverageDuration: Double, oldBed: Int, newTaskName: String, newAverageDuration: Double, newBed: Int) : Boolean {
         val query = """
             PREFIX : <$prefix>
