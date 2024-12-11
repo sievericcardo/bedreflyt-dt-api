@@ -27,7 +27,7 @@ class TaskDependencyService (
             
             INSERT DATA {
                 :taskDependency_$taskName a :TaskDependency ;
-                    :diagnosisName "$diagnosis" ;
+                    :diagnosisCode "$diagnosis" ;
                     :taskDependent "$taskName" ;
                     :taskToWait "$dependencyName" ;
             }
@@ -74,24 +74,27 @@ class TaskDependencyService (
         return taskDependencies
     }
 
-    fun updateTaskDependency(oldTaskName: String, newTaskName: String, newDependencyName: String) : Boolean {
+    fun updateTaskDependency(diagnosis: String, taskName: String, oldDependencyName: String, newDependencyName: String) : Boolean {
         val query = """
             PREFIX : <$prefix>
             
             DELETE {
-                :taskDependency_$oldTaskName a :TaskDependency ;
-                    :taskDependent "$oldTaskName" ;
-                    :taskToWait ?taskToWait .
+                :taskDependency_$taskName a :TaskDependency ;
+                    :diagnosisCode "$diagnosis" ;
+                    :taskDependent "$taskName" ;
+                    :taskToWait "$oldDependencyName" .
             }
             INSERT {
-                :taskDependency_$newTaskName a :TaskDependency ;
-                    :taskDependent "$newTaskName" ;
+                :taskDependency_$taskName a :TaskDependency ;
+                    :diagnosisCode "$diagnosis" ;
+                    :taskDependent "$taskName" ;
                     :taskToWait "$newDependencyName" ;
             }
             WHERE {
-                :taskDependency_$oldTaskName a :TaskDependency ;
-                    :taskDependent "$oldTaskName" ;
-                    :taskToWait ?taskToWait .
+                :taskDependency_$taskName a :TaskDependency ;
+                    :diagnosisCode "$diagnosis" ;
+                    :taskDependent "$taskName" ;
+                    :taskToWait "$oldDependencyName" .
             }
         """
 
@@ -107,17 +110,19 @@ class TaskDependencyService (
         }
     }
 
-    fun deleteTaskDependency(taskName: String) : Boolean {
+    fun deleteTaskDependency(diagnosis: String, taskName: String) : Boolean {
         val query = """
             PREFIX : <$prefix>
             
             DELETE {
                 :taskDependency_$taskName a :TaskDependency ;
+                    :diagnosisCode "$diagnosis" ;
                     :taskDependent "$taskName" ;
                     :taskToWait ?taskToWait .
             }
             WHERE {
                 :taskDependency_$taskName a :TaskDependency ;
+                    :diagnosisCode "$diagnosis" ;
                     :taskDependent "$taskName" ;
                     :taskToWait ?taskToWait .
             }
