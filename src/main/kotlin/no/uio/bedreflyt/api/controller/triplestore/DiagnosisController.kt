@@ -6,8 +6,6 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses
 import no.uio.bedreflyt.api.config.REPLConfig
 import no.uio.bedreflyt.api.service.triplestore.DiagnosisService
 import no.uio.bedreflyt.api.service.triplestore.TriplestoreService
-import no.uio.microobject.ast.expr.LiteralExpr
-import no.uio.microobject.type.STRINGTYPE
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.GetMapping
 import io.swagger.v3.oas.annotations.parameters.RequestBody as SwaggerRequestBody
