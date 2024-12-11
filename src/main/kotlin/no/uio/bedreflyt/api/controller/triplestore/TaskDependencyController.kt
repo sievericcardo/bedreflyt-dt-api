@@ -6,6 +6,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.responses.ApiResponses
 import no.uio.bedreflyt.api.config.REPLConfig
 import no.uio.bedreflyt.api.config.TriplestoreProperties
+import no.uio.bedreflyt.api.model.triplestore.TaskDependency
 import no.uio.bedreflyt.api.service.triplestore.DiagnosisService
 import no.uio.bedreflyt.api.service.triplestore.TaskDependencyService
 import no.uio.bedreflyt.api.service.triplestore.TaskService
@@ -53,7 +54,7 @@ class TaskDependencyController (
     private val log : Logger = Logger.getLogger(TaskDependencyController::class.java.name)
     private val ttlPrefix = triplestoreProperties.ttlPrefix
 
-    @Operation(summary = "Create a new treatment")
+    @Operation(summary = "Create a new treatment from task dependencies")
     @ApiResponses(value = [
         ApiResponse(responseCode = "200", description = "Treatment created"),
         ApiResponse(responseCode = "400", description = "Invalid treatment"),
@@ -107,5 +108,30 @@ class TaskDependencyController (
         replConfig.regenerateSingleModel().invoke("task dependencies")
 
         return ResponseEntity.ok("Treatment created")
+    }
+
+    @Operation(summary = "Get all task dependencies")
+    @ApiResponses(value = [
+        ApiResponse(responseCode = "200", description = "Task dependencies found"),
+        ApiResponse(responseCode = "400", description = "Invalid request"),
+        ApiResponse(responseCode = "401", description = "Unauthorized"),
+        ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
+        ApiResponse(responseCode = "500", description = "Internal server error")
+    ])
+    @PostMapping("/retrieve")
+    fun getTaskDependencies() : ResponseEntity<Map<String, List<Any>>> {
+        log.info("Getting task dependencies")
+        val taskDependencies = taskDependencyService.getAllTaskDependencies() ?: return ResponseEntity.badRequest().body(mapOf("error" to listOf("No task dependencies steps found")))
+
+        val taskDependenciesDict = mutableMapOf<String, MutableList<TaskDependency>>()
+        taskDependencies.forEach { taskDependency ->
+            if (taskDependenciesDict.containsKey(taskDependency.diagnosis)) {
+                taskDependenciesDict[taskDependency.diagnosis]!!.add(taskDependency)
+            } else {
+                taskDependenciesDict[taskDependency.diagnosis] = mutableListOf(taskDependency)
+            }
+        }
+
+        return ResponseEntity.ok(taskDependenciesDict)
     }
 }
