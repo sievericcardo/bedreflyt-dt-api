@@ -40,7 +40,7 @@ data class UpdateTreatmentRequest (
 )
 
 @RestController
-@RequestMapping("/api/fuseki/treatment")
+@RequestMapping("/api/fuseki/task-dependency")
 class TaskDependencyController (
     private val replConfig: REPLConfig,
     private val triplestoreProperties: TriplestoreProperties,
