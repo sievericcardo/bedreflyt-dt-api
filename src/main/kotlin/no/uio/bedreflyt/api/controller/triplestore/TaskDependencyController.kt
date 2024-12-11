@@ -5,6 +5,7 @@ import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.responses.ApiResponses
 import no.uio.bedreflyt.api.config.REPLConfig
+import no.uio.bedreflyt.api.config.TriplestoreProperties
 import no.uio.bedreflyt.api.service.triplestore.DiagnosisService
 import no.uio.bedreflyt.api.service.triplestore.TaskDependencyService
 import no.uio.bedreflyt.api.service.triplestore.TaskService
@@ -15,6 +16,7 @@ import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
+import java.io.File
 import java.util.logging.Logger
 
 sealed class TaskOrString {
@@ -41,6 +43,7 @@ data class UpdateTreatmentRequest (
 @RequestMapping("/api/fuseki/treatment")
 class TaskDependencyController (
     private val replConfig: REPLConfig,
+    private val triplestoreProperties: TriplestoreProperties,
     private val triplestoreService: TriplestoreService,
     private val taskService: TaskService,
     private val diagnosisService: DiagnosisService,
@@ -48,6 +51,7 @@ class TaskDependencyController (
 ) {
 
     private val log : Logger = Logger.getLogger(TaskDependencyController::class.java.name)
+    private val ttlPrefix = triplestoreProperties.ttlPrefix
 
     @Operation(summary = "Create a new treatment")
     @ApiResponses(value = [
@@ -60,14 +64,12 @@ class TaskDependencyController (
     @PostMapping("/create")
     fun createTreatment(@SwaggerRequestBody(description = "Request to add a new treatment") @RequestBody treatmentRequest: List<TreatmentRequest>) : ResponseEntity<String> {
         log.info("Creating treatment $treatmentRequest")
+        var taskName = ""
 
-        // parse each treatment request
         for (treatment in treatmentRequest) {
             if (diagnosisService.createDiagnosis(treatment.diagnosis)) {
                 log.info("New diagnosis created: ${treatment.diagnosis}")
             }
-            var taskName = ""
-            // check if task is a Task object or a string
             if (treatment.task is TaskOrString.TaskType) {
                 val taskObj = treatment.task as TaskOrString.TaskType
                 if(taskService.createTask(taskObj.task.taskName, taskObj.task.averageDuration, taskObj.task.bed)) {
@@ -86,7 +88,23 @@ class TaskDependencyController (
             if(!taskDependencyService.createTaskDependency(treatment.diagnosis, taskName, treatment.dependsOn)) {
                 return ResponseEntity.badRequest().body("Task dependency already exists")
             }
+
+            // Append to the file bedreflyt.ttl
+            val path = "bedreflyt.ttl"
+            val fileContent = File(path).readText(Charsets.UTF_8)
+            val newContent = """
+            ###  $ttlPrefix/taskDependency_$taskName
+            :taskDependency_$taskName rdf:type owl:NamedIndividual ,
+                            :taskDependency ;
+                :diagnosisName "${treatment.diagnosis}" ;
+                :taskDependent "$taskName" ;
+                :taskToWait "${treatment.dependsOn}" .
+            """.trimIndent()
+
+            File(path).writeText(newContent)
         }
+
+        replConfig.regenerateSingleModel().invoke("task dependencies")
 
         return ResponseEntity.ok("Treatment created")
     }
