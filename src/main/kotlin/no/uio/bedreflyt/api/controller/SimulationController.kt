@@ -10,7 +10,7 @@ import no.uio.bedreflyt.api.model.live.Patient
 import no.uio.bedreflyt.api.service.simulation.DatabaseService
 import no.uio.bedreflyt.api.service.live.PatientService
 import no.uio.bedreflyt.api.model.simulation.RoomDistribution
-import no.uio.bedreflyt.api.service.triplestore.TriplestoreService
+import no.uio.bedreflyt.api.service.triplestore.*
 import no.uio.microobject.runtime.REPL
 import org.apache.jena.query.QuerySolution
 import org.apache.jena.query.ResultSet
@@ -23,6 +23,7 @@ import org.springframework.web.bind.annotation.*
 import org.springframework.web.client.RestTemplate
 import java.io.BufferedReader
 import java.io.InputStreamReader
+import java.util.concurrent.locks.ReentrantLock
 import java.util.logging.Level
 import io.swagger.v3.oas.annotations.parameters.RequestBody as SwaggerRequestBody
 import java.util.logging.Logger
@@ -51,9 +52,14 @@ class SimulationController (
     private val databaseService: DatabaseService,
     private val triplestoreService: TriplestoreService,
     private val patientService: PatientService,
+    private val roomService: RoomService,
+    private val roomDistributionService: RoomDistributionService,
+    private val taskService: TaskService,
+    private val taskDependencyService: TaskDependencyService,
 ) {
 
     private val log : Logger = Logger.getLogger(HomeController::class.java.name)
+    private val lock = ReentrantLock()
 
     /**
      * Execute the JAR
@@ -141,7 +147,7 @@ class SimulationController (
     private fun createAndPopulateTreatmentTables(treatmentDbUrl: String, repl: REPL) {
         databaseService.createTreatmentTables(treatmentDbUrl)
 
-        val tasks = triplestoreService.getAllTasks() ?: throw IllegalArgumentException("No tasks found")
+        val tasks = taskService.getAllTasks() ?: throw IllegalArgumentException("No tasks found")
 
         tasks.forEach { task ->
             databaseService.insertTask(treatmentDbUrl, task.taskName, task.bed, task.averageDuration.toInt())
@@ -151,6 +157,7 @@ class SimulationController (
             """
            SELECT * WHERE {
             ?obj a prog:TaskDependency ;
+                prog:TaskDependency_diagnosisName ?diagnosisName ;
                 prog:TaskDependency_taskName ?taskName ;
                 prog:TaskDependency_taskDependency ?taskDependency .
         }"""
@@ -162,25 +169,23 @@ class SimulationController (
         }
         while (resultTaskDependencies.hasNext()) {
             val solution: QuerySolution = resultTaskDependencies.next()
+            val diagnosis = solution.get("?diagnosisName").asLiteral().toString()
             val taskName = solution.get("?taskName").asLiteral().toString()
             val taskDependency = solution.get("?taskDependency").asLiteral().toString()
-            databaseService.insertTaskDependency(treatmentDbUrl, taskName, taskDependency)
-        }
-
-        val treatments = triplestoreService.getAllTreatments() ?: throw IllegalArgumentException("No treatments found")
-
-        treatments.forEach { treatment ->
-            databaseService.insertTreatment(
-                treatmentDbUrl,
-                treatment.diagnosis,
-                treatment.orderInJourney,
-                treatment.task
-            )
+            databaseService.insertTaskDependency(treatmentDbUrl, diagnosis, taskName, taskDependency)
         }
     }
 
-    private fun createAndPopulateRoomDistributions(roomDbUrl: String, repl: REPL): List<RoomDistribution> {
-        val roomDistributions = triplestoreService.getAllRoomDistributions()
+    private fun createAndPopulateRoomDistributions(roomDbUrl: String): List<RoomDistribution> {
+        val roomList = roomService.getAllRooms()
+
+        roomList?.let {
+            it.forEach { room ->
+                databaseService.insertRoom(roomDbUrl, room.bedCategory, room.roomDescription)
+            }
+        } ?: throw IllegalArgumentException("No rooms found")
+
+        val roomDistributions = roomDistributionService.getAllRoomDistributions()
             ?: throw IllegalArgumentException("No room distributions found")
         val simulationRoomDistribution = mutableListOf<RoomDistribution>()
 
@@ -369,33 +374,23 @@ class SimulationController (
         log.info("Simulating scenario with ${scenario.size} requests")
         val repl: REPL = replConfig.repl()
 
-        val roomDbUrl = "roomData.db"
-        databaseService.createRoomTables(roomDbUrl)
+        lock.lock()
+        try {
+            val bedreflytDB = "bedreflyt.db"
+            databaseService.createTables(bedreflytDB)
 
-        val roomList = triplestoreService.getAllRooms()
+            val roomDistributions = createAndPopulateRoomDistributions(bedreflytDB)
+            createAndPopulatePatientTables(bedreflytDB, scenario)
+            createAndPopulateTreatmentTables(bedreflytDB, repl)
 
-        roomList?.let {
-            it.forEach { room ->
-                databaseService.insertRoom(roomDbUrl, room.bedCategory, room.roomDescription)
-            }
-        } ?: return ResponseEntity.badRequest().body(listOf(listOf(mapOf("error" to "No rooms found"))))
+            log.info("Tables populated, invoking ABS with ${scenario.size} requests")
 
-        val roomDistributions = createAndPopulateRoomDistributions(roomDbUrl, repl)
+            val sim = simulate(roomDistributions)
+            databaseService.deleteDatabase(bedreflytDB)
 
-        val scenarioDbUrl = "scData.db"
-        createAndPopulatePatientTables(scenarioDbUrl, scenario)
-
-        val treatmentDbUrl = "trData.db"
-        createAndPopulateTreatmentTables(treatmentDbUrl, repl)
-
-        log.info("Tables populated, invoking ABS with ${scenario.size} requests")
-
-        val sim = simulate(roomDistributions)
-
-        databaseService.deleteDatabase(roomDbUrl)
-        databaseService.deleteDatabase(scenarioDbUrl)
-        databaseService.deleteDatabase(treatmentDbUrl)
-
-        return sim
+            return sim
+        } finally {
+            lock.unlock()
+        }
     }
 }
