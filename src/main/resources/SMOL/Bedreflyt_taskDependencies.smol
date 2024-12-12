@@ -2,8 +2,9 @@ class TaskDependencyModel extends KindModel ()
     override Unit adaptAddition()
         List<TaskDependency> newTaskDeps = construct("
             PREFIX ast: <http://www.smolang.org/bedreflyt#>
-            SELECT ?taskName ?taskDependency {
+            SELECT DISTINCT ?diagnosisName ?taskName ?taskDependency {
                 ?x a ast:TaskDependency ;
+                    ast:diagnosisCode ?diagnosisName ;
                     ast:taskDependent ?taskName ;
                     ast:taskToWait ?taskDependency .
                 FILTER NOT EXISTS {
@@ -63,5 +64,40 @@ class TaskDependencyModel extends KindModel ()
         end
     end
 
-    override Unit adaptDefect() skip; end
+    override Unit adaptDefect()
+        List<TaskDependencyDefectDependency> wrongTaskDependencies = construct("
+            PREFIX ast: <http://www.smolang.org/bedreflyt#>
+            SELECT DISTINCT ?obj ?taskDependencyNew {
+                ?obj a prog:TaskDependency ;
+                    prog:TaskDependency_diagnosisName ?diagnosisName ;
+                    prog:TaskDependency_taskName ?taskName ;
+                    prog:TaskDependency_taskDependency ?taskDependency .
+                ?y a ast:TaskDependency ;
+                    ast:diagnosisCode ?diagnosisName ;
+                    ast:taskDependent ?taskName ;
+                    ast:taskToWait ?taskDependencyNew .
+                FILTER (?taskDependency != ?taskDependencyNew) .
+            }
+        ");
+
+        if wrongTaskDependencies != null then
+            print("RECONFIG> Misconfigured TaskDependency(s) detected: repairing the model");
+
+            while wrongTaskDependencies != null do
+                TaskDependencyDefectDependency wrongTaskDependency = wrongTaskDependencies.content;
+                List<TaskDependencyDefectDependency> lx = wrongTaskDependencies;
+                wrongTaskDependencies = wrongTaskDependencies.next;
+                destroy(lx);
+
+                print("RECONFIG> Misconfigured task dependency to repair: ");
+                print("          Task Name: " ++ wrongTaskDependency.obj.taskName);
+                print("          Task Dependency: " ++ wrongTaskDependency.obj.taskDependency);
+                print("          Task Dependency New: " ++ wrongTaskDependency.taskDependencyNew);
+
+                wrongTaskDependency.obj.taskDependency = wrongTaskDependency.taskDependencyNew;
+            end
+
+            print("RECONFIG> TaskDependency(s) repaired");
+        end
+    end
 end
