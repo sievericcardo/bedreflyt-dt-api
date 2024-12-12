@@ -15,6 +15,12 @@ class DatabaseService {
         return JdbcTemplate(dataSource)
     }
 
+    fun createTables(dbPath: String) {
+        createPatientTable(dbPath)
+        createRoomTables(dbPath)
+        createTreatmentTables(dbPath)
+    }
+
     fun createPatientTable(dbPath: String) {
         val jdbcTemplate = getJdbcTemplate(dbPath)
         val createPatientTable = """
@@ -80,22 +86,37 @@ class DatabaseService {
         """
         val createTaskDependencyName = """
             CREATE TABLE IF NOT EXISTS taskDependencies (
+                treatmentName TEXT NOT NULL,
                 taskName TEXT NOT NULL,
                 taskDependency TEXT NOT NULL,
-                PRIMARY KEY (taskName, taskDependency)
-            )
-        """
-        val createTreatmentTable = """
-            CREATE TABLE IF NOT EXISTS treatments (
-                treatmentName TEXT NOT NULL,
-                orderTask INTEGER NOT NULL,
-                taskName TEXT NOT NULL,
-                PRIMARY KEY(taskName, treatmentName)
+                PRIMARY KEY (treatmentName, taskName, taskDependency)
             )
         """
         jdbcTemplate.execute(createTaskTable)
         jdbcTemplate.execute(createTaskDependencyName)
-        jdbcTemplate.execute(createTreatmentTable)
+    }
+
+    fun createTreatmentView(dbPath: String) {
+        val jdbcTemplate = getJdbcTemplate(dbPath)
+        val createView = """
+            CREATE VIEW treatments (treatmentName, taskName, orderTask) AS
+              WITH RECURSIVE tasks(treatmentName, taskName, taskPrio)
+              AS (SELECT treatmentName, taskDependency, 0
+                    FROM taskDependencies base
+                   WHERE taskDependency NOT IN
+                         (SELECT taskName
+                            FROM taskDependencies dep
+                           WHERE base.treatmentName = dep.treatmentName)
+                   UNION ALL
+                  SELECT recur.treatmentName, recur.taskName, tasks.taskPrio + 1
+                    FROM taskDependencies recur
+                    JOIN tasks
+                        ON recur.taskDependency = tasks.taskName
+                        AND recur.treatmentName = tasks.treatmentName
+                   ORDER BY 1, 3)
+              SELECT *
+                FROM tasks;
+        """
     }
 
     fun deleteDatabase(dbPath: String) {
@@ -107,7 +128,6 @@ class DatabaseService {
         jdbcTemplate.execute("DROP TABLE IF EXISTS roomDistrib")
         jdbcTemplate.execute("DROP TABLE IF EXISTS tasks")
         jdbcTemplate.execute("DROP TABLE IF EXISTS taskDependencies")
-        jdbcTemplate.execute("DROP TABLE IF EXISTS treatments")
     }
 
     fun insertPatient(dbPath: String, patientId: String, gender: String) {
@@ -165,22 +185,13 @@ class DatabaseService {
         jdbcTemplate.update(sql, name, bedCategory, durAvg)
     }
 
-    fun insertTaskDependency(dbPath: String, taskName: String, taskDependency: String) {
-        if (getTaskDependencyByData(dbPath, taskName, taskDependency) != null) {
+    fun insertTaskDependency(dbPath: String, diagnosis: String, taskName: String, taskDependency: String) {
+        if (getTaskDependencyByData(dbPath, diagnosis, taskName, taskDependency) != null) {
             return
         }
         val jdbcTemplate = getJdbcTemplate(dbPath)
         val sql = "INSERT INTO taskDependencies (taskName, taskDependency) VALUES (?, ?)"
         jdbcTemplate.update(sql, taskName, taskDependency)
-    }
-
-    fun insertTreatment(dbPath: String, treatmentName: String, orderTask: Int, taskName: String) {
-        if (getTreatmentByData(dbPath, treatmentName, taskName) != null) {
-            return
-        }
-        val jdbcTemplate = getJdbcTemplate(dbPath)
-        val sql = "INSERT INTO treatments (treatmentName, orderTask, taskName) VALUES (?, ?, ?)"
-        jdbcTemplate.update(sql, treatmentName, orderTask, taskName)
     }
 
     fun getRooms(dbPath: String): List<Map<String, Any>> {
@@ -313,41 +324,11 @@ class DatabaseService {
         }
     }
 
-    fun getTaskDependencyByData(dbPath: String, taskName: String, taskDependency: String): Map<String, Any>? {
+    fun getTaskDependencyByData(dbPath: String, diagnosis: String, taskName: String, taskDependency: String): Map<String, Any>? {
         val jdbcTemplate = getJdbcTemplate(dbPath)
-        val sql = "SELECT * FROM taskDependencies WHERE taskName = ? AND taskDependency = ?"
+        val sql = "SELECT * FROM taskDependencies WHERE treatmentName = ? AND taskName = ? AND taskDependency = ?"
         return try {
-            jdbcTemplate.queryForMap(sql, taskName, taskDependency)
-        } catch (e: EmptyResultDataAccessException) {
-            null
-        }
-    }
-
-    fun getTreatments(dbPath: String): List<Map<String, Any>> {
-        val jdbcTemplate = getJdbcTemplate(dbPath)
-        val sql = "SELECT * FROM treatments"
-        return try {
-            jdbcTemplate.queryForList(sql)
-        } catch (e: EmptyResultDataAccessException) {
-            emptyList()
-        }
-    }
-
-    fun getTreatmentByName(dbPath: String, name: String): Map<String, Any>? {
-        val jdbcTemplate = getJdbcTemplate(dbPath)
-        val sql = "SELECT * FROM treatments WHERE treatmentName = ?"
-        return try {
-            jdbcTemplate.queryForMap(sql, name)
-        } catch (e: EmptyResultDataAccessException) {
-            null
-        }
-    }
-
-    fun getTreatmentByData(dbPath: String, name: String, task: String) : Map<String, Any>? {
-        val jdbcTemplate = getJdbcTemplate(dbPath)
-        val sql = "SELECT * FROM treatments WHERE treatmentName = ? AND taskName = ?"
-        return try {
-            jdbcTemplate.queryForMap(sql, name, task)
+            jdbcTemplate.queryForMap(sql, diagnosis, taskName, taskDependency)
         } catch (e: EmptyResultDataAccessException) {
             null
         }
