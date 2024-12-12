@@ -9,7 +9,9 @@ import org.apache.jena.update.UpdateExecutionFactory
 import org.apache.jena.update.UpdateFactory
 import org.apache.jena.update.UpdateProcessor
 import org.apache.jena.update.UpdateRequest
+import org.springframework.stereotype.Service
 
+@Service
 class TaskDependencyService (
     private val replConfig: REPLConfig,
     private val triplestoreProperties: TriplestoreProperties,
