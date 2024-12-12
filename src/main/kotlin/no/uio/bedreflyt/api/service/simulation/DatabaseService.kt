@@ -99,7 +99,7 @@ class DatabaseService {
     fun createTreatmentView(dbPath: String) {
         val jdbcTemplate = getJdbcTemplate(dbPath)
         val createView = """
-            CREATE VIEW treatments (treatmentName, taskName, orderTask) AS
+            CREATE VIEW IF NOT EXISTS treatments (treatmentName, taskName, orderTask) AS
               WITH RECURSIVE tasks(treatmentName, taskName, taskPrio)
               AS (SELECT treatmentName, taskDependency, 0
                     FROM taskDependencies base
