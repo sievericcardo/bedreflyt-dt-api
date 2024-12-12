@@ -117,6 +117,7 @@ class DatabaseService {
               SELECT *
                 FROM tasks;
         """
+        jdbcTemplate.execute(createView)
     }
 
     fun deleteDatabase(dbPath: String) {
@@ -128,6 +129,7 @@ class DatabaseService {
         jdbcTemplate.execute("DROP TABLE IF EXISTS roomDistrib")
         jdbcTemplate.execute("DROP TABLE IF EXISTS tasks")
         jdbcTemplate.execute("DROP TABLE IF EXISTS taskDependencies")
+        jdbcTemplate.execute("DROP VIEW IF EXISTS treatments")
     }
 
     fun insertPatient(dbPath: String, patientId: String, gender: String) {
@@ -190,8 +192,8 @@ class DatabaseService {
             return
         }
         val jdbcTemplate = getJdbcTemplate(dbPath)
-        val sql = "INSERT INTO taskDependencies (taskName, taskDependency) VALUES (?, ?)"
-        jdbcTemplate.update(sql, taskName, taskDependency)
+        val sql = "INSERT INTO taskDependencies (treatmentName, taskName, taskDependency) VALUES (?, ?, ?)"
+        jdbcTemplate.update(sql, diagnosis, taskName, taskDependency)
     }
 
     fun getRooms(dbPath: String): List<Map<String, Any>> {
