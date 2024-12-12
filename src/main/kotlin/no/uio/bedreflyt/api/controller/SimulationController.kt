@@ -382,6 +382,7 @@ class SimulationController (
             val roomDistributions = createAndPopulateRoomDistributions(bedreflytDB)
             createAndPopulatePatientTables(bedreflytDB, scenario)
             createAndPopulateTreatmentTables(bedreflytDB, repl)
+            databaseService.createTreatmentView(bedreflytDB)
 
             log.info("Tables populated, invoking ABS with ${scenario.size} requests")
 
