@@ -23,6 +23,7 @@ class TaskDependencyModel extends KindModel ()
                 List<TaskDependency> lx = newTaskDeps;
                 newTaskDeps = newTaskDeps.next;
                 print("RECONFIG> New task dependency detected: ");
+                print("          Diagnosis Name: " ++ newTaskDep.diagnosisName);
                 print("          Task Name: " ++ newTaskDep.taskName);
                 print("          Task Dependency: " ++ newTaskDep.taskDependency);
 
