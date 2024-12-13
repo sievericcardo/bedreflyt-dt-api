@@ -112,7 +112,7 @@ class TaskDependencyService (
         }
     }
 
-    fun deleteTaskDependency(diagnosis: String, taskName: String) : Boolean {
+    fun deleteTaskDependency(diagnosis: String, taskName: String, taskToWait: String) : Boolean {
         val query = """
             PREFIX : <$prefix>
             
@@ -120,13 +120,13 @@ class TaskDependencyService (
                 :taskDependency_$taskName a :TaskDependency ;
                     :diagnosisCode "$diagnosis" ;
                     :taskDependent "$taskName" ;
-                    :taskToWait ?taskToWait .
+                    :taskToWait "$taskToWait" .
             }
             WHERE {
                 :taskDependency_$taskName a :TaskDependency ;
                     :diagnosisCode "$diagnosis" ;
                     :taskDependent "$taskName" ;
-                    :taskToWait ?taskToWait .
+                    :taskToWait "$taskToWait" .
             }
         """
 

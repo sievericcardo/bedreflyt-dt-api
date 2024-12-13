@@ -1,5 +1,10 @@
 package no.uio.bedreflyt.api.controller.triplestore
 
+import com.fasterxml.jackson.core.JsonParser
+import com.fasterxml.jackson.databind.DeserializationContext
+import com.fasterxml.jackson.databind.JsonDeserializer
+import com.fasterxml.jackson.databind.JsonNode
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import no.uio.bedreflyt.api.model.triplestore.Task
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.responses.ApiResponse
@@ -12,22 +17,14 @@ import no.uio.bedreflyt.api.service.triplestore.TaskDependencyService
 import no.uio.bedreflyt.api.service.triplestore.TaskService
 import no.uio.bedreflyt.api.service.triplestore.TriplestoreService
 import org.springframework.http.ResponseEntity
+import org.springframework.web.bind.annotation.*
 import io.swagger.v3.oas.annotations.parameters.RequestBody as SwaggerRequestBody
-import org.springframework.web.bind.annotation.PostMapping
-import org.springframework.web.bind.annotation.RequestBody
-import org.springframework.web.bind.annotation.RequestMapping
-import org.springframework.web.bind.annotation.RestController
 import java.io.File
 import java.util.logging.Logger
 
-sealed class TaskOrString {
-    data class TaskType(val task: Task) : TaskOrString()
-    data class StringType(val value: String) : TaskOrString()
-}
-
 data class TreatmentRequest (
     val diagnosis: String,
-    val task: TaskOrString,
+    val taskName: String,
     val dependsOn: String
 )
 
@@ -40,7 +37,8 @@ data class UpdateTaskDependencyRequest (
 
 data class DeleteTaskDependencyRequest (
     val diagnosis: String,
-    val taskName: String
+    val taskName: String,
+    val dependsOn: String
 )
 
 @RestController
@@ -68,28 +66,15 @@ class TaskDependencyController (
     @PostMapping("/create")
     fun createTreatment(@SwaggerRequestBody(description = "Request to add a new treatment") @RequestBody treatmentRequest: List<TreatmentRequest>) : ResponseEntity<String> {
         log.info("Creating treatment $treatmentRequest")
-        var taskName = ""
 
         for (treatment in treatmentRequest) {
             if (diagnosisService.createDiagnosis(treatment.diagnosis)) {
                 log.info("New diagnosis created: ${treatment.diagnosis}")
             }
-            if (treatment.task is TaskOrString.TaskType) {
-                val taskObj = treatment.task as TaskOrString.TaskType
-                if(taskService.createTask(taskObj.task.taskName, taskObj.task.averageDuration, taskObj.task.bed)) {
-                    log.info("Created new task: ${taskObj.task.taskName}")
-                }
-
-                taskName = taskObj.task.taskName
-            } else if (treatment.task is TaskOrString.StringType) {
-                val task = treatment.task as TaskOrString.StringType
-                if(taskService.getTaskByTaskName(task.value) == null) {
-                    return ResponseEntity.badRequest().body("Task does not exist")
-                }
-
-                taskName = task.value
+            if(taskService.getTaskByTaskName(treatment.taskName) == null) {
+                return ResponseEntity.badRequest().body("Task does not exist")
             }
-            if(!taskDependencyService.createTaskDependency(treatment.diagnosis, taskName, treatment.dependsOn)) {
+            if(!taskDependencyService.createTaskDependency(treatment.diagnosis, treatment.taskName, treatment.dependsOn)) {
                 return ResponseEntity.badRequest().body("Task dependency already exists")
             }
 
@@ -97,13 +82,15 @@ class TaskDependencyController (
             val path = "bedreflyt.ttl"
             val fileContent = File(path).readText(Charsets.UTF_8)
             val newContent = """
-            ###  $ttlPrefix/taskDependency_$taskName
-            :taskDependency_$taskName rdf:type owl:NamedIndividual ,
-                            :taskDependency ;
-                :diagnosisName "${treatment.diagnosis}" ;
-                :taskDependent "$taskName" ;
-                :taskToWait "${treatment.dependsOn}" .
-            """.trimIndent()
+                $fileContent
+                    
+                ###  $ttlPrefix/taskDependency_${treatment.taskName}
+                :taskDependency_${treatment.taskName} rdf:type owl:NamedIndividual ,
+                                :taskDependency ;
+                    :diagnosisName "${treatment.diagnosis}" ;
+                    :taskDependent "${treatment.taskName}" ;
+                    :taskToWait "${treatment.dependsOn}" .
+                """.trimIndent()
 
             File(path).writeText(newContent)
         }
@@ -121,7 +108,7 @@ class TaskDependencyController (
         ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
-    @PostMapping("/retrieve")
+    @GetMapping("/retrieve")
     fun getTaskDependencies() : ResponseEntity<Map<String, List<Any>>> {
         log.info("Getting task dependencies")
         val taskDependencies = taskDependencyService.getAllTaskDependencies() ?: return ResponseEntity.badRequest().body(mapOf("error" to listOf("No task dependencies steps found")))
@@ -192,7 +179,7 @@ class TaskDependencyController (
     fun deleteTaskDependency(@SwaggerRequestBody(description = "Request to delete a task dependency") @RequestBody taskRequest: DeleteTaskDependencyRequest) : ResponseEntity<String> {
         log.info("Deleting task dependency $taskRequest")
 
-        if (!taskDependencyService.deleteTaskDependency(taskRequest.diagnosis, taskRequest.taskName)) {
+        if (!taskDependencyService.deleteTaskDependency(taskRequest.diagnosis, taskRequest.taskName, taskRequest.dependsOn)) {
             return ResponseEntity.badRequest().body("Task dependency does not exist")
         }
 
@@ -206,7 +193,7 @@ class TaskDependencyController (
                             :taskDependency ;
                 :diagnosisName "${taskRequest.diagnosis}" ;
                 :taskDependent "${taskRequest.taskName}" ;
-                :taskToWait ?taskToWait .
+                :taskToWait "${taskRequest.dependsOn}" .
             """.trimIndent()
 
         triplestoreService.replaceContentIgnoringSpaces(path, oldContent, "")
