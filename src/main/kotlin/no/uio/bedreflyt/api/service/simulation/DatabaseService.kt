@@ -335,4 +335,10 @@ class DatabaseService {
             null
         }
     }
+
+    fun updatePatientRoom(dbPath: String, patientId: String, roomNr: Int) {
+        val jdbcTemplate = getJdbcTemplate(dbPath)
+        val sql = "UPDATE patientStatus SET roomNr = ? WHERE patientId = ?"
+        jdbcTemplate.update(sql, roomNr, patientId)
+    }
 }
