@@ -81,9 +81,10 @@ class TaskService (
             
             SELECT DISTINCT ?taskName ?averageDuration ?bed WHERE {
                 ?obj a prog:Task ;
-                    prog:Task_taskName "$taskName" ;
+                    prog:Task_taskName ?taskName ;
                     prog:Task_durationAverage ?averageDuration ;
                     prog:Task_bed ?bed .
+                FILTER (?taskName = "$taskName")
             }
         """
 
