@@ -375,7 +375,6 @@ class SimulationController (
                                             patientService.updatePatient(patient)
                                         }
                                     }
-                                    databaseService.updatePatientRoom(tempDir.toString(), patientId, patientRoom)
                                 }
                             }
                         }
