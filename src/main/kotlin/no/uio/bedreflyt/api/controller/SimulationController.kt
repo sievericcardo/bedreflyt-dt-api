@@ -279,6 +279,7 @@ class SimulationController (
 
             val solverEndpoint = System.getenv().getOrDefault("SOLVER_ENDPOINT", "localhost")
             val solverUrl = "http://$solverEndpoint:8000/api/solve"
+            log.info("Invoking solver with request: $request")
             val response = restTemplate.postForEntity(solverUrl, request, String::class.java)
 
             if (response.body!!.contains("Model is unsat")) {
