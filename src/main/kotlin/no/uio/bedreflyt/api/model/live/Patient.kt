@@ -67,4 +67,7 @@ class Patient (
 
     @Column(name = "roomNumber")
     var roomNumber : Int = 0,
+
+//    @Version
+//    var version: Int = 0
 )
