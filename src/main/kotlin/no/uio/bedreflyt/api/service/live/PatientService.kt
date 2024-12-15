@@ -8,27 +8,23 @@ import org.springframework.stereotype.Service
 
 
 @Service
-class PatientService (
+open class PatientService (
     private val patientRepository: PatientRepository
 ) {
-    fun findAll(): MutableList<Patient?> {
+    open fun findAll(): MutableList<Patient?> {
         return patientRepository.findAll()
     }
 
-    fun findTop20Patients(): List<Patient> {
-        return patientRepository.findTop20ByOrderByPatientIdDesc()
-    }
-
-    fun findByPatientId(patientId: String): List<Patient> {
+    open fun findByPatientId(patientId: String): List<Patient> {
         return patientRepository.findByPatientId(patientId)
     }
 
-    fun savePatient(patient: Patient): Patient {
+    open fun savePatient(patient: Patient): Patient {
         return patientRepository.save(patient)
     }
 
     @Transactional
-    fun updatePatient(patient: Patient): Patient {
+    open fun updatePatient(patient: Patient): Patient {
         return patientRepository.save(patient)
     }
 
@@ -45,7 +41,7 @@ class PatientService (
 //        throw RuntimeException("Failed to update counter after retries")
 //    }
 
-    fun deletePatient(patient: Patient) {
+    open fun deletePatient(patient: Patient) {
         patientRepository.delete(patient)
     }
 }
