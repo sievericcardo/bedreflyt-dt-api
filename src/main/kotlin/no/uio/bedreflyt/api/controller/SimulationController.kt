@@ -121,8 +121,9 @@ class SimulationController (
         }
     }
 
-    private fun createAndPopulatePatientTables(scenarioDbUrl: String, scenario: List<ScenarioRequest>) {
+    private fun createAndPopulatePatientTables(scenarioDbUrl: String, scenario: List<ScenarioRequest>) : Map<String, Patient> {
         databaseService.createPatientTable(scenarioDbUrl)
+        val patientsList = mutableMapOf<String, Patient>()
 
         scenario.forEach { scenarioRequest ->
             scenarioRequest.patientId?.let { patientId ->
@@ -130,6 +131,7 @@ class SimulationController (
                     val patients = patientService.findByPatientId(patientId)
 
                     if (patients.isNotEmpty()) {
+                        patientsList[patientId] = patients[0]
                         databaseService.insertPatient(scenarioDbUrl, patients[0].patientId, patients[0].gender)
                         databaseService.insertPatientStatus(scenarioDbUrl, patients[0].patientId, patients[0].infectious, patients[0].roomNumber)
                     } else {
@@ -150,6 +152,8 @@ class SimulationController (
                 }
             }
         }
+
+        return patientsList
     }
 
     private fun createAndPopulateTreatmentTables(treatmentDbUrl: String, repl: REPL) {
@@ -215,7 +219,7 @@ class SimulationController (
      * @param patient - Patient data
      * @return String - Solver response
      */
-    private fun invokeSolver(patient : String, roomDistributions: List<RoomDistribution>) : List<Map<String, Any>> {
+    private fun invokeSolver(patient : String, patientsSimulated: Map<String, Patient>, roomDistributions: List<RoomDistribution>) : List<Map<String, Any>> {
         val rooms = roomDistributions.size
         val capacities = roomDistributions.map { it.capacity ?: 0 }
         val roomCategories: List<Long> = roomDistributions.map { it.room.toLong() ?: 0 }
@@ -236,9 +240,10 @@ class SimulationController (
                 val patientId = patientData[0]
                 val patientDistance = patientData[1]
 
-                val patientInfoList = patientService.findByPatientId(patientId)
-                if (patientInfoList.isNotEmpty()) {
-                    val patientInfo = patientInfoList[0]
+                val patientInfo = patientsSimulated[patientId]
+                if (patientInfo == null) {
+                    patientNumbers -= 1
+                } else {
                     if (patientDistance.toInt() > 0) {
                         val gender = patientInfo.gender == "Male"
                         genders.add(gender)
@@ -246,12 +251,10 @@ class SimulationController (
                         patientDistances.add(patientDistance.toInt())
                         previous.add(patientInfo.roomNumber)
 
-                        patientMap[patientNumbers-1] = patientInfoList[0]
+                        patientMap[patientNumbers-1] = patientInfo
                     } else {
                         patientNumbers -= 1
                     }
-                } else {
-                    patientNumbers -= 1
                 }
             }
         }
@@ -293,13 +296,13 @@ class SimulationController (
             // Transform the data into the desired structure
             val transformedData = jsonData.flatMap { roomData ->
                 roomData.map { (roomNumber, roomInfo) ->
-                    val roomInfoMap = roomInfo as Map<String, Any>
-                    val patientNumbers = (roomInfoMap["patients"] as List<*>).map { it.toString().toInt() }
-                    val patients = patientNumbers.map { number ->
-                        val patient = patientMap[number]!!
+                    val roomInfoMap = roomInfo as Map<*, *>
+                    val patientNumbersMap = (roomInfoMap["patients"] as List<*>).map { it.toString().toInt() }
+                    val patients = patientNumbersMap.map { number ->
+                        val singlePatientMap = patientMap[number]!!
                         mapOf(
-                            "name" to patient.patientId,
-                            "age" to patient.age
+                            "name" to singlePatientMap.patientId,
+                            "age" to singlePatientMap.age
                         )
                     }
                     val gender = if (roomInfoMap["gender"] as String == "True") "Male" else "Female"
@@ -326,7 +329,7 @@ class SimulationController (
      *
      * @return ResponseEntity<List<String>> - List of scenarios
      */
-    private fun simulate(roomDistributions: List<RoomDistribution>, tempDir: Path) : ResponseEntity<List<List<Map<String, Any>>>> {
+    private fun simulate(patients: Map<String, Patient>, roomDistributions: List<RoomDistribution>, tempDir: Path) : ResponseEntity<List<List<Map<String, Any>>>> {
         try {
             val data = executeJar(tempDir)
 
@@ -360,21 +363,17 @@ class SimulationController (
 
             groupedInformation.forEach { group ->
                 group.forEach { patient ->
-                    val solveData = invokeSolver(patient, roomDistributions)
+                    val solveData = invokeSolver(patient, patients, roomDistributions)
                     if (solveData.isNotEmpty() && !solveData[0].containsKey("error") && !solveData[0].containsKey("warning")) {
                         solveData.forEach { roomData ->
                             roomData.forEach { (roomNumber, roomInfo) ->
                                 val roomInfoMap = roomInfo as Map<String, Any>
-                                val patients = roomInfoMap["patients"] as List<Map<String, Any>>
-                                patients.forEach { patient ->
+                                val allPatients = roomInfoMap["patients"] as List<Map<String, Any>>
+                                allPatients.forEach { patient ->
                                     val patientId = patient["name"] as String
                                     val patientRoom = roomNumber.split(" ")[1].toInt()
-                                    patientService.findByPatientId(patientId).let { patientList ->
-                                        if (patientList.isNotEmpty()) {
-                                            val patient = patientList[0]
-                                            patient.roomNumber = patientRoom
-                                            patientService.updatePatient(patient)
-                                        }
+                                    patients[patientId]?.let { patientInfo ->
+                                        patientInfo.roomNumber = patientRoom
                                     }
                                 }
                             }
@@ -414,13 +413,13 @@ class SimulationController (
         databaseService.createTables(bedreflytDB)
 
         val roomDistributions = createAndPopulateRoomDistributions(bedreflytDB)
-        createAndPopulatePatientTables(bedreflytDB, scenario)
+        val patients = createAndPopulatePatientTables(bedreflytDB, scenario)
         createAndPopulateTreatmentTables(bedreflytDB, repl)
         databaseService.createTreatmentView(bedreflytDB)
 
         log.info("Tables populated, invoking ABS with ${scenario.size} requests")
 
-        val sim = simulate(roomDistributions, tempDir)
+        val sim = simulate(patients, roomDistributions, tempDir)
 
         Files.walk(tempDir)
             .sorted(Comparator.reverseOrder())
