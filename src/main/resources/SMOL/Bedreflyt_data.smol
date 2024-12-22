@@ -6,7 +6,7 @@ end
 class Task extends Twin (String taskName, Int bed, Double durationAverage)
 end
 
-class TaskDependency extends Twin (String taskName, String taskDependency)
+class TaskDependency extends Twin (String diagnosisName, String taskName, String taskDependency)
 end
 
 class JourneyStep extends Twin (String diagnosis, Int journeyOrder, String task)
@@ -24,6 +24,7 @@ end
 class TaskDefectBed extends Twin (Task obj, Int bedNew) end
 class TaskDefectName extends Twin (Task obj, String taskNameNew) end
 class TaskDefectDuration extends Twin (Task obj, Double durationAverageNew) end
+class TaskDependencyDefectDependency extends Twin (TaskDependency obj, String taskDependencyNew) end
 class JourneyStepDefectDiagnosis extends Twin (JourneyStep obj, String diagnosisNew) end
 class JourneyStepDefectOrder extends Twin (JourneyStep obj, Int journeyOrderNew) end
 class JourneyStepDefectTask extends Twin (JourneyStep obj, String taskNew) end

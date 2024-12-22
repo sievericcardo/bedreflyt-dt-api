@@ -4,9 +4,8 @@ import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.responses.ApiResponses
 import no.uio.bedreflyt.api.config.REPLConfig
+import no.uio.bedreflyt.api.service.triplestore.DiagnosisService
 import no.uio.bedreflyt.api.service.triplestore.TriplestoreService
-import no.uio.microobject.ast.expr.LiteralExpr
-import no.uio.microobject.type.STRINGTYPE
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.GetMapping
 import io.swagger.v3.oas.annotations.parameters.RequestBody as SwaggerRequestBody
@@ -30,7 +29,8 @@ data class UpdateDiagnosisRequest (
 @RequestMapping("/api/fuseki/diagnosis")
 class DiagnosisController (
     private val replConfig: REPLConfig,
-    private val triplestoreService: TriplestoreService
+    private val triplestoreService: TriplestoreService,
+    private val diagnosisService: DiagnosisService
 ) {
 
     private val log : Logger = Logger.getLogger(DiagnosisController::class.java.name)
@@ -53,7 +53,7 @@ class DiagnosisController (
     fun createDiagnosis (@SwaggerRequestBody(description = "Request to add a new patient") @RequestBody diagnosisRequest: DiagnosisRequest) : ResponseEntity<String> {
         log.info("Creating diagnosis $diagnosisRequest")
 
-        if (!triplestoreService.createDiagnosis(diagnosisRequest.diagnosisName)) {
+        if (!diagnosisService.createDiagnosis(diagnosisRequest.diagnosisName)) {
             return ResponseEntity.badRequest().body("Diagnosis already exists")
         }
         replConfig.regenerateSingleModel().invoke("diagnosis")
@@ -86,7 +86,7 @@ class DiagnosisController (
     @GetMapping("/retrieve")
     fun retrieveDiagnosis() : ResponseEntity<List<Any>> {
         log.info("Retrieving diagnosis")
-        val diagnosisList = triplestoreService.getAllDiagnosis() ?: return ResponseEntity.badRequest().body(listOf("No diagnosis found"))
+        val diagnosisList = diagnosisService.getAllDiagnosis() ?: return ResponseEntity.badRequest().body(listOf("No diagnosis found"))
 
         return ResponseEntity.ok(diagnosisList)
     }
@@ -107,7 +107,7 @@ class DiagnosisController (
             return ResponseEntity.badRequest().body("Diagnosis name cannot be empty")
         }
 
-        if(!triplestoreService.updateDiagnosis(updateDiagnosisRequest.oldDiagnosisName, updateDiagnosisRequest.newDiagnosisName)) {
+        if(!diagnosisService.updateDiagnosis(updateDiagnosisRequest.oldDiagnosisName, updateDiagnosisRequest.newDiagnosisName)) {
             return ResponseEntity.badRequest().body("Diagnosis does not exist")
         }
         replConfig.regenerateSingleModel().invoke("diagnosis")
@@ -148,7 +148,7 @@ class DiagnosisController (
             return ResponseEntity.badRequest().body("Diagnosis name cannot be empty")
         }
 
-        if(!triplestoreService.deleteDiagnosis(diagnosisRequest.diagnosisName)) {
+        if(!diagnosisService.deleteDiagnosis(diagnosisRequest.diagnosisName)) {
             return ResponseEntity.badRequest().body("Diagnosis does not exist")
         }
         replConfig.regenerateSingleModel().invoke("diagnosis")

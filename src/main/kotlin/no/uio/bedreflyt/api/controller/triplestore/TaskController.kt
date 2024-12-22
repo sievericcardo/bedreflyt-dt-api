@@ -5,6 +5,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.responses.ApiResponses
 import no.uio.bedreflyt.api.config.REPLConfig
 import no.uio.bedreflyt.api.model.triplestore.Task
+import no.uio.bedreflyt.api.service.triplestore.TaskService
 import no.uio.bedreflyt.api.service.triplestore.TriplestoreService
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.GetMapping
@@ -35,7 +36,8 @@ data class UpdateTaskRequest (
 @RequestMapping("/api/fuseki/task")
 class TaskController (
     private val replConfig: REPLConfig,
-    private val triplestoreService: TriplestoreService
+    private val triplestoreService: TriplestoreService,
+    private val taskService: TaskService
 ) {
 
     private val log : Logger = Logger.getLogger(TaskController::class.java.name)
@@ -59,7 +61,7 @@ class TaskController (
         log.info("Creating task $taskRequest")
 
         val task = Task(taskRequest.taskName, taskRequest.averageDuration, taskRequest.bed)
-        if(!triplestoreService.createTask(task.taskName, task.averageDuration, task.bed)) {
+        if(!taskService.createTask(task.taskName, task.averageDuration, task.bed)) {
             return ResponseEntity.badRequest().body("Error: the task could not be created.")
         }
         replConfig.regenerateSingleModel().invoke("tasks")
@@ -93,7 +95,7 @@ class TaskController (
     @GetMapping("/retrieve")
     fun retrieveTasks() : ResponseEntity<List<Any>> {
         log.info("Retrieving tasks")
-        val taskList = triplestoreService.getAllTasks() ?: return ResponseEntity.badRequest().body(listOf("No tasks found"))
+        val taskList = taskService.getAllTasks() ?: return ResponseEntity.badRequest().body(listOf("No tasks found"))
         return ResponseEntity.ok(taskList)
     }
 
@@ -109,7 +111,7 @@ class TaskController (
     fun updateTask(@SwaggerRequestBody(description = "Request to update a task") @RequestBody updateTaskRequest: UpdateTaskRequest) : ResponseEntity<String> {
         log.info("Updating task $updateTaskRequest")
 
-        if(!triplestoreService.updateTask(updateTaskRequest.oldTaskName, updateTaskRequest.oldAverageDuration, updateTaskRequest.oldBed, updateTaskRequest.newTaskName, updateTaskRequest.newAverageDuration,  updateTaskRequest.newBed)) {
+        if(!taskService.updateTask(updateTaskRequest.oldTaskName, updateTaskRequest.oldAverageDuration, updateTaskRequest.oldBed, updateTaskRequest.newTaskName, updateTaskRequest.newAverageDuration,  updateTaskRequest.newBed)) {
             return ResponseEntity.badRequest().body("Error: the task could not be updated.")
         }
         replConfig.regenerateSingleModel().invoke("tasks")
@@ -150,7 +152,7 @@ class TaskController (
     fun deleteTask(@SwaggerRequestBody(description = "Request to delete a task") @RequestBody taskRequest: TaskRequest) : ResponseEntity<String> {
         log.info("Deleting task $taskRequest")
 
-        if(!triplestoreService.deleteTask(taskRequest.taskName, taskRequest.averageDuration, taskRequest.bed)) {
+        if(!taskService.deleteTask(taskRequest.taskName, taskRequest.averageDuration, taskRequest.bed)) {
             return ResponseEntity.badRequest().body("Error: the task could not be deleted.")
         }
         replConfig.regenerateSingleModel().invoke("tasks")

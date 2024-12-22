@@ -10,7 +10,7 @@ import no.uio.bedreflyt.api.model.live.Patient
 import no.uio.bedreflyt.api.service.simulation.DatabaseService
 import no.uio.bedreflyt.api.service.live.PatientService
 import no.uio.bedreflyt.api.model.simulation.RoomDistribution
-import no.uio.bedreflyt.api.service.triplestore.TriplestoreService
+import no.uio.bedreflyt.api.service.triplestore.*
 import no.uio.microobject.runtime.REPL
 import org.apache.jena.query.QuerySolution
 import org.apache.jena.query.ResultSet
@@ -23,6 +23,11 @@ import org.springframework.web.bind.annotation.*
 import org.springframework.web.client.RestTemplate
 import java.io.BufferedReader
 import java.io.InputStreamReader
+import java.nio.file.Files
+import java.nio.file.Path
+import java.nio.file.Paths
+import java.nio.file.StandardCopyOption
+import java.util.*
 import java.util.logging.Level
 import io.swagger.v3.oas.annotations.parameters.RequestBody as SwaggerRequestBody
 import java.util.logging.Logger
@@ -51,6 +56,10 @@ class SimulationController (
     private val databaseService: DatabaseService,
     private val triplestoreService: TriplestoreService,
     private val patientService: PatientService,
+    private val roomService: RoomService,
+    private val roomDistributionService: RoomDistributionService,
+    private val taskService: TaskService,
+    private val taskDependencyService: TaskDependencyService,
 ) {
 
     private val log : Logger = Logger.getLogger(HomeController::class.java.name)
@@ -62,13 +71,18 @@ class SimulationController (
      *
      * @return String - Output of the JAR file
      */
-    private fun executeJar() : String {
-        val command = listOf("java", "-jar", "bedreflyt.jar")
+    private fun executeJar(tempDir: Path) : String {
+        val jarFileName = "bedreflyt.jar"
+        val jarFilePath = tempDir.resolve(jarFileName)
+        Files.copy(Paths.get(jarFileName), jarFilePath, StandardCopyOption.REPLACE_EXISTING)
+
+        val command = listOf("java", "-jar", jarFilePath.toString())
 
         log.info("Executing JAR with command: $command")
 
         // Start the process
         val process = ProcessBuilder(command)
+            .directory(tempDir.toFile())
             .redirectErrorStream(false) // Do not redirect error stream so we can capture separately
             .start()
 
@@ -107,8 +121,9 @@ class SimulationController (
         }
     }
 
-    private fun createAndPopulatePatientTables(scenarioDbUrl: String, scenario: List<ScenarioRequest>) {
+    private fun createAndPopulatePatientTables(scenarioDbUrl: String, scenario: List<ScenarioRequest>) : Map<String, Patient> {
         databaseService.createPatientTable(scenarioDbUrl)
+        val patientsList = mutableMapOf<String, Patient>()
 
         scenario.forEach { scenarioRequest ->
             scenarioRequest.patientId?.let { patientId ->
@@ -116,6 +131,7 @@ class SimulationController (
                     val patients = patientService.findByPatientId(patientId)
 
                     if (patients.isNotEmpty()) {
+                        patientsList[patientId] = patients[0]
                         databaseService.insertPatient(scenarioDbUrl, patients[0].patientId, patients[0].gender)
                         databaseService.insertPatientStatus(scenarioDbUrl, patients[0].patientId, patients[0].infectious, patients[0].roomNumber)
                     } else {
@@ -136,12 +152,14 @@ class SimulationController (
                 }
             }
         }
+
+        return patientsList
     }
 
     private fun createAndPopulateTreatmentTables(treatmentDbUrl: String, repl: REPL) {
         databaseService.createTreatmentTables(treatmentDbUrl)
 
-        val tasks = triplestoreService.getAllTasks() ?: throw IllegalArgumentException("No tasks found")
+        val tasks = taskService.getAllTasks() ?: throw IllegalArgumentException("No tasks found")
 
         tasks.forEach { task ->
             databaseService.insertTask(treatmentDbUrl, task.taskName, task.bed, task.averageDuration.toInt())
@@ -151,6 +169,7 @@ class SimulationController (
             """
            SELECT * WHERE {
             ?obj a prog:TaskDependency ;
+                prog:TaskDependency_diagnosisName ?diagnosisName ;
                 prog:TaskDependency_taskName ?taskName ;
                 prog:TaskDependency_taskDependency ?taskDependency .
         }"""
@@ -162,25 +181,23 @@ class SimulationController (
         }
         while (resultTaskDependencies.hasNext()) {
             val solution: QuerySolution = resultTaskDependencies.next()
+            val diagnosis = solution.get("?diagnosisName").asLiteral().toString()
             val taskName = solution.get("?taskName").asLiteral().toString()
             val taskDependency = solution.get("?taskDependency").asLiteral().toString()
-            databaseService.insertTaskDependency(treatmentDbUrl, taskName, taskDependency)
-        }
-
-        val treatments = triplestoreService.getAllTreatments() ?: throw IllegalArgumentException("No treatments found")
-
-        treatments.forEach { treatment ->
-            databaseService.insertTreatment(
-                treatmentDbUrl,
-                treatment.diagnosis,
-                treatment.orderInJourney,
-                treatment.task
-            )
+            databaseService.insertTaskDependency(treatmentDbUrl, diagnosis, taskName, taskDependency)
         }
     }
 
-    private fun createAndPopulateRoomDistributions(roomDbUrl: String, repl: REPL): List<RoomDistribution> {
-        val roomDistributions = triplestoreService.getAllRoomDistributions()
+    private fun createAndPopulateRoomDistributions(roomDbUrl: String): List<RoomDistribution> {
+        val roomList = roomService.getAllRooms()
+
+        roomList?.let {
+            it.forEach { room ->
+                databaseService.insertRoom(roomDbUrl, room.bedCategory, room.roomDescription)
+            }
+        } ?: throw IllegalArgumentException("No rooms found")
+
+        val roomDistributions = roomDistributionService.getAllRoomDistributions()
             ?: throw IllegalArgumentException("No room distributions found")
         val simulationRoomDistribution = mutableListOf<RoomDistribution>()
 
@@ -202,7 +219,7 @@ class SimulationController (
      * @param patient - Patient data
      * @return String - Solver response
      */
-    private fun invokeSolver(patient : String, roomDistributions: List<RoomDistribution>) : List<Map<String, Any>> {
+    private fun invokeSolver(patient : String, patientsSimulated: Map<String, Patient>, roomDistributions: List<RoomDistribution>) : List<Map<String, Any>> {
         val rooms = roomDistributions.size
         val capacities = roomDistributions.map { it.capacity ?: 0 }
         val roomCategories: List<Long> = roomDistributions.map { it.room.toLong() ?: 0 }
@@ -223,18 +240,21 @@ class SimulationController (
                 val patientId = patientData[0]
                 val patientDistance = patientData[1]
 
-                val patientInfoList = patientService.findByPatientId(patientId)
-                if (patientInfoList.isNotEmpty()) {
-                    val patientInfo = patientInfoList[0]
-                    val gender = patientInfo.gender == "Male"
-                    genders.add(gender)
-                    infectious.add(patientInfo.infectious)
-                    patientDistances.add(patientDistance.toInt())
-                    previous.add(patientInfo.roomNumber)
-
-                    patientMap[patientNumbers-1] = patientInfoList[0]
-                } else {
+                val patientInfo = patientsSimulated[patientId]
+                if (patientInfo == null) {
                     patientNumbers -= 1
+                } else {
+                    if (patientDistance.toInt() > 0) {
+                        val gender = patientInfo.gender == "Male"
+                        genders.add(gender)
+                        infectious.add(patientInfo.infectious)
+                        patientDistances.add(patientDistance.toInt())
+                        previous.add(patientInfo.roomNumber)
+
+                        patientMap[patientNumbers-1] = patientInfo
+                    } else {
+                        patientNumbers -= 1
+                    }
                 }
             }
         }
@@ -262,6 +282,7 @@ class SimulationController (
 
             val solverEndpoint = System.getenv().getOrDefault("SOLVER_ENDPOINT", "localhost")
             val solverUrl = "http://$solverEndpoint:8000/api/solve"
+            log.info("Invoking solver with request: $request")
             val response = restTemplate.postForEntity(solverUrl, request, String::class.java)
 
             if (response.body!!.contains("Model is unsat")) {
@@ -275,13 +296,13 @@ class SimulationController (
             // Transform the data into the desired structure
             val transformedData = jsonData.flatMap { roomData ->
                 roomData.map { (roomNumber, roomInfo) ->
-                    val roomInfoMap = roomInfo as Map<String, Any>
-                    val patientNumbers = (roomInfoMap["patients"] as List<*>).map { it.toString().toInt() }
-                    val patients = patientNumbers.map { number ->
-                        val patient = patientMap[number]!!
+                    val roomInfoMap = roomInfo as Map<*, *>
+                    val patientNumbersMap = (roomInfoMap["patients"] as List<*>).map { it.toString().toInt() }
+                    val patients = patientNumbersMap.map { number ->
+                        val singlePatientMap = patientMap[number]!!
                         mapOf(
-                            "name" to patient.patientId,
-                            "age" to patient.age
+                            "name" to singlePatientMap.patientId,
+                            "age" to singlePatientMap.age
                         )
                     }
                     val gender = if (roomInfoMap["gender"] as String == "True") "Male" else "Female"
@@ -308,9 +329,9 @@ class SimulationController (
      *
      * @return ResponseEntity<List<String>> - List of scenarios
      */
-    private fun simulate(roomDistributions: List<RoomDistribution>) : ResponseEntity<List<List<Map<String, Any>>>> {
+    private fun simulate(patients: Map<String, Patient>, roomDistributions: List<RoomDistribution>, tempDir: Path) : ResponseEntity<List<List<Map<String, Any>>>> {
         try {
-            val data = executeJar()
+            val data = executeJar(tempDir)
 
             // If I got error from the JAR, return the error
             if (data.contains("Error executing JAR")) {
@@ -342,7 +363,23 @@ class SimulationController (
 
             groupedInformation.forEach { group ->
                 group.forEach { patient ->
-                    val solveData = invokeSolver(patient, roomDistributions)
+                    val solveData = invokeSolver(patient, patients, roomDistributions)
+                    if (solveData.isNotEmpty() && !solveData[0].containsKey("error") && !solveData[0].containsKey("warning")) {
+                        solveData.forEach { roomData ->
+                            roomData.forEach { (roomNumber, roomInfo) ->
+                                val roomInfoMap = roomInfo as Map<String, Any>
+                                val allPatients = roomInfoMap["patients"] as List<Map<String, Any>>
+                                allPatients.forEach { patient ->
+                                    val patientId = patient["name"] as String
+                                    val patientRoom = roomNumber.split(" ")[1].toInt()
+                                    patients[patientId]?.let { patientInfo ->
+                                        patientInfo.roomNumber = patientRoom
+                                    }
+                                }
+                            }
+                        }
+                    }
+
                     scenarios.add(solveData)
                     log.info(solveData.toString())
                 }
@@ -369,32 +406,24 @@ class SimulationController (
         log.info("Simulating scenario with ${scenario.size} requests")
         val repl: REPL = replConfig.repl()
 
-        val roomDbUrl = "roomData.db"
-        databaseService.createRoomTables(roomDbUrl)
+        // Create a temporary directory
+        val uniqueID = UUID.randomUUID().toString()
+        val tempDir: Path = Files.createTempDirectory("simulation_$uniqueID")
+        val bedreflytDB = tempDir.resolve("bedreflyt.db").toString()
+        databaseService.createTables(bedreflytDB)
 
-        val roomList = triplestoreService.getAllRooms()
-
-        roomList?.let {
-            it.forEach { room ->
-                databaseService.insertRoom(roomDbUrl, room.bedCategory, room.roomDescription)
-            }
-        } ?: return ResponseEntity.badRequest().body(listOf(listOf(mapOf("error" to "No rooms found"))))
-
-        val roomDistributions = createAndPopulateRoomDistributions(roomDbUrl, repl)
-
-        val scenarioDbUrl = "scData.db"
-        createAndPopulatePatientTables(scenarioDbUrl, scenario)
-
-        val treatmentDbUrl = "trData.db"
-        createAndPopulateTreatmentTables(treatmentDbUrl, repl)
+        val roomDistributions = createAndPopulateRoomDistributions(bedreflytDB)
+        val patients = createAndPopulatePatientTables(bedreflytDB, scenario)
+        createAndPopulateTreatmentTables(bedreflytDB, repl)
+        databaseService.createTreatmentView(bedreflytDB)
 
         log.info("Tables populated, invoking ABS with ${scenario.size} requests")
 
-        val sim = simulate(roomDistributions)
+        val sim = simulate(patients, roomDistributions, tempDir)
 
-        databaseService.deleteDatabase(roomDbUrl)
-        databaseService.deleteDatabase(scenarioDbUrl)
-        databaseService.deleteDatabase(treatmentDbUrl)
+        Files.walk(tempDir)
+            .sorted(Comparator.reverseOrder())
+            .forEach(Files::delete)
 
         return sim
     }
