@@ -67,6 +67,25 @@ class DiagnosisService (
         return diagnosis
     }
 
+    fun getDiagnosisByName(diagnosis: String) : Diagnosis? {
+        val query = """
+            SELECT DISTINCT ?name WHERE {
+                ?obj a prog:Diagnosis ;
+                    prog:Diagnosis_diagnosisName ?diagnosis .
+                FILTER (?diagnosis = "$diagnosis")
+            }"""
+
+        val resultDiagnosis: ResultSet = repl.interpreter!!.query(query)!!
+
+        if (!resultDiagnosis.hasNext()) {
+            return null
+        }
+
+        val solution: QuerySolution = resultDiagnosis.next()
+        val name = solution.get("?name").asLiteral().toString()
+        return Diagnosis(name)
+    }
+
     fun updateDiagnosis(oldDiagnosisName: String, newDiagnosisName: String) : Boolean {
         val query = """
             PREFIX : <$prefix>
