@@ -23,12 +23,12 @@ class TaskDependencyService (
     private val ttlPrefix = triplestoreProperties.ttlPrefix
     private val repl = replConfig.repl()
 
-    fun createTaskDependency(diagnosis: String, taskName: String, dependencyName: String) : Boolean {
+    fun createTaskDependency(treatment: String, diagnosis: String, taskName: String, dependencyName: String) : Boolean {
         val query = """
             PREFIX : <$prefix>
             
             INSERT DATA {
-                :taskDependency_$taskName a :TaskDependency ;
+                :taskDependency_${taskName}_${diagnosis}_${treatment} a :TaskDependency ;
                     :diagnosisCode "$diagnosis" ;
                     :taskDependent "$taskName" ;
                     :taskToWait "$dependencyName" ;
@@ -53,6 +53,7 @@ class TaskDependencyService (
         val query = """
             SELECT DISTINCT ?diagnosisName ?taskDependent ?taskToWait WHERE {
                 ?obj a prog:TaskDependency ;
+                    prog:TaskDependency_treatmentName ?treatment ;
                     prog:TaskDependency_diagnosisName ?diagnosisName ;
                     prog:TaskDependency_taskName ?taskDependent ;
                     prog:TaskDependency_taskDependency ?taskToWait .
@@ -66,34 +67,35 @@ class TaskDependencyService (
 
         while (resultTaskDependencies.hasNext()) {
             val solution: QuerySolution = resultTaskDependencies.next()
+            val treatmentName = solution.get("treatment").asLiteral().string
             val diagnosisName = solution.get("diagnosisName").asLiteral().string
             val taskDependent = solution.get("taskDependent").asLiteral().string
             val taskToWait = solution.get("taskToWait").asLiteral().string
 
-            taskDependencies.add(TaskDependency(diagnosisName, taskDependent, taskToWait))
+            taskDependencies.add(TaskDependency(treatmentName, diagnosisName, taskDependent, taskToWait))
         }
 
         return taskDependencies
     }
 
-    fun updateTaskDependency(diagnosis: String, taskName: String, oldDependencyName: String, newDependencyName: String) : Boolean {
+    fun updateTaskDependency(treatment: String, diagnosis: String, taskName: String, oldDependencyName: String, newDependencyName: String) : Boolean {
         val query = """
             PREFIX : <$prefix>
             
             DELETE {
-                :taskDependency_$taskName a :TaskDependency ;
+                :taskDependency_${taskName}_${diagnosis}_${treatment} a :TaskDependency ;
                     :diagnosisCode "$diagnosis" ;
                     :taskDependent "$taskName" ;
                     :taskToWait "$oldDependencyName" .
             }
             INSERT {
-                :taskDependency_$taskName a :TaskDependency ;
+                :taskDependency_${taskName}_${diagnosis}_${treatment} a :TaskDependency ;
                     :diagnosisCode "$diagnosis" ;
                     :taskDependent "$taskName" ;
                     :taskToWait "$newDependencyName" ;
             }
             WHERE {
-                :taskDependency_$taskName a :TaskDependency ;
+                :taskDependency_${taskName}_${diagnosis}_${treatment} a :TaskDependency ;
                     :diagnosisCode "$diagnosis" ;
                     :taskDependent "$taskName" ;
                     :taskToWait "$oldDependencyName" .
@@ -112,18 +114,18 @@ class TaskDependencyService (
         }
     }
 
-    fun deleteTaskDependency(diagnosis: String, taskName: String, taskToWait: String) : Boolean {
+    fun deleteTaskDependency(treatment: String, diagnosis: String, taskName: String, taskToWait: String) : Boolean {
         val query = """
             PREFIX : <$prefix>
             
             DELETE {
-                :taskDependency_$taskName a :TaskDependency ;
+                :taskDependency_${taskName}_${diagnosis}_${treatment} a :TaskDependency ;
                     :diagnosisCode "$diagnosis" ;
                     :taskDependent "$taskName" ;
                     :taskToWait "$taskToWait" .
             }
             WHERE {
-                :taskDependency_$taskName a :TaskDependency ;
+                :taskDependency_${taskName}_${diagnosis}_${treatment} a :TaskDependency ;
                     :diagnosisCode "$diagnosis" ;
                     :taskDependent "$taskName" ;
                     :taskToWait "$taskToWait" .
