@@ -7,6 +7,7 @@ class Task extends Twin (String taskName, Int bed, Double durationAverage)
 end
 
 class TaskDependency extends Twin (
+    String treatmentName,
     String diagnosisName,
     String taskName,
     String taskDependency)
