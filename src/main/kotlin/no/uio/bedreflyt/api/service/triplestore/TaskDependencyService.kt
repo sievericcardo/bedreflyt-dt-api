@@ -29,6 +29,7 @@ class TaskDependencyService (
             
             INSERT DATA {
                 :taskDependency_${taskName}_${diagnosis}_${treatment} a :TaskDependency ;
+                    :treatment "$treatment" ;
                     :diagnosisCode "$diagnosis" ;
                     :taskDependent "$taskName" ;
                     :taskToWait "$dependencyName" ;
@@ -78,24 +79,86 @@ class TaskDependencyService (
         return taskDependencies
     }
 
+    fun getTaskDependenciesByTreatment(treatment: String) : List<TaskDependency>? {
+        val taskDependencies: MutableList<TaskDependency> = mutableListOf()
+
+        val query = """
+            SELECT DISTINCT ?diagnosisName ?taskDependent ?taskToWait WHERE {
+                ?obj a prog:TaskDependency ;
+                    prog:TaskDependency_treatmentName "$treatment" ;
+                    prog:TaskDependency_diagnosisName ?diagnosisName ;
+                    prog:TaskDependency_taskName ?taskDependent ;
+                    prog:TaskDependency_taskDependency ?taskToWait .
+            }"""
+
+        val resultTaskDependencies: ResultSet = repl.interpreter!!.query(query)!!
+
+        if (!resultTaskDependencies.hasNext()) {
+            return null
+        }
+
+        while (resultTaskDependencies.hasNext()) {
+            val solution: QuerySolution = resultTaskDependencies.next()
+            val diagnosisName = solution.get("diagnosisName").asLiteral().string
+            val taskDependent = solution.get("taskDependent").asLiteral().string
+            val taskToWait = solution.get("taskToWait").asLiteral().string
+
+            taskDependencies.add(TaskDependency(treatment, diagnosisName, taskDependent, taskToWait))
+        }
+
+        return taskDependencies
+    }
+
+    fun getTaskDependenciesByTreatmentAndDiagnosis(treatment: String, diagnosis: String) : List<TaskDependency>? {
+        val taskDependencies: MutableList<TaskDependency> = mutableListOf()
+
+        val query = """
+            SELECT DISTINCT ?taskDependent ?taskToWait WHERE {
+                ?obj a prog:TaskDependency ;
+                    prog:TaskDependency_treatmentName "$treatment" ;
+                    prog:TaskDependency_diagnosisName "$diagnosis" ;
+                    prog:TaskDependency_taskName ?taskDependent ;
+                    prog:TaskDependency_taskDependency ?taskToWait .
+            }"""
+
+        val resultTaskDependencies: ResultSet = repl.interpreter!!.query(query)!!
+
+        if (!resultTaskDependencies.hasNext()) {
+            return null
+        }
+
+        while (resultTaskDependencies.hasNext()) {
+            val solution: QuerySolution = resultTaskDependencies.next()
+            val taskDependent = solution.get("taskDependent").asLiteral().string
+            val taskToWait = solution.get("taskToWait").asLiteral().string
+
+            taskDependencies.add(TaskDependency(treatment, diagnosis, taskDependent, taskToWait))
+        }
+
+        return taskDependencies
+    }
+
     fun updateTaskDependency(treatment: String, diagnosis: String, taskName: String, oldDependencyName: String, newDependencyName: String) : Boolean {
         val query = """
             PREFIX : <$prefix>
             
             DELETE {
                 :taskDependency_${taskName}_${diagnosis}_${treatment} a :TaskDependency ;
+                    :treatment "$treatment" ;
                     :diagnosisCode "$diagnosis" ;
                     :taskDependent "$taskName" ;
                     :taskToWait "$oldDependencyName" .
             }
             INSERT {
                 :taskDependency_${taskName}_${diagnosis}_${treatment} a :TaskDependency ;
+                    :treatment "$treatment" ;
                     :diagnosisCode "$diagnosis" ;
                     :taskDependent "$taskName" ;
                     :taskToWait "$newDependencyName" ;
             }
             WHERE {
                 :taskDependency_${taskName}_${diagnosis}_${treatment} a :TaskDependency ;
+                    :treatment "$treatment" ;
                     :diagnosisCode "$diagnosis" ;
                     :taskDependent "$taskName" ;
                     :taskToWait "$oldDependencyName" .
@@ -120,12 +183,14 @@ class TaskDependencyService (
             
             DELETE {
                 :taskDependency_${taskName}_${diagnosis}_${treatment} a :TaskDependency ;
+                    :treatment "$treatment" ;
                     :diagnosisCode "$diagnosis" ;
                     :taskDependent "$taskName" ;
                     :taskToWait "$taskToWait" .
             }
             WHERE {
                 :taskDependency_${taskName}_${diagnosis}_${treatment} a :TaskDependency ;
+                    :treatment "$treatment" ;
                     :diagnosisCode "$diagnosis" ;
                     :taskDependent "$taskName" ;
                     :taskToWait "$taskToWait" .
