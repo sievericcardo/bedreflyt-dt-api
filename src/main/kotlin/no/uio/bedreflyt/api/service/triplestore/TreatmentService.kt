@@ -51,20 +51,24 @@ class TreatmentService (
         val query = """
             SELECT DISTINCT ?treatmentId ?diagnosis ?frequency ?weight WHERE {
                 ?obj a prog:Treatment ;
-                    prog:treatmentId ?treatmentId ;
-                    prog:diagnosis ?diagnosis ;
-                    prog:frequency ?frequency ;
-                    prog:weight ?weight .
+                    prog:Treatment_treatmentId ?treatmentId ;
+                    prog:Treatment_diagnosis ?diagnosis ;
+                    prog:Treatment_frequency ?frequency ;
+                    prog:Treatment_weight ?weight .
             }"""
 
         val resultSet : ResultSet = repl.interpreter!!.query(query) ?: return null
 
+        if(!resultSet.hasNext()) {
+            return null
+        }
+
         while (resultSet.hasNext()) {
             val solution = resultSet.next()
-            val treatmentId = solution.get("treatmentId").asLiteral().string
-            val diagnosis = solution.get("diagnosis").asLiteral().string
-            val frequency = solution.get("frequency").asLiteral().double
-            val weight = solution.get("weight").asLiteral().double
+            val treatmentId = solution.get("treatmentId").asLiteral().toString()
+            val diagnosis = solution.get("diagnosis").asLiteral().toString()
+            val frequency = solution.get("frequency").asLiteral().toString().split("^^")[0].toDouble()
+            val weight = solution.get("weight").asLiteral().toString().split("^^")[0].toDouble()
 
             treatments.add(Treatment(treatmentId, diagnosis, frequency, weight))
         }
