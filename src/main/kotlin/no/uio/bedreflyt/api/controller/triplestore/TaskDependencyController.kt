@@ -16,13 +16,15 @@ import io.swagger.v3.oas.annotations.parameters.RequestBody as SwaggerRequestBod
 import java.io.File
 import java.util.logging.Logger
 
-data class TreatmentRequest (
+data class TaskDependencyRequest (
+    val treatment: String,
     val diagnosis: String,
     val taskName: String,
     val dependsOn: String
 )
 
 data class UpdateTaskDependencyRequest (
+    val treatment: String,
     val diagnosis: String,
     val taskName: String,
     val oldDependsOn: String,
@@ -30,6 +32,7 @@ data class UpdateTaskDependencyRequest (
 )
 
 data class DeleteTaskDependencyRequest (
+    val treatment: String,
     val diagnosis: String,
     val taskName: String,
     val dependsOn: String
@@ -51,14 +54,14 @@ class TaskDependencyController (
 
     @Operation(summary = "Create a new treatment from task dependencies")
     @ApiResponses(value = [
-        ApiResponse(responseCode = "200", description = "Treatment created"),
-        ApiResponse(responseCode = "400", description = "Invalid treatment"),
+        ApiResponse(responseCode = "200", description = "Task dependency created"),
+        ApiResponse(responseCode = "400", description = "Invalid task dependency"),
         ApiResponse(responseCode = "401", description = "Unauthorized"),
         ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
     @PostMapping("/create")
-    fun createTreatment(@SwaggerRequestBody(description = "Request to add a new treatment") @RequestBody treatmentRequest: List<TreatmentRequest>) : ResponseEntity<String> {
+    fun createTreatment(@SwaggerRequestBody(description = "Request to add a new task dependency") @RequestBody treatmentRequest: List<TaskDependencyRequest>) : ResponseEntity<String> {
         log.info("Creating treatment $treatmentRequest")
 
         for (treatment in treatmentRequest) {
@@ -68,7 +71,7 @@ class TaskDependencyController (
             if(taskService.getTaskByTaskName(treatment.taskName) == null) {
                 return ResponseEntity.badRequest().body("Task does not exist")
             }
-            if(!taskDependencyService.createTaskDependency(treatment.diagnosis, treatment.taskName, treatment.dependsOn)) {
+            if(!taskDependencyService.createTaskDependency(treatment.treatment, treatment.diagnosis, treatment.taskName, treatment.dependsOn)) {
                 return ResponseEntity.badRequest().body("Task dependency already exists")
             }
 
@@ -78,9 +81,9 @@ class TaskDependencyController (
             val newContent = """
                 $fileContent
                     
-                ###  $ttlPrefix/taskDependency_${treatment.taskName}
-                :taskDependency_${treatment.taskName} rdf:type owl:NamedIndividual ,
-                                :taskDependency ;
+                ###  $ttlPrefix/taskDependency_${treatment.taskName}_${treatment.diagnosis}_${treatment.treatment}
+                :taskDependency_${treatment.taskName}_${treatment.diagnosis}_${treatment.treatment} rdf:type owl:NamedIndividual ,
+                                :TaskDependency ;
                     :diagnosisName "${treatment.diagnosis}" ;
                     :taskDependent "${treatment.taskName}" ;
                     :taskToWait "${treatment.dependsOn}" .
@@ -131,7 +134,7 @@ class TaskDependencyController (
     fun updateTaskDependency(@SwaggerRequestBody(description = "Request to update a task dependency") @RequestBody updateTreatmentRequest: UpdateTaskDependencyRequest) : ResponseEntity<String> {
         log.info("Updating task dependency $updateTreatmentRequest")
 
-        if (!taskDependencyService.updateTaskDependency(updateTreatmentRequest.diagnosis, updateTreatmentRequest.taskName, updateTreatmentRequest.oldDependsOn, updateTreatmentRequest.newDependsOn)) {
+        if (!taskDependencyService.updateTaskDependency(updateTreatmentRequest.treatment, updateTreatmentRequest.diagnosis, updateTreatmentRequest.taskName, updateTreatmentRequest.oldDependsOn, updateTreatmentRequest.newDependsOn)) {
             return ResponseEntity.badRequest().body("Task dependency does not exist")
         }
 
@@ -140,23 +143,24 @@ class TaskDependencyController (
         // Update the object in the file bedreflyt.ttl
         val path = "bedreflyt.ttl"
         val oldContent = """
-            ###  $ttlPrefix/taskDependency_${updateTreatmentRequest.taskName}
-            :taskDependency_${updateTreatmentRequest.taskName} rdf:type owl:NamedIndividual ,
-                            :taskDependency ;
+            ###  $ttlPrefix/taskDependency_${updateTreatmentRequest.taskName}_${updateTreatmentRequest.diagnosis}_${updateTreatmentRequest.treatment}
+            :taskDependency_${updateTreatmentRequest.taskName}_${updateTreatmentRequest.diagnosis}_${updateTreatmentRequest.treatment} rdf:type owl:NamedIndividual ,
+                            :TaskDependency ;
                 :diagnosisName "${updateTreatmentRequest.diagnosis}" ;
                 :taskDependent "${updateTreatmentRequest.taskName}" ;
                 :taskToWait "${updateTreatmentRequest.oldDependsOn}" .
             """.trimIndent()
         val newContent = """
-            ###  $ttlPrefix/taskDependency_${updateTreatmentRequest.taskName}
-            :taskDependency_${updateTreatmentRequest.taskName} rdf:type owl:NamedIndividual ,
-                            :taskDependency ;
+            ###  $ttlPrefix/taskDependency_${updateTreatmentRequest.taskName}_${updateTreatmentRequest.diagnosis}_${updateTreatmentRequest.treatment}
+            :taskDependency_${updateTreatmentRequest.taskName}_${updateTreatmentRequest.diagnosis}_${updateTreatmentRequest.treatment} rdf:type owl:NamedIndividual ,
+                            :TaskDependency ;
                 :diagnosisName "${updateTreatmentRequest.diagnosis}" ;
                 :taskDependent "${updateTreatmentRequest.taskName}" ;
                 :taskToWait "${updateTreatmentRequest.newDependsOn}" .
             """.trimIndent()
 
         triplestoreService.replaceContentIgnoringSpaces(path, oldContent, newContent)
+        replConfig.regenerateSingleModel().invoke("task dependencies")
 
         return ResponseEntity.ok("Task dependency updated")
     }
@@ -173,7 +177,7 @@ class TaskDependencyController (
     fun deleteTaskDependency(@SwaggerRequestBody(description = "Request to delete a task dependency") @RequestBody taskRequest: DeleteTaskDependencyRequest) : ResponseEntity<String> {
         log.info("Deleting task dependency $taskRequest")
 
-        if (!taskDependencyService.deleteTaskDependency(taskRequest.diagnosis, taskRequest.taskName, taskRequest.dependsOn)) {
+        if (!taskDependencyService.deleteTaskDependency(taskRequest.treatment, taskRequest.diagnosis, taskRequest.taskName, taskRequest.dependsOn)) {
             return ResponseEntity.badRequest().body("Task dependency does not exist")
         }
 
@@ -182,15 +186,16 @@ class TaskDependencyController (
         // Append to the file bedreflyt.ttl
         val path = "bedreflyt.ttl"
         val oldContent = """
-            ###  $ttlPrefix/taskDependency_${taskRequest.taskName}
-            :taskDependency_${taskRequest.taskName} rdf:type owl:NamedIndividual ,
-                            :taskDependency ;
+            ###  $ttlPrefix/taskDependency_${taskRequest.taskName}_${taskRequest.diagnosis}_${taskRequest.treatment}
+            :taskDependency_${taskRequest.taskName}_${taskRequest.diagnosis}_${taskRequest.treatment} rdf:type owl:NamedIndividual ,
+                            :TaskDependency ;
                 :diagnosisName "${taskRequest.diagnosis}" ;
                 :taskDependent "${taskRequest.taskName}" ;
                 :taskToWait "${taskRequest.dependsOn}" .
             """.trimIndent()
 
         triplestoreService.replaceContentIgnoringSpaces(path, oldContent, "")
+        replConfig.regenerateSingleModel().invoke("task dependencies")
 
         return ResponseEntity.ok("Task dependency deleted")
     }
