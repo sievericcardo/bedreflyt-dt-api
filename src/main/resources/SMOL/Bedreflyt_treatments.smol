@@ -29,7 +29,7 @@ class TreatmentModel extends KindModel()
                 print("          Treatment ID: " ++ newTreatment.treatmentId);
                 print("          Diagnosis: " ++ newTreatment.diagnosis);
                 print("          Frequency: " ++ doubleToString(newTreatment.frequency));
-                print("          Weight: " ++ doubleToString(newTreatment.weight);
+                print("          Weight: " ++ doubleToString(newTreatment.weight));
 
                 destroy(lx);
             end
@@ -67,7 +67,7 @@ class TreatmentModel extends KindModel()
                 print("          Treatment ID: " ++ wrongTreatment.treatmentId);
                 print("          Diagnosis: " ++ wrongTreatment.diagnosis);
                 print("          Frequency: " ++ doubleToString(wrongTreatment.frequency));
-                print("          Weight: " ++ doubleToString(wrongTreatment.weight);
+                print("          Weight: " ++ doubleToString(wrongTreatment.weight));
 
                 destroy(wrongTreatment);
                 destroy(lx);
@@ -111,7 +111,7 @@ class TreatmentModel extends KindModel()
                 print("          Treatment ID: " ++ defect.obj.treatmentId);
                 print("          Diagnosis: " ++ defect.obj.diagnosis);
                 print("          Frequency: " ++ doubleToString(defect.obj.frequency) ++ " -> " ++ doubleToString(defect.frequencyNew));
-                print("          Weight: " ++ doubleToString(defect.obj.weight);
+                print("          Weight: " ++ doubleToString(defect.obj.weight));
 
                 defect.obj.frequency = defect.frequencyNew;
             end
