@@ -84,6 +84,7 @@ class TaskDependencyController (
                 ###  $ttlPrefix/taskDependency_${treatment.taskName}_${treatment.diagnosis}_${treatment.treatment}
                 :taskDependency_${treatment.taskName}_${treatment.diagnosis}_${treatment.treatment} rdf:type owl:NamedIndividual ,
                                 :TaskDependency ;
+                    :treatment "${treatment.treatment}" ;
                     :diagnosisName "${treatment.diagnosis}" ;
                     :taskDependent "${treatment.taskName}" ;
                     :taskToWait "${treatment.dependsOn}" .
@@ -146,6 +147,7 @@ class TaskDependencyController (
             ###  $ttlPrefix/taskDependency_${updateTreatmentRequest.taskName}_${updateTreatmentRequest.diagnosis}_${updateTreatmentRequest.treatment}
             :taskDependency_${updateTreatmentRequest.taskName}_${updateTreatmentRequest.diagnosis}_${updateTreatmentRequest.treatment} rdf:type owl:NamedIndividual ,
                             :TaskDependency ;
+                :treatment "${updateTreatmentRequest.treatment}" ;
                 :diagnosisName "${updateTreatmentRequest.diagnosis}" ;
                 :taskDependent "${updateTreatmentRequest.taskName}" ;
                 :taskToWait "${updateTreatmentRequest.oldDependsOn}" .
@@ -154,6 +156,7 @@ class TaskDependencyController (
             ###  $ttlPrefix/taskDependency_${updateTreatmentRequest.taskName}_${updateTreatmentRequest.diagnosis}_${updateTreatmentRequest.treatment}
             :taskDependency_${updateTreatmentRequest.taskName}_${updateTreatmentRequest.diagnosis}_${updateTreatmentRequest.treatment} rdf:type owl:NamedIndividual ,
                             :TaskDependency ;
+                :treatment "${updateTreatmentRequest.treatment}" ;
                 :diagnosisName "${updateTreatmentRequest.diagnosis}" ;
                 :taskDependent "${updateTreatmentRequest.taskName}" ;
                 :taskToWait "${updateTreatmentRequest.newDependsOn}" .
@@ -189,6 +192,7 @@ class TaskDependencyController (
             ###  $ttlPrefix/taskDependency_${taskRequest.taskName}_${taskRequest.diagnosis}_${taskRequest.treatment}
             :taskDependency_${taskRequest.taskName}_${taskRequest.diagnosis}_${taskRequest.treatment} rdf:type owl:NamedIndividual ,
                             :TaskDependency ;
+                :treatment "${taskRequest.treatment}" ;
                 :diagnosisName "${taskRequest.diagnosis}" ;
                 :taskDependent "${taskRequest.taskName}" ;
                 :taskToWait "${taskRequest.dependsOn}" .
