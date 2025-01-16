@@ -32,6 +32,11 @@ import java.util.logging.Level
 import io.swagger.v3.oas.annotations.parameters.RequestBody as SwaggerRequestBody
 import java.util.logging.Logger
 
+data class SimulationRequest(
+    val scenario: List<ScenarioRequest>,
+    val mode: String
+)
+
 data class ScenarioRequest(
     val batch : Int,
     val patientId : String?,
@@ -60,6 +65,7 @@ class SimulationController (
     private val roomDistributionService: RoomDistributionService,
     private val taskService: TaskService,
     private val taskDependencyService: TaskDependencyService,
+    private val treatmentService: TreatmentService
 ) {
 
     private val log : Logger = Logger.getLogger(HomeController::class.java.name)
@@ -156,7 +162,10 @@ class SimulationController (
         return patientsList
     }
 
-    private fun createAndPopulateTreatmentTables(treatmentDbUrl: String, repl: REPL) {
+    private fun createAndPopulateTreatmentTables(treatmentDbUrl: String, repl: REPL, mode: String) {
+        /* TODO: in here we need to take the dependencies for a given treatment. We take first all the treatments. Then we check if we need to
+            do worst case, average case. etc. Then we take the treatment Id for the given treatment and we insert the dependencies for the given treatment id
+        */
         databaseService.createTreatmentTables(treatmentDbUrl)
 
         val tasks = taskService.getAllTasks() ?: throw IllegalArgumentException("No tasks found")
@@ -165,27 +174,61 @@ class SimulationController (
             databaseService.insertTask(treatmentDbUrl, task.taskName, task.bed, task.averageDuration.toInt())
         }
 
-        val taskDependencies =
-            """
-           SELECT * WHERE {
-            ?obj a prog:TaskDependency ;
-                prog:TaskDependency_diagnosisName ?diagnosisName ;
-                prog:TaskDependency_taskName ?taskName ;
-                prog:TaskDependency_taskDependency ?taskDependency .
-        }"""
+        if (mode == "worst case") {
+            val treatments = treatmentService.getAllTreatments() ?: throw IllegalArgumentException("No treatments found")
 
-        val resultTaskDependencies: ResultSet = repl.interpreter!!.query(taskDependencies)!!
+            val treatmentMap = mutableMapOf<String, String>()
+            val weightMap = mutableMapOf<String, Double>()
 
-        if (!resultTaskDependencies.hasNext()) {
-            throw IllegalArgumentException("No task dependencies found")
+            treatments.forEach { treatment ->
+                if (weightMap.containsKey(treatment.diagnosis)) {
+                    val currentWeight = weightMap[treatment.diagnosis]!!.toDouble()
+                    if (treatment.weight > currentWeight) {
+                        weightMap[treatment.diagnosis] = treatment.weight
+                        treatmentMap[treatment.diagnosis] = treatment.treatmentId
+                    }
+                } else {
+                    weightMap[treatment.diagnosis] = treatment.weight
+                    treatmentMap[treatment.diagnosis] = treatment.treatmentId
+                }
+            }
+
+            treatmentMap.forEach() { (diagnosis, treatmentId) ->
+                val taskDependencies = taskDependencyService.getTaskDependenciesByTreatmentAndDiagnosis(treatmentId, diagnosis) ?: throw IllegalArgumentException("No task dependencies found")
+
+                taskDependencies.forEach { taskDependency ->
+                    databaseService.insertTaskDependency(treatmentDbUrl, taskDependency.diagnosis, taskDependency.task, taskDependency.dependsOn)
+                }
+            }
+        } else {
+            val treatments = treatmentService.getAllTreatments() ?: throw IllegalArgumentException("No treatments found")
+
+            val treatmentMap = mutableMapOf<String, String>()
+            val frequencyMap = mutableMapOf<String, Double>()
+
+            treatments.forEach { treatment ->
+                if (frequencyMap.containsKey(treatment.diagnosis)) {
+                    val currentFrequency= frequencyMap[treatment.diagnosis]!!.toDouble()
+                    if (treatment.frequency > currentFrequency) {
+                        frequencyMap[treatment.diagnosis] = treatment.frequency
+                        treatmentMap[treatment.diagnosis] = treatment.treatmentId
+                    }
+                } else {
+                    frequencyMap[treatment.diagnosis] = treatment.frequency
+                    treatmentMap[treatment.diagnosis] = treatment.treatmentId
+                }
+            }
+
+            treatmentMap.forEach() { (diagnosis, treatmentId) ->
+                val taskDependencies = taskDependencyService.getTaskDependenciesByTreatmentAndDiagnosis(treatmentId, diagnosis) ?: throw IllegalArgumentException("No task dependencies found")
+
+                taskDependencies.forEach { taskDependency ->
+                    databaseService.insertTaskDependency(treatmentDbUrl, taskDependency.diagnosis, taskDependency.task, taskDependency.dependsOn)
+                }
+            }
         }
-        while (resultTaskDependencies.hasNext()) {
-            val solution: QuerySolution = resultTaskDependencies.next()
-            val diagnosis = solution.get("?diagnosisName").asLiteral().toString()
-            val taskName = solution.get("?taskName").asLiteral().toString()
-            val taskDependency = solution.get("?taskDependency").asLiteral().toString()
-            databaseService.insertTaskDependency(treatmentDbUrl, diagnosis, taskName, taskDependency)
-        }
+
+        log.info("Tables populated")
     }
 
     private fun createAndPopulateRoomDistributions(roomDbUrl: String): List<RoomDistribution> {
@@ -402,8 +445,8 @@ class SimulationController (
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
     @PostMapping("/room-allocation-smol")
-    fun simulateSmolScenario (@SwaggerRequestBody(description = "Request to execute a simulation for room allocation") @RequestBody scenario: List<ScenarioRequest>): ResponseEntity<List<List<Map<String, Any>>>> {
-        log.info("Simulating scenario with ${scenario.size} requests")
+    fun simulateSmolScenario (@SwaggerRequestBody(description = "Request to execute a simulation for room allocation") @RequestBody simulationRequest: SimulationRequest): ResponseEntity<List<List<Map<String, Any>>>> {
+        log.info("Simulating scenario with ${simulationRequest.scenario.size} requests")
         val repl: REPL = replConfig.repl()
 
         // Create a temporary directory
@@ -413,11 +456,11 @@ class SimulationController (
         databaseService.createTables(bedreflytDB)
 
         val roomDistributions = createAndPopulateRoomDistributions(bedreflytDB)
-        val patients = createAndPopulatePatientTables(bedreflytDB, scenario)
-        createAndPopulateTreatmentTables(bedreflytDB, repl)
+        val patients = createAndPopulatePatientTables(bedreflytDB, simulationRequest.scenario)
+        createAndPopulateTreatmentTables(bedreflytDB, repl, simulationRequest.mode)
         databaseService.createTreatmentView(bedreflytDB)
 
-        log.info("Tables populated, invoking ABS with ${scenario.size} requests")
+        log.info("Tables populated, invoking ABS with ${simulationRequest.scenario.size} requests")
 
         val sim = simulate(patients, roomDistributions, tempDir)
 

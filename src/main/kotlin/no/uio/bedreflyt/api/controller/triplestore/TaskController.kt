@@ -8,7 +8,9 @@ import no.uio.bedreflyt.api.model.triplestore.Task
 import no.uio.bedreflyt.api.service.triplestore.TaskService
 import no.uio.bedreflyt.api.service.triplestore.TriplestoreService
 import org.springframework.http.ResponseEntity
+import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
+import org.springframework.web.bind.annotation.PatchMapping
 import io.swagger.v3.oas.annotations.parameters.RequestBody as SwaggerRequestBody
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
@@ -107,7 +109,7 @@ class TaskController (
         ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
-    @PostMapping("/update")
+    @PatchMapping("/update")
     fun updateTask(@SwaggerRequestBody(description = "Request to update a task") @RequestBody updateTaskRequest: UpdateTaskRequest) : ResponseEntity<String> {
         log.info("Updating task $updateTaskRequest")
 
@@ -148,7 +150,7 @@ class TaskController (
         ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
-    @PostMapping("/delete")
+    @DeleteMapping("/delete")
     fun deleteTask(@SwaggerRequestBody(description = "Request to delete a task") @RequestBody taskRequest: TaskRequest) : ResponseEntity<String> {
         log.info("Deleting task $taskRequest")
 

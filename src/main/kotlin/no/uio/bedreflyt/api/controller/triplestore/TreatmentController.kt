@@ -8,7 +8,9 @@ import no.uio.bedreflyt.api.config.REPLConfig
 import no.uio.bedreflyt.api.config.TriplestoreProperties
 import no.uio.bedreflyt.api.service.triplestore.*
 import org.springframework.http.ResponseEntity
+import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
+import org.springframework.web.bind.annotation.PatchMapping
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
@@ -124,7 +126,7 @@ class TreatmentController (
         ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
-    @PostMapping("/update")
+    @PatchMapping("/update")
     fun updateTreatment(@SwaggerRequestBody(description = "Request to update a treatment" ) @RequestBody updateTreatmentRequest: UpdateTreatmentRequest) : ResponseEntity<String> {
         // Check if treatment exists
         if (treatmentService.getTreatmentById(updateTreatmentRequest.treatmentId) == null) {
@@ -172,7 +174,7 @@ class TreatmentController (
         ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
-    @PostMapping("/delete")
+    @DeleteMapping("/delete")
     fun deleteTreatment(@SwaggerRequestBody(description = "Request to delete a treatment") @RequestBody deleteTreatmentRequest: DeteleTreatmentRequest) : ResponseEntity<String> {
         // Check if treatment exists
         if (treatmentService.getTreatmentById(deleteTreatmentRequest.treatmentId) == null) {

@@ -7,12 +7,8 @@ import no.uio.bedreflyt.api.config.REPLConfig
 import no.uio.bedreflyt.api.model.triplestore.JourneyStep
 import no.uio.bedreflyt.api.service.triplestore.TriplestoreService
 import org.springframework.http.ResponseEntity
-import org.springframework.web.bind.annotation.GetMapping
+import org.springframework.web.bind.annotation.*
 import io.swagger.v3.oas.annotations.parameters.RequestBody as SwaggerRequestBody
-import org.springframework.web.bind.annotation.PostMapping
-import org.springframework.web.bind.annotation.RequestBody
-import org.springframework.web.bind.annotation.RequestMapping
-import org.springframework.web.bind.annotation.RestController
 import java.io.File
 import java.util.logging.Logger
 
@@ -119,7 +115,7 @@ class JourneyStepController (
         ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
-    @PostMapping("/update")
+    @PatchMapping("/update")
     fun updateJourneyStep(@SwaggerRequestBody(description = "Journey step to update") @RequestBody journeyStep: UpdateJourneyStepRequest) : ResponseEntity<String> {
         return ResponseEntity.internalServerError().body("Not implemented")
         log.info("Updating journey step")
@@ -161,7 +157,7 @@ class JourneyStepController (
         ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
-    @PostMapping("/delete")
+    @DeleteMapping("/delete")
     fun deleteJourneyStep(@SwaggerRequestBody(description = "Journey step to delete") @RequestBody journeyStep: JourneyStepRequest) : ResponseEntity<String> {
         log.info("Deleting journey step")
 

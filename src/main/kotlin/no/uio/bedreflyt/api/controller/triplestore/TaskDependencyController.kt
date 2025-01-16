@@ -131,7 +131,7 @@ class TaskDependencyController (
         ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
-    @PostMapping("/update")
+    @PatchMapping("/update")
     fun updateTaskDependency(@SwaggerRequestBody(description = "Request to update a task dependency") @RequestBody updateTreatmentRequest: UpdateTaskDependencyRequest) : ResponseEntity<String> {
         log.info("Updating task dependency $updateTreatmentRequest")
 
@@ -176,7 +176,7 @@ class TaskDependencyController (
         ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
-    @PostMapping("/delete")
+    @DeleteMapping("/delete")
     fun deleteTaskDependency(@SwaggerRequestBody(description = "Request to delete a task dependency") @RequestBody taskRequest: DeleteTaskDependencyRequest) : ResponseEntity<String> {
         log.info("Deleting task dependency $taskRequest")
 
