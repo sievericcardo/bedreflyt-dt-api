@@ -13,7 +13,9 @@ import java.net.HttpURLConnection
 import java.net.URI
 
 @Configuration
-open class REPLConfig {
+open class REPLConfig (
+    private val environmentConfig: EnvironmentConfig
+) {
 
     private lateinit var repl: REPL
 
@@ -44,7 +46,7 @@ open class REPLConfig {
 
     private fun updateTriplestore(fusekiUrl: String): String {
         // First delete if Fuseki already contains our ontology
-        val prefix = System.getenv().getOrDefault("DOMAIN_PREFIX", "http://www.smolang.org/bedreflyt#")
+        val prefix = environmentConfig.getOrDefault("DOMAIN_PREFIX", "http://www.smolang.org/bedreflyt#")
         val deleteUrl = "$fusekiUrl/update"
         val deleteHeaders = mapOf("Content-Type" to "application/sparql-update")
         val deleteBody = "WITH $prefix DELETE { ?s ?p ?o } WHERE { ?s ?p ?o }"
@@ -67,22 +69,22 @@ open class REPLConfig {
     fun initRepl() {
         val verbose = true
         val materialize = false
-        val liftedStateOutputPath = System.getenv("LIFTED_STATE_OUTPUT_PATH") ?: ""
+        val liftedStateOutputPath = environmentConfig.getOrDefault("LIFTED_STATE_OUTPUT_PATH", "")
         val progPrefix = "https://github.com/Edkamb/SemanticObjects/Program#"
         val runPrefix = "https://github.com/Edkamb/SemanticObjects/Run" + System.currentTimeMillis() + "#"
         val langPrefix = "https://github.com/Edkamb/SemanticObjects#"
         val extraPrefixes = HashMap<String, String>()
         val useQueryType = false
-        val triplestore = System.getenv("TRIPLESTORE_URL") ?: "localhost"
-        val triplestoreDataset = System.getenv("TRIPLESTORE_DATASET") ?: "ds"
+        val triplestore = environmentConfig.getOrDefault("TRIPLESTORE_URL", "localhost")
+        val triplestoreDataset = environmentConfig.getOrDefault("TRIPLESTORE_DATASET", "ds")
         val triplestoreUrl = "http://$triplestore:3030/$triplestoreDataset"
-        val domainPrefixUri = System.getenv("DOMAIN_PREFIX_URI") ?: ""
+        val domainPrefixUri = environmentConfig.getOrDefault("DOMAIN_PREFIX_URI", "")
         val reasoner = ReasonerMode.off
 
 //        println(updateTriplestore(triplestoreUrl))
 
-        if (System.getenv("EXTRA_PREFIXES") != null) {
-            val prefixes = System.getenv("EXTRA_PREFIXES")!!.split(";")
+        if (environmentConfig.get("EXTRA_PREFIXES") != null) {
+            val prefixes = environmentConfig.get("EXTRA_PREFIXES")!!.split(";")
             for (prefix in prefixes) {
                 val parts = prefix.split(",")
                 extraPrefixes.putAll(mapOf(parts[0] to parts[1]))
@@ -104,7 +106,7 @@ open class REPLConfig {
             reasoner
         )
 
-        val smolPath = System.getenv("SMOL_PATH") ?: "Bedreflyt.smol"
+        val smolPath = environmentConfig.getOrDefault("SMOL_PATH", "Bedreflyt.smol")
         repl = REPL(settings)
         repl.command("verbose", "true")
         repl.command("multiread", smolPath)

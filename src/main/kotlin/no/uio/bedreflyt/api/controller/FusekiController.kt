@@ -3,6 +3,7 @@ package no.uio.bedreflyt.api.controller
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.responses.ApiResponses
+import no.uio.bedreflyt.api.config.EnvironmentConfig
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.GetMapping
 import io.swagger.v3.oas.annotations.parameters.RequestBody as SwaggerRequestBody
@@ -18,7 +19,9 @@ import java.util.logging.Logger
 
 @RestController
 @RequestMapping("/api/fuseki")
-class FusekiController {
+class FusekiController (
+    private val environmentConfig: EnvironmentConfig
+) {
 
     private val log : Logger = Logger.getLogger(FusekiController::class.java.name)
 
@@ -96,10 +99,10 @@ class FusekiController {
     fun uploadModel(@SwaggerRequestBody(description = "Model to upload") @RequestBody modelFile: MultipartFile) : ResponseEntity<String> {
         log.info("Uploading model")
 
-        val host = System.getenv().getOrDefault("TRIPLESTORE_URL", "localhost")
-        val dataStore = System.getenv().getOrDefault("TRIPLESTORE_DATASET", "Bedreflyt")
+        val host = environmentConfig.getOrDefault("TRIPLESTORE_URL", "localhost")
+        val dataStore = environmentConfig.getOrDefault("TRIPLESTORE_DATASET", "Bedreflyt")
         val tripleStore = "http://$host:3030/$dataStore"
-        val prefix = System.getenv().getOrDefault("DOMAIN_PREFIX", "http://www.smolang.org/bedreflyt#")
+        val prefix = environmentConfig.getOrDefault("DOMAIN_PREFIX", "http://www.smolang.org/bedreflyt#")
 
         val deleteUrl = "$tripleStore/update"
         val deleteHeaders = mapOf("Content-Type" to "application/sparql-update")

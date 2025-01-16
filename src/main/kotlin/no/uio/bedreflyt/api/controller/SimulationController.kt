@@ -5,6 +5,7 @@ import com.fasterxml.jackson.module.kotlin.readValue
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.responses.ApiResponses
+import no.uio.bedreflyt.api.config.EnvironmentConfig
 import no.uio.bedreflyt.api.config.REPLConfig
 import no.uio.bedreflyt.api.model.live.Patient
 import no.uio.bedreflyt.api.service.simulation.DatabaseService
@@ -58,6 +59,7 @@ data class SolverRequest (
 @RequestMapping("/api/simulation")
 class SimulationController (
     private val replConfig: REPLConfig,
+    private val environmentConfig: EnvironmentConfig,
     private val databaseService: DatabaseService,
     private val triplestoreService: TriplestoreService,
     private val patientService: PatientService,
@@ -323,7 +325,7 @@ class SimulationController (
             headers.contentType = MediaType.APPLICATION_JSON
             val request = HttpEntity(solverRequest, headers)
 
-            val solverEndpoint = System.getenv().getOrDefault("SOLVER_ENDPOINT", "localhost")
+            val solverEndpoint = environmentConfig.getOrDefault("SOLVER_ENDPOINT", "localhost")
             val solverUrl = "http://$solverEndpoint:8000/api/solve"
             log.info("Invoking solver with request: $request")
             val response = restTemplate.postForEntity(solverUrl, request, String::class.java)

@@ -3,6 +3,7 @@ package no.uio.bedreflyt.api.controller.triplestore
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.responses.ApiResponses
+import no.uio.bedreflyt.api.config.EnvironmentConfig
 import no.uio.bedreflyt.api.config.REPLConfig
 import no.uio.bedreflyt.api.model.triplestore.Task
 import no.uio.bedreflyt.api.service.triplestore.TaskService
@@ -38,15 +39,16 @@ data class UpdateTaskRequest (
 @RequestMapping("/api/fuseki/task")
 class TaskController (
     private val replConfig: REPLConfig,
+    private val environmentConfig: EnvironmentConfig,
     private val triplestoreService: TriplestoreService,
     private val taskService: TaskService
 ) {
 
     private val log : Logger = Logger.getLogger(TaskController::class.java.name)
-    private val host = System.getenv().getOrDefault("TRIPLESTORE_URL", "localhost")
-    private val dataStore = System.getenv().getOrDefault("TRIPLESTORE_DATASET", "Bedreflyt")
+    private val host = environmentConfig.getOrDefault("TRIPLESTORE_URL", "localhost")
+    private val dataStore = environmentConfig.getOrDefault("TRIPLESTORE_DATASET", "Bedreflyt")
     private val tripleStore = "http://$host:3030/$dataStore"
-    private val prefix = System.getenv().getOrDefault("DOMAIN_PREFIX", "http://www.smolang.org/bedreflyt#")
+    private val prefix = environmentConfig.getOrDefault("DOMAIN_PREFIX", "http://www.smolang.org/bedreflyt#")
     private val ttlPrefix = if (prefix.isNotEmpty()) prefix.dropLast(1) else prefix
     private val repl = replConfig.repl()
 
