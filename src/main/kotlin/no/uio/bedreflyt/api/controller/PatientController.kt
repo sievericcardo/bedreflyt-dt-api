@@ -12,6 +12,7 @@ import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PatchMapping
+import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
@@ -176,15 +177,15 @@ class PatientController (
         ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
-    @GetMapping("/get")
-    fun getPatient(@SwaggerRequestBody(description = "Request to get a patient by patientId") @RequestBody patientRequest: PatientRequest) : ResponseEntity<List<Patient>> {
+    @GetMapping("/get/{patientId}")
+    fun getPatient(@SwaggerRequestBody(description = "Request to get a patient by patientId") @PathVariable patientId: String) : ResponseEntity<List<Patient>> {
         log.info("Getting patient")
 
-        if (patientRequest.patientId.isEmpty()) {
+        if (patientId.isEmpty()) {
             return ResponseEntity.badRequest().build()
         }
 
-        val patient = patientService.findByPatientId(patientRequest.patientId)
+        val patient = patientService.findByPatientId(patientId)
 
         return ResponseEntity.ok(patient)
     }
