@@ -176,56 +176,82 @@ class SimulationController (
             databaseService.insertTask(treatmentDbUrl, task.taskName, task.bed, task.averageDuration.toInt())
         }
 
-        if (mode == "worst case") {
-            val treatments = treatmentService.getAllTreatments() ?: throw IllegalArgumentException("No treatments found")
+        val treatments = treatmentService.getAllTreatments() ?: throw IllegalArgumentException("No treatments found")
+        val treatmentMap = mutableMapOf<String, String>()
+        when (mode) {
+            "worst case" -> {
 
-            val treatmentMap = mutableMapOf<String, String>()
-            val weightMap = mutableMapOf<String, Double>()
+                val weightMap = mutableMapOf<String, Double>()
 
-            treatments.forEach { treatment ->
-                if (weightMap.containsKey(treatment.diagnosis)) {
-                    val currentWeight = weightMap[treatment.diagnosis]!!.toDouble()
-                    if (treatment.weight > currentWeight) {
+                treatments.forEach { treatment ->
+                    if (weightMap.containsKey(treatment.diagnosis)) {
+                        val currentWeight = weightMap[treatment.diagnosis]!!.toDouble()
+                        if (treatment.weight > currentWeight) {
+                            weightMap[treatment.diagnosis] = treatment.weight
+                            treatmentMap[treatment.diagnosis] = treatment.treatmentId
+                        }
+                    } else {
                         weightMap[treatment.diagnosis] = treatment.weight
                         treatmentMap[treatment.diagnosis] = treatment.treatmentId
                     }
-                } else {
-                    weightMap[treatment.diagnosis] = treatment.weight
-                    treatmentMap[treatment.diagnosis] = treatment.treatmentId
+                }
+
+                treatmentMap.forEach() { (diagnosis, treatmentId) ->
+                    val taskDependencies = taskDependencyService.getTaskDependenciesByTreatmentAndDiagnosis(treatmentId, diagnosis) ?: throw IllegalArgumentException("No task dependencies found")
+
+                    taskDependencies.forEach { taskDependency ->
+                        databaseService.insertTaskDependency(treatmentDbUrl, taskDependency.diagnosis, taskDependency.task, taskDependency.dependsOn)
+                    }
                 }
             }
+            "simulate" -> {
+                // for now, we are just doing worst case again
+                // we need to change the way sequences are passed onto ABS to allow for multiple treatments per diagnosis
+                val weightMap = mutableMapOf<String, Double>()
 
-            treatmentMap.forEach() { (diagnosis, treatmentId) ->
-                val taskDependencies = taskDependencyService.getTaskDependenciesByTreatmentAndDiagnosis(treatmentId, diagnosis) ?: throw IllegalArgumentException("No task dependencies found")
+                treatments.forEach { treatment ->
+                    if (weightMap.containsKey(treatment.diagnosis)) {
+                        val currentWeight = weightMap[treatment.diagnosis]!!.toDouble()
+                        if (treatment.weight > currentWeight) {
+                            weightMap[treatment.diagnosis] = treatment.weight
+                            treatmentMap[treatment.diagnosis] = treatment.treatmentId
+                        }
+                    } else {
+                        weightMap[treatment.diagnosis] = treatment.weight
+                        treatmentMap[treatment.diagnosis] = treatment.treatmentId
+                    }
+                }
 
-                taskDependencies.forEach { taskDependency ->
-                    databaseService.insertTaskDependency(treatmentDbUrl, taskDependency.diagnosis, taskDependency.task, taskDependency.dependsOn)
+                treatmentMap.forEach() { (diagnosis, treatmentId) ->
+                    val taskDependencies = taskDependencyService.getTaskDependenciesByTreatmentAndDiagnosis(treatmentId, diagnosis) ?: throw IllegalArgumentException("No task dependencies found")
+
+                    taskDependencies.forEach { taskDependency ->
+                        databaseService.insertTaskDependency(treatmentDbUrl, taskDependency.diagnosis, taskDependency.task, taskDependency.dependsOn)
+                    }
                 }
             }
-        } else {
-            val treatments = treatmentService.getAllTreatments() ?: throw IllegalArgumentException("No treatments found")
+            else -> {
+                val frequencyMap = mutableMapOf<String, Double>()
 
-            val treatmentMap = mutableMapOf<String, String>()
-            val frequencyMap = mutableMapOf<String, Double>()
-
-            treatments.forEach { treatment ->
-                if (frequencyMap.containsKey(treatment.diagnosis)) {
-                    val currentFrequency= frequencyMap[treatment.diagnosis]!!.toDouble()
-                    if (treatment.frequency > currentFrequency) {
+                treatments.forEach { treatment ->
+                    if (frequencyMap.containsKey(treatment.diagnosis)) {
+                        val currentFrequency= frequencyMap[treatment.diagnosis]!!.toDouble()
+                        if (treatment.frequency > currentFrequency) {
+                            frequencyMap[treatment.diagnosis] = treatment.frequency
+                            treatmentMap[treatment.diagnosis] = treatment.treatmentId
+                        }
+                    } else {
                         frequencyMap[treatment.diagnosis] = treatment.frequency
                         treatmentMap[treatment.diagnosis] = treatment.treatmentId
                     }
-                } else {
-                    frequencyMap[treatment.diagnosis] = treatment.frequency
-                    treatmentMap[treatment.diagnosis] = treatment.treatmentId
                 }
-            }
 
-            treatmentMap.forEach() { (diagnosis, treatmentId) ->
-                val taskDependencies = taskDependencyService.getTaskDependenciesByTreatmentAndDiagnosis(treatmentId, diagnosis) ?: throw IllegalArgumentException("No task dependencies found")
+                treatmentMap.forEach() { (diagnosis, treatmentId) ->
+                    val taskDependencies = taskDependencyService.getTaskDependenciesByTreatmentAndDiagnosis(treatmentId, diagnosis) ?: throw IllegalArgumentException("No task dependencies found")
 
-                taskDependencies.forEach { taskDependency ->
-                    databaseService.insertTaskDependency(treatmentDbUrl, taskDependency.diagnosis, taskDependency.task, taskDependency.dependsOn)
+                    taskDependencies.forEach { taskDependency ->
+                        databaseService.insertTaskDependency(treatmentDbUrl, taskDependency.diagnosis, taskDependency.task, taskDependency.dependsOn)
+                    }
                 }
             }
         }
@@ -372,15 +398,15 @@ class SimulationController (
      *
      * Execute the ABS model, get the various resources computed, take the single days and simulate the scenario
      *
-     * @return ResponseEntity<List<String>> - List of scenarios
+     * @return List<String> - List of scenarios
      */
-    private fun simulate(patients: Map<String, Patient>, roomDistributions: List<RoomDistribution>, tempDir: Path) : ResponseEntity<List<List<Map<String, Any>>>> {
+    private fun simulate(patients: Map<String, Patient>, roomDistributions: List<RoomDistribution>, tempDir: Path) : List<List<Map<String, Any>>> {
         try {
             val data = executeJar(tempDir)
 
             // If I got error from the JAR, return the error
             if (data.contains("Error executing JAR")) {
-                return ResponseEntity.internalServerError().body(listOf(listOf(mapOf("error" to data))))
+                return listOf(listOf(mapOf("error" to data)))
             }
 
             // We need an Element Breaker to separate the information
@@ -430,11 +456,11 @@ class SimulationController (
                 }
             }
 
-            return ResponseEntity.ok(scenarios)
+            return scenarios
         } catch (e: Exception) {
             "Error executing JAR: ${e.message}"
             log.log(Level.SEVERE, "Error executing JAR", e)
-            return ResponseEntity.internalServerError().body(listOf(listOf(mapOf("error" to "Error executing JAR"))))
+            return listOf(listOf(mapOf("error" to "Error executing JAR")))
         }
     }
 
@@ -465,11 +491,64 @@ class SimulationController (
         log.info("Tables populated, invoking ABS with ${simulationRequest.scenario.size} requests")
 
         val sim = simulate(patients, roomDistributions, tempDir)
+        Files.walk(tempDir)
+            .sorted(Comparator.reverseOrder())
+            .forEach(Files::delete)
+
+        return ResponseEntity.ok(sim)
+    }
+
+    fun simulateSmolScenarios (@SwaggerRequestBody(description = "Request to execute a simulation for room allocation") @RequestBody simulationRequest: SimulationRequest, numberOfRuns : Int): List<List<List<Map<String, Any>>>> {
+        log.info("Simulating $numberOfRuns scenarios with ${simulationRequest.scenario.size} requests")
+        val repl: REPL = replConfig.repl()
+
+        // Create a temporary directory
+        val uniqueID = UUID.randomUUID().toString()
+        val tempDir: Path = Files.createTempDirectory("simulation_$uniqueID")
+        val bedreflytDB = tempDir.resolve("bedreflyt.db").toString()
+        databaseService.createTables(bedreflytDB)
+
+        val runs = mutableListOf<List<List<Map<String, Any>>>>()
+        for (i in 1..numberOfRuns) {
+            val roomDistributions = createAndPopulateRoomDistributions(bedreflytDB)
+            val patients = createAndPopulatePatientTables(bedreflytDB, simulationRequest.scenario)
+            createAndPopulateTreatmentTables(bedreflytDB, repl, "simulate")
+            databaseService.createTreatmentView(bedreflytDB)
+
+            log.info("Tables populated, invoking ABS with ${simulationRequest.scenario.size} requests")
+
+            runs.add(simulate(patients, roomDistributions, tempDir))
+        }
 
         Files.walk(tempDir)
             .sorted(Comparator.reverseOrder())
             .forEach(Files::delete)
 
-        return sim
+        return runs.toList()
+    }
+    /**
+     * Given a list of scenarios, accumulate the information
+     *
+     * @return ResponseEntity<String> – whatever we decide an interesting response is. A string for now
+     */
+    fun collectScenarios (simulations: List<List<List<Map<String, Any>>>>): ResponseEntity<List<String>> {
+        var results = mutableListOf<String>()
+        for ((i, sim) in simulations.withIndex()) {
+            var unsatDays = 0
+            for (day in sim) {
+                for (room in day) {
+                    if (room.containsKey("error")) {
+                        unsatDays += 1
+                    }
+                }
+            }
+            results.add("$unsatDays out of ${sim.size} where unsatisfiable in simulation ${i+1}")
+        }
+        return ResponseEntity.ok(results)
+    }
+
+    @PostMapping("/simulate-many")
+    fun simulateAll(@SwaggerRequestBody(description = "Request to execute n simulations") @RequestBody simulationRequest: SimulationRequest): ResponseEntity<List<String>> {
+        return collectScenarios(simulateSmolScenarios(simulationRequest, 10))
     }
 }
