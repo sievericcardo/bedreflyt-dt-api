@@ -11,6 +11,7 @@ import no.uio.bedreflyt.api.model.live.Patient
 import no.uio.bedreflyt.api.service.simulation.DatabaseService
 import no.uio.bedreflyt.api.service.live.PatientService
 import no.uio.bedreflyt.api.model.simulation.RoomDistribution
+import no.uio.bedreflyt.api.model.triplestore.Treatment
 import no.uio.bedreflyt.api.service.triplestore.*
 import no.uio.microobject.runtime.REPL
 import org.apache.jena.query.QuerySolution
@@ -41,7 +42,7 @@ data class SimulationRequest(
 data class ScenarioRequest(
     val batch : Int,
     val patientId : String?,
-    val treatmentName : String?
+    val diagnosis : String?
 )
 
 data class SolverRequest (
@@ -129,7 +130,26 @@ class SimulationController (
         }
     }
 
-    private fun createAndPopulatePatientTables(scenarioDbUrl: String, scenario: List<ScenarioRequest>) : Map<String, Patient> {
+    // returns a treatmentName
+    private fun selectTreatmentByDiagnosisAndMode(diagnosis: String, mode: String): String {
+        val treatments: List<Treatment> = treatmentService.getAllTreatmentsByDiagnosis(diagnosis)
+        return when (mode) {
+            "worst" -> {
+                treatments.maxByOrNull { it.weight }!!.treatmentId
+            }
+            "common" -> {
+                treatments.maxByOrNull { it.frequency }!!.treatmentId
+            }
+            "random" -> {
+                treatments.random().treatmentId
+            }
+            else -> {
+                //TODO: some proper error handling
+                ""
+            }
+        }
+    }
+    private fun createAndPopulatePatientTables(scenarioDbUrl: String, scenario: List<ScenarioRequest>, mode: String) : Map<String, Patient> {
         databaseService.createPatientTable(scenarioDbUrl)
         val patientsList = mutableMapOf<String, Patient>()
 
@@ -149,13 +169,15 @@ class SimulationController (
                     throw IllegalArgumentException("Patient not found")
                 }
 
-                scenarioRequest.treatmentName?.let { treatmentName ->
 
+                scenarioRequest.diagnosis?.let { diagnosis ->
+                    val assignedTreatment = diagnosis + "_" + selectTreatmentByDiagnosisAndMode(diagnosis, mode)
+                    log.warning("$patientId assigned $assignedTreatment")
                     databaseService.insertScenario(
                         scenarioDbUrl,
                         scenarioRequest.batch,
                         scenarioRequest.patientId,
-                        treatmentName
+                        assignedTreatment
                     )
                 }
             }
@@ -164,10 +186,7 @@ class SimulationController (
         return patientsList
     }
 
-    private fun createAndPopulateTreatmentTables(treatmentDbUrl: String, repl: REPL, mode: String) {
-        /* TODO: in here we need to take the dependencies for a given treatment. We take first all the treatments. Then we check if we need to
-            do worst case, average case. etc. Then we take the treatment Id for the given treatment and we insert the dependencies for the given treatment id
-        */
+    private fun createAndPopulateTreatmentTables(treatmentDbUrl: String) {
         databaseService.createTreatmentTables(treatmentDbUrl)
 
         val tasks = taskService.getAllTasks() ?: throw IllegalArgumentException("No tasks found")
@@ -177,84 +196,12 @@ class SimulationController (
         }
 
         val treatments = treatmentService.getAllTreatments() ?: throw IllegalArgumentException("No treatments found")
-        val treatmentMap = mutableMapOf<String, String>()
-        when (mode) {
-            "worst case" -> {
-
-                val weightMap = mutableMapOf<String, Double>()
-
-                treatments.forEach { treatment ->
-                    if (weightMap.containsKey(treatment.diagnosis)) {
-                        val currentWeight = weightMap[treatment.diagnosis]!!.toDouble()
-                        if (treatment.weight > currentWeight) {
-                            weightMap[treatment.diagnosis] = treatment.weight
-                            treatmentMap[treatment.diagnosis] = treatment.treatmentId
-                        }
-                    } else {
-                        weightMap[treatment.diagnosis] = treatment.weight
-                        treatmentMap[treatment.diagnosis] = treatment.treatmentId
-                    }
-                }
-
-                treatmentMap.forEach() { (diagnosis, treatmentId) ->
-                    val taskDependencies = taskDependencyService.getTaskDependenciesByTreatmentAndDiagnosis(treatmentId, diagnosis) ?: throw IllegalArgumentException("No task dependencies found")
-
+                treatments.forEach() { treatment ->
+                    val taskDependencies = taskDependencyService.getTaskDependenciesByTreatment(treatment.treatmentId)?: throw IllegalArgumentException("No task dependencies found")
                     taskDependencies.forEach { taskDependency ->
-                        databaseService.insertTaskDependency(treatmentDbUrl, taskDependency.diagnosis, taskDependency.task, taskDependency.dependsOn)
+                        databaseService.insertTaskDependency(treatmentDbUrl, taskDependency.diagnosis + "_" + treatment.treatmentId, taskDependency.task, taskDependency.dependsOn)
                     }
                 }
-            }
-            "simulate" -> {
-                // for now, we are just doing worst case again
-                // we need to change the way sequences are passed onto ABS to allow for multiple treatments per diagnosis
-                val weightMap = mutableMapOf<String, Double>()
-
-                treatments.forEach { treatment ->
-                    if (weightMap.containsKey(treatment.diagnosis)) {
-                        val currentWeight = weightMap[treatment.diagnosis]!!.toDouble()
-                        if (treatment.weight > currentWeight) {
-                            weightMap[treatment.diagnosis] = treatment.weight
-                            treatmentMap[treatment.diagnosis] = treatment.treatmentId
-                        }
-                    } else {
-                        weightMap[treatment.diagnosis] = treatment.weight
-                        treatmentMap[treatment.diagnosis] = treatment.treatmentId
-                    }
-                }
-
-                treatmentMap.forEach() { (diagnosis, treatmentId) ->
-                    val taskDependencies = taskDependencyService.getTaskDependenciesByTreatmentAndDiagnosis(treatmentId, diagnosis) ?: throw IllegalArgumentException("No task dependencies found")
-
-                    taskDependencies.forEach { taskDependency ->
-                        databaseService.insertTaskDependency(treatmentDbUrl, taskDependency.diagnosis, taskDependency.task, taskDependency.dependsOn)
-                    }
-                }
-            }
-            else -> {
-                val frequencyMap = mutableMapOf<String, Double>()
-
-                treatments.forEach { treatment ->
-                    if (frequencyMap.containsKey(treatment.diagnosis)) {
-                        val currentFrequency= frequencyMap[treatment.diagnosis]!!.toDouble()
-                        if (treatment.frequency > currentFrequency) {
-                            frequencyMap[treatment.diagnosis] = treatment.frequency
-                            treatmentMap[treatment.diagnosis] = treatment.treatmentId
-                        }
-                    } else {
-                        frequencyMap[treatment.diagnosis] = treatment.frequency
-                        treatmentMap[treatment.diagnosis] = treatment.treatmentId
-                    }
-                }
-
-                treatmentMap.forEach() { (diagnosis, treatmentId) ->
-                    val taskDependencies = taskDependencyService.getTaskDependenciesByTreatmentAndDiagnosis(treatmentId, diagnosis) ?: throw IllegalArgumentException("No task dependencies found")
-
-                    taskDependencies.forEach { taskDependency ->
-                        databaseService.insertTaskDependency(treatmentDbUrl, taskDependency.diagnosis, taskDependency.task, taskDependency.dependsOn)
-                    }
-                }
-            }
-        }
 
         log.info("Tables populated")
     }
@@ -475,7 +422,6 @@ class SimulationController (
     @PostMapping("/room-allocation-smol")
     fun simulateSmolScenario (@SwaggerRequestBody(description = "Request to execute a simulation for room allocation") @RequestBody simulationRequest: SimulationRequest): ResponseEntity<List<List<Map<String, Any>>>> {
         log.info("Simulating scenario with ${simulationRequest.scenario.size} requests")
-        val repl: REPL = replConfig.repl()
 
         // Create a temporary directory
         val uniqueID = UUID.randomUUID().toString()
@@ -484,8 +430,8 @@ class SimulationController (
         databaseService.createTables(bedreflytDB)
 
         val roomDistributions = createAndPopulateRoomDistributions(bedreflytDB)
-        val patients = createAndPopulatePatientTables(bedreflytDB, simulationRequest.scenario)
-        createAndPopulateTreatmentTables(bedreflytDB, repl, simulationRequest.mode)
+        val patients = createAndPopulatePatientTables(bedreflytDB, simulationRequest.scenario, simulationRequest.mode)
+        createAndPopulateTreatmentTables(bedreflytDB)
         databaseService.createTreatmentView(bedreflytDB)
 
         log.info("Tables populated, invoking ABS with ${simulationRequest.scenario.size} requests")
@@ -500,7 +446,6 @@ class SimulationController (
 
     fun simulateSmolScenarios (@SwaggerRequestBody(description = "Request to execute a simulation for room allocation") @RequestBody simulationRequest: SimulationRequest, numberOfRuns : Int): List<List<List<Map<String, Any>>>> {
         log.info("Simulating $numberOfRuns scenarios with ${simulationRequest.scenario.size} requests")
-        val repl: REPL = replConfig.repl()
 
         // Create a temporary directory
         val uniqueID = UUID.randomUUID().toString()
@@ -511,8 +456,8 @@ class SimulationController (
         val runs = mutableListOf<List<List<Map<String, Any>>>>()
         for (i in 1..numberOfRuns) {
             val roomDistributions = createAndPopulateRoomDistributions(bedreflytDB)
-            val patients = createAndPopulatePatientTables(bedreflytDB, simulationRequest.scenario)
-            createAndPopulateTreatmentTables(bedreflytDB, repl, "simulate")
+            val patients = createAndPopulatePatientTables(bedreflytDB, simulationRequest.scenario, "simulate")
+            createAndPopulateTreatmentTables(bedreflytDB)
             databaseService.createTreatmentView(bedreflytDB)
 
             log.info("Tables populated, invoking ABS with ${simulationRequest.scenario.size} requests")
