@@ -82,10 +82,10 @@ class TreatmentService (
         val query = """
             SELECT DISTINCT ?treatmentId ?diagnosis ?frequency ?weight WHERE {
                 ?obj a prog:Treatment ;
-                    prog:treatmentId ?treatmentId ;
-                    prog:diagnosis ?diagnosis ;
-                    prog:frequency ?frequency ;
-                    prog:weight ?weight .
+                    prog:Treatment_treatmentId ?treatmentId ;
+                    prog:Treatment_diagnosis ?diagnosis ;
+                    prog:Treatment_frequency ?frequency ;
+                    prog:Treatment_weight ?weight .
                 FILTER (?diagnosis = "$diagnosis")
             }"""
 
