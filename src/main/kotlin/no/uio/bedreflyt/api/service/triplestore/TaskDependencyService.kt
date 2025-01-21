@@ -52,7 +52,7 @@ class TaskDependencyService (
         val taskDependencies: MutableList<TaskDependency> = mutableListOf()
 
         val query = """
-            SELECT DISTINCT ?diagnosisName ?taskDependent ?taskToWait WHERE {
+            SELECT DISTINCT ?treatment ?diagnosisName ?taskDependent ?taskToWait WHERE {
                 ?obj a prog:TaskDependency ;
                     prog:TaskDependency_treatmentName ?treatment ;
                     prog:TaskDependency_diagnosisName ?diagnosisName ;
