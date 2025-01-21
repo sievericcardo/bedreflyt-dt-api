@@ -5,6 +5,7 @@ import com.fasterxml.jackson.module.kotlin.readValue
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.responses.ApiResponses
+import jakarta.validation.constraints.Null
 import no.uio.bedreflyt.api.config.EnvironmentConfig
 import no.uio.bedreflyt.api.config.REPLConfig
 import no.uio.bedreflyt.api.model.live.Patient
@@ -33,6 +34,7 @@ import java.util.*
 import java.util.logging.Level
 import io.swagger.v3.oas.annotations.parameters.RequestBody as SwaggerRequestBody
 import java.util.logging.Logger
+import kotlin.random.Random
 
 data class SimulationRequest(
     val scenario: List<ScenarioRequest>,
@@ -130,7 +132,19 @@ class SimulationController (
         }
     }
 
-    // returns a treatmentName
+    private fun <T> List<T>.weightedChoice(weight: (T) -> Double): T {
+        val totalWeights = this.sumOf(weight)
+        val threshold: Double = Random.nextDouble(totalWeights)
+        var seen: Double = 0.toDouble()
+        for (elem in this) {
+            seen += weight(elem)
+            if (seen >= threshold) {
+                return elem
+            }
+        }
+        return this.last()
+    }
+
     private fun selectTreatmentByDiagnosisAndMode(diagnosis: String, mode: String): String {
         val treatments: List<Treatment> = treatmentService.getAllTreatmentsByDiagnosis(diagnosis)
         return when (mode) {
@@ -143,9 +157,11 @@ class SimulationController (
             "random" -> {
                 treatments.random().treatmentId
             }
+            "sample" -> {
+                treatments.weightedChoice {it.frequency} .treatmentId
+            }
             else -> {
-                //TODO: some proper error handling
-                ""
+                throw IllegalArgumentException("Unrecognized mode: should be one of \"worst\", \"common\", \"random\" or \"sample\"")
             }
         }
     }
@@ -171,13 +187,13 @@ class SimulationController (
 
 
                 scenarioRequest.diagnosis?.let { diagnosis ->
-                    val assignedTreatment = diagnosis + "_" + selectTreatmentByDiagnosisAndMode(diagnosis, mode)
-                    log.warning("$patientId assigned $assignedTreatment")
+                    val treatment = diagnosis + "_" + selectTreatmentByDiagnosisAndMode(diagnosis, mode)
+                    log.info("Å: Patient $patientId assigned treatment $treatment")
                     databaseService.insertScenario(
                         scenarioDbUrl,
                         scenarioRequest.batch,
                         scenarioRequest.patientId,
-                        assignedTreatment
+                        treatment
                     )
                 }
             }
@@ -452,16 +468,15 @@ class SimulationController (
         val tempDir: Path = Files.createTempDirectory("simulation_$uniqueID")
         val bedreflytDB = tempDir.resolve("bedreflyt.db").toString()
         databaseService.createTables(bedreflytDB)
+        val roomDistributions = createAndPopulateRoomDistributions(bedreflytDB)
+        createAndPopulateTreatmentTables(bedreflytDB)
+        databaseService.createTreatmentView(bedreflytDB)
 
         val runs = mutableListOf<List<List<Map<String, Any>>>>()
         for (i in 1..numberOfRuns) {
-            val roomDistributions = createAndPopulateRoomDistributions(bedreflytDB)
-            val patients = createAndPopulatePatientTables(bedreflytDB, simulationRequest.scenario, "simulate")
-            createAndPopulateTreatmentTables(bedreflytDB)
-            databaseService.createTreatmentView(bedreflytDB)
 
-            log.info("Tables populated, invoking ABS with ${simulationRequest.scenario.size} requests")
-
+            val patients = createAndPopulatePatientTables(bedreflytDB, simulationRequest.scenario, "sample")
+            log.info("Patient table populated, invoking ABS with ${simulationRequest.scenario.size} requests")
             runs.add(simulate(patients, roomDistributions, tempDir))
         }
 
@@ -476,9 +491,10 @@ class SimulationController (
      *
      * @return ResponseEntity<String> – whatever we decide an interesting response is. A string for now
      */
-    fun collectScenarios (simulations: List<List<List<Map<String, Any>>>>): ResponseEntity<List<String>> {
+    private fun collectScenarios (simulations: List<List<List<Map<String, Any>>>>): ResponseEntity<List<String>> {
         var results = mutableListOf<String>()
         for ((i, sim) in simulations.withIndex()) {
+            log.info("Starting simulation $i")
             var unsatDays = 0
             for (day in sim) {
                 for (room in day) {
@@ -487,6 +503,7 @@ class SimulationController (
                     }
                 }
             }
+            log.info("$unsatDays out of ${sim.size} where unsatisfiable in simulation ${i+1}")
             results.add("$unsatDays out of ${sim.size} where unsatisfiable in simulation ${i+1}")
         }
         return ResponseEntity.ok(results)
