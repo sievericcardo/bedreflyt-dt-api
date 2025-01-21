@@ -132,6 +132,11 @@ class DatabaseService {
         jdbcTemplate.execute("DROP VIEW IF EXISTS treatments")
     }
 
+    fun clearTable (dbPath: String, table: String) {
+        val jdbcTemplate = getJdbcTemplate(dbPath)
+        jdbcTemplate.execute("DELETE FROM $table")
+    }
+
     fun insertPatient(dbPath: String, patientId: String, gender: String) {
         if (getPatientById(dbPath, patientId) != null) {
             return
