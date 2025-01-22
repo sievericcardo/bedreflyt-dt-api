@@ -12,6 +12,7 @@ import no.uio.bedreflyt.api.model.live.Patient
 import no.uio.bedreflyt.api.service.simulation.DatabaseService
 import no.uio.bedreflyt.api.service.live.PatientService
 import no.uio.bedreflyt.api.model.simulation.RoomDistribution
+import no.uio.bedreflyt.api.model.triplestore.Task
 import no.uio.bedreflyt.api.model.triplestore.Treatment
 import no.uio.bedreflyt.api.service.triplestore.*
 import no.uio.microobject.runtime.REPL
@@ -213,24 +214,24 @@ class SimulationController (
     private fun createAndPopulateTreatmentTables(treatmentDbUrl: String) {
         databaseService.createTreatmentTables(treatmentDbUrl)
 
-        val tasks = taskService.getAllTasks() ?: throw IllegalArgumentException("No tasks found")
+        val treatments = treatmentService.getAllTreatments() ?: throw IllegalArgumentException("No treatments found")
+        treatments.forEach { treatment ->
+            val taskDependencies = taskDependencyService.getTaskDependenciesByTreatment(treatment.treatmentId)?: throw IllegalArgumentException("No task dependencies found")
 
-        tasks.forEach { task ->
-            databaseService.insertTask(treatmentDbUrl, task.taskName, task.bed, task.averageDuration.toInt())
+            // Insert the arrivals
+            val arrival : Task = taskService.getTaskByTaskName("arrival")!!
+            val appendName = treatment.diagnosis + "_" + treatment.treatmentId
+            databaseService.insertTask(treatmentDbUrl, arrival.taskName + "_" + appendName, arrival.bed, arrival.averageDuration.toInt())
+
+            taskDependencies.forEach { taskDependency ->
+                val treatmentName = taskDependency.diagnosis + "_" + treatment.treatmentId
+                val task = taskService.getTaskByTaskName(taskDependency.task)?: throw IllegalArgumentException("No task found")
+                databaseService.insertTask(treatmentDbUrl, task.taskName + "_" + treatmentName, task.bed, task.averageDuration.toInt())
+                databaseService.insertTaskDependency(treatmentDbUrl, treatmentName, taskDependency.task + "_" + treatmentName, taskDependency.dependsOn + "_" + treatmentName)
+            }
         }
 
-        val treatments = treatmentService.getAllTreatments() ?: throw IllegalArgumentException("No treatments found")
-                treatments.forEach() { treatment ->
-                    val taskDependencies = taskDependencyService.getTaskDependenciesByTreatment(treatment.treatmentId)?: throw IllegalArgumentException("No task dependencies found")
-                    taskDependencies.forEach { taskDependency ->
-                        databaseService.insertTaskDependency(treatmentDbUrl,
-                            taskDependency.diagnosis + "_" + treatment.treatmentId,
-                            taskDependency.task,
-                            taskDependency.dependsOn)
-                    }
-                }
-
-        log.info("Treatment tables populated")
+        log.info("Tables populated")
     }
 
     private fun createAndPopulateRoomDistributions(roomDbUrl: String): List<RoomDistribution> {
