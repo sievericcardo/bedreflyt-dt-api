@@ -34,6 +34,7 @@ import java.util.*
 import java.util.logging.Level
 import io.swagger.v3.oas.annotations.parameters.RequestBody as SwaggerRequestBody
 import java.util.logging.Logger
+import kotlin.NoSuchElementException
 import kotlin.random.Random
 
 data class SimulationRequest(
@@ -147,6 +148,9 @@ class SimulationController (
 
     private fun selectTreatmentByDiagnosisAndMode(diagnosis: String, mode: String): String {
         val treatments: List<Treatment> = treatmentService.getAllTreatmentsByDiagnosis(diagnosis)
+        if (treatments.isEmpty()) {
+            throw NoSuchElementException("No treatment found for diagnosis: $diagnosis")
+        }
         return when (mode) {
             "worst" -> {
                 treatments.maxByOrNull { it.weight }!!.treatmentId
@@ -165,6 +169,7 @@ class SimulationController (
             }
         }
     }
+
     private fun createAndPopulatePatientTables(scenarioDbUrl: String, scenario: List<ScenarioRequest>, mode: String) : Map<String, Patient> {
         databaseService.createPatientTable(scenarioDbUrl)
         val patientsList = mutableMapOf<String, Patient>()
@@ -187,18 +192,21 @@ class SimulationController (
 
 
                 scenarioRequest.diagnosis?.let { diagnosis ->
-                    val treatment = diagnosis + "_" + selectTreatmentByDiagnosisAndMode(diagnosis, mode)
-                    log.info("Å: Patient $patientId assigned treatment $treatment")
-                    databaseService.insertScenario(
-                        scenarioDbUrl,
-                        scenarioRequest.batch,
-                        scenarioRequest.patientId,
-                        treatment
-                    )
+                    try {
+                        val treatment = diagnosis + "_" + selectTreatmentByDiagnosisAndMode(diagnosis, mode)
+                        log.info("Å: Patient $patientId assigned treatment $treatment")
+                        databaseService.insertScenario(
+                            scenarioDbUrl,
+                            scenarioRequest.batch,
+                            scenarioRequest.patientId,
+                            treatment
+                        )
+                    } catch (e: IllegalArgumentException) {
+                        throw e
+                    }
                 }
             }
         }
-
         return patientsList
     }
 
@@ -215,11 +223,14 @@ class SimulationController (
                 treatments.forEach() { treatment ->
                     val taskDependencies = taskDependencyService.getTaskDependenciesByTreatment(treatment.treatmentId)?: throw IllegalArgumentException("No task dependencies found")
                     taskDependencies.forEach { taskDependency ->
-                        databaseService.insertTaskDependency(treatmentDbUrl, taskDependency.diagnosis + "_" + treatment.treatmentId, taskDependency.task, taskDependency.dependsOn)
+                        databaseService.insertTaskDependency(treatmentDbUrl,
+                            taskDependency.diagnosis + "_" + treatment.treatmentId,
+                            taskDependency.task,
+                            taskDependency.dependsOn)
                     }
                 }
 
-        log.info("Tables populated")
+        log.info("Treatment tables populated")
     }
 
     private fun createAndPopulateRoomDistributions(roomDbUrl: String): List<RoomDistribution> {
@@ -413,7 +424,6 @@ class SimulationController (
                             }
                         }
                     }
-
                     scenarios.add(solveData)
                     log.info(solveData.toString())
                 }
@@ -460,7 +470,7 @@ class SimulationController (
         return ResponseEntity.ok(sim)
     }
 
-    fun simulateSmolScenarios (@SwaggerRequestBody(description = "Request to execute a simulation for room allocation") @RequestBody simulationRequest: SimulationRequest, numberOfRuns : Int): List<List<List<Map<String, Any>>>> {
+    private fun simulateSmolScenarios (@SwaggerRequestBody(description = "Request to execute a simulation for room allocation") @RequestBody simulationRequest: SimulationRequest, numberOfRuns : Int): List<List<List<Map<String, Any>>>> {
         log.info("Simulating $numberOfRuns scenarios with ${simulationRequest.scenario.size} requests")
 
         // Create a temporary directory
@@ -474,10 +484,10 @@ class SimulationController (
 
         val runs = mutableListOf<List<List<Map<String, Any>>>>()
         for (i in 1..numberOfRuns) {
-
             val patients = createAndPopulatePatientTables(bedreflytDB, simulationRequest.scenario, "sample")
             log.info("Patient table populated, invoking ABS with ${simulationRequest.scenario.size} requests")
             runs.add(simulate(patients, roomDistributions, tempDir))
+            databaseService.clearTable(bedreflytDB, "scenario")
         }
 
         Files.walk(tempDir)
