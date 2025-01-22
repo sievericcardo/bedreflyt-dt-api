@@ -67,7 +67,7 @@ open class REPLConfig (
 
     @PostConstruct
     fun initRepl() {
-        val verbose = true
+        val verbose = false
         val materialize = false
         val liftedStateOutputPath = environmentConfig.getOrDefault("LIFTED_STATE_OUTPUT_PATH", "")
         val progPrefix = "https://github.com/Edkamb/SemanticObjects/Program#"
@@ -108,7 +108,7 @@ open class REPLConfig (
 
         val smolPath = environmentConfig.getOrDefault("SMOL_PATH", "Bedreflyt.smol")
         repl = REPL(settings)
-        repl.command("verbose", "true")
+        repl.command("verbose", "false")
         repl.command("multiread", smolPath)
         repl.command("auto", "")
     }
