@@ -43,13 +43,24 @@ data class SimulationRequest(
     val mode: String
 )
 
-data class ScenarioRequest(
-    val batch : Int,
-    val patientId : String?,
-    val diagnosis : String?
+data class RoomInfo(
+    val patients: List<Patient>,
+    val gender: String
 )
 
-data class SolverRequest (
+typealias Room = String
+
+typealias Allocation = Map<Room, RoomInfo?>
+
+typealias SimulationResponse = List<List<Allocation>>
+
+data class ScenarioRequest(
+    val batch: Int,
+    val patientId: String?,
+    val diagnosis: String?
+)
+
+data class SolverRequest(
     val no_rooms: Int,
     val capacities: List<Int>,
     val room_distances: List<Long>,
@@ -60,9 +71,11 @@ data class SolverRequest (
     val previous: List<Int>
 )
 
+typealias SolverResponse = List<Allocation>
+
 @RestController
 @RequestMapping("/api/simulation")
-class SimulationController (
+class SimulationController(
     private val replConfig: REPLConfig,
     private val environmentConfig: EnvironmentConfig,
     private val databaseService: DatabaseService,
@@ -75,7 +88,7 @@ class SimulationController (
     private val treatmentService: TreatmentService
 ) {
 
-    private val log : Logger = Logger.getLogger(HomeController::class.java.name)
+    private val log: Logger = Logger.getLogger(HomeController::class.java.name)
 
     /**
      * Execute the JAR
@@ -84,7 +97,7 @@ class SimulationController (
      *
      * @return String - Output of the JAR file
      */
-    private fun executeJar(tempDir: Path) : String {
+    private fun executeJar(tempDir: Path): String {
         val jarFileName = "bedreflyt.jar"
         val jarFilePath = tempDir.resolve(jarFileName)
         Files.copy(Paths.get(jarFileName), jarFilePath, StandardCopyOption.REPLACE_EXISTING)
@@ -156,22 +169,30 @@ class SimulationController (
             "worst" -> {
                 treatments.maxByOrNull { it.weight }!!.treatmentId
             }
+
             "common" -> {
                 treatments.maxByOrNull { it.frequency }!!.treatmentId
             }
+
             "random" -> {
                 treatments.random().treatmentId
             }
+
             "sample" -> {
-                treatments.weightedChoice {it.frequency} .treatmentId
+                treatments.weightedChoice { it.frequency }.treatmentId
             }
+
             else -> {
                 throw IllegalArgumentException("Unrecognized mode: should be one of \"worst\", \"common\", \"random\" or \"sample\"")
             }
         }
     }
 
-    private fun createAndPopulatePatientTables(scenarioDbUrl: String, scenario: List<ScenarioRequest>, mode: String) : Map<String, Patient> {
+    private fun createAndPopulatePatientTables(
+        scenarioDbUrl: String,
+        scenario: List<ScenarioRequest>,
+        mode: String
+    ): Map<String, Patient> {
         databaseService.createPatientTable(scenarioDbUrl)
         val patientsList = mutableMapOf<String, Patient>()
 
@@ -183,7 +204,12 @@ class SimulationController (
                     if (patients.isNotEmpty()) {
                         patientsList[patientId] = patients[0]
                         databaseService.insertPatient(scenarioDbUrl, patients[0].patientId, patients[0].gender)
-                        databaseService.insertPatientStatus(scenarioDbUrl, patients[0].patientId, patients[0].infectious, patients[0].roomNumber)
+                        databaseService.insertPatientStatus(
+                            scenarioDbUrl,
+                            patients[0].patientId,
+                            patients[0].infectious,
+                            patients[0].roomNumber
+                        )
                     } else {
                         throw IllegalArgumentException("Patient not found")
                     }
@@ -216,18 +242,35 @@ class SimulationController (
 
         val treatments = treatmentService.getAllTreatments() ?: throw IllegalArgumentException("No treatments found")
         treatments.forEach { treatment ->
-            val taskDependencies = taskDependencyService.getTaskDependenciesByTreatment(treatment.treatmentId)?: throw IllegalArgumentException("No task dependencies found")
+            val taskDependencies = taskDependencyService.getTaskDependenciesByTreatment(treatment.treatmentId)
+                ?: throw IllegalArgumentException("No task dependencies found")
 
             // Insert the arrivals
-            val arrival : Task = taskService.getTaskByTaskName("arrival")!!
+            val arrival: Task = taskService.getTaskByTaskName("arrival")!!
             val appendName = treatment.diagnosis + "_" + treatment.treatmentId
-            databaseService.insertTask(treatmentDbUrl, arrival.taskName + "_" + appendName, arrival.bed, arrival.averageDuration.toInt())
+            databaseService.insertTask(
+                treatmentDbUrl,
+                arrival.taskName + "_" + appendName,
+                arrival.bed,
+                arrival.averageDuration.toInt()
+            )
 
             taskDependencies.forEach { taskDependency ->
                 val treatmentName = taskDependency.diagnosis + "_" + treatment.treatmentId
-                val task = taskService.getTaskByTaskName(taskDependency.task)?: throw IllegalArgumentException("No task found")
-                databaseService.insertTask(treatmentDbUrl, task.taskName + "_" + treatmentName, task.bed, task.averageDuration.toInt())
-                databaseService.insertTaskDependency(treatmentDbUrl, treatmentName, taskDependency.task + "_" + treatmentName, taskDependency.dependsOn + "_" + treatmentName)
+                val task = taskService.getTaskByTaskName(taskDependency.task)
+                    ?: throw IllegalArgumentException("No task found")
+                databaseService.insertTask(
+                    treatmentDbUrl,
+                    task.taskName + "_" + treatmentName,
+                    task.bed,
+                    task.averageDuration.toInt()
+                )
+                databaseService.insertTaskDependency(
+                    treatmentDbUrl,
+                    treatmentName,
+                    taskDependency.task + "_" + treatmentName,
+                    taskDependency.dependsOn + "_" + treatmentName
+                )
             }
         }
 
@@ -248,10 +291,16 @@ class SimulationController (
         val simulationRoomDistribution = mutableListOf<RoomDistribution>()
 
         roomDistributions.forEach { roomDistribution ->
-            databaseService.insertRoomDistribution(roomDbUrl, roomDistribution.roomNumber.toLong(), roomDistribution.roomNumberModel.toLong(),
-                roomDistribution.room.toLong(), roomDistribution.capacity, roomDistribution.bathroom)
-            simulationRoomDistribution.add(RoomDistribution(roomDistribution.roomNumber, roomDistribution.roomNumberModel, roomDistribution.room.toString(),
-                roomDistribution.capacity, roomDistribution.bathroom))
+            databaseService.insertRoomDistribution(
+                roomDbUrl, roomDistribution.roomNumber.toLong(), roomDistribution.roomNumberModel.toLong(),
+                roomDistribution.room.toLong(), roomDistribution.capacity, roomDistribution.bathroom
+            )
+            simulationRoomDistribution.add(
+                RoomDistribution(
+                    roomDistribution.roomNumber, roomDistribution.roomNumberModel, roomDistribution.room.toString(),
+                    roomDistribution.capacity, roomDistribution.bathroom
+                )
+            )
         }
 
         return simulationRoomDistribution
@@ -265,7 +314,11 @@ class SimulationController (
      * @param patient - Patient data
      * @return String - Solver response
      */
-    private fun invokeSolver(patient : String, patientsSimulated: Map<String, Patient>, roomDistributions: List<RoomDistribution>) : List<Map<String, Any>> {
+    private fun invokeSolver(
+        patient: String,
+        patientsSimulated: Map<String, Patient>,
+        roomDistributions: List<RoomDistribution>
+    ): SolverResponse {
         val rooms = roomDistributions.size
         val capacities = roomDistributions.map { it.capacity ?: 0 }
         val roomCategories: List<Long> = roomDistributions.map { it.room.toLong() ?: 0 }
@@ -297,7 +350,7 @@ class SimulationController (
                         patientDistances.add(patientDistance.toInt())
                         previous.add(patientInfo.roomNumber)
 
-                        patientMap[patientNumbers-1] = patientInfo
+                        patientMap[patientNumbers - 1] = patientInfo
                     } else {
                         patientNumbers -= 1
                     }
@@ -332,7 +385,7 @@ class SimulationController (
             val response = restTemplate.postForEntity(solverUrl, request, String::class.java)
 
             if (response.body!!.contains("Model is unsat")) {
-                return listOf(mapOf("error" to "Model is unsatisfiable for ${solverRequest.no_rooms} rooms and ${solverRequest.no_patients} patients"))
+                return listOf(mapOf("error" to null))
             }
 
             // Parse the JSON string into a map
@@ -340,31 +393,28 @@ class SimulationController (
             val jsonData: List<Map<String, Any>> = mapper.readValue(response.body!!)
 
             // Transform the data into the desired structure
-            val transformedData = jsonData.flatMap { roomData ->
+            val transformedData: SolverResponse = jsonData.flatMap { roomData ->
                 roomData.map { (roomNumber, roomInfo) ->
                     val roomInfoMap = roomInfo as Map<*, *>
                     val patientNumbersMap = (roomInfoMap["patients"] as List<*>).map { it.toString().toInt() }
                     val patients = patientNumbersMap.map { number ->
                         val singlePatientMap = patientMap[number]!!
-                        mapOf(
-                            "name" to singlePatientMap.patientId,
-                            "age" to singlePatientMap.age
+                        Patient(
+                            patientId = singlePatientMap.patientId,
+                            age = singlePatientMap.age
                         )
                     }
                     val gender = if (roomInfoMap["gender"] as String == "True") "Male" else "Female"
 
                     mapOf(
-                        "Room ${roomDistributions[roomNumber.toInt()].roomNumber}" to mapOf(
-                            "patients" to patients,
-                            "gender" to gender
-                        )
+                        "Room ${roomDistributions[roomNumber.toInt()].roomNumber}" to RoomInfo(patients, gender)
                     )
                 }
             }
 
             return transformedData
         } else {
-            return listOf(mapOf("warning" to "No patients found"))
+            return listOf(mapOf("warning" to null))
         }
     }
 
@@ -375,13 +425,17 @@ class SimulationController (
      *
      * @return List<String> - List of scenarios
      */
-    private fun simulate(patients: Map<String, Patient>, roomDistributions: List<RoomDistribution>, tempDir: Path) : List<List<Map<String, Any>>> {
+    private fun simulate(
+        patients: Map<String, Patient>,
+        roomDistributions: List<RoomDistribution>,
+        tempDir: Path
+    ): SimulationResponse {
         try {
             val data = executeJar(tempDir)
 
             // If I got error from the JAR, return the error
             if (data.contains("Error executing JAR")) {
-                return listOf(listOf(mapOf("error" to data)))
+                throw RuntimeException(data)
             }
 
             // We need an Element Breaker to separate the information
@@ -405,7 +459,7 @@ class SimulationController (
                 groupedInformation.add(currentGroup)
             }
 
-            val scenarios = mutableListOf<List<Map<String, Any>>>()
+            val scenarios = mutableListOf<List<Map<Room, RoomInfo>>>()
 
             groupedInformation.forEach { group ->
                 group.forEach { patient ->
@@ -413,41 +467,47 @@ class SimulationController (
                     if (solveData.isNotEmpty() && !solveData[0].containsKey("error") && !solveData[0].containsKey("warning")) {
                         solveData.forEach { roomData ->
                             roomData.forEach { (roomNumber, roomInfo) ->
-                                val roomInfoMap = roomInfo as Map<String, Any>
-                                val allPatients = roomInfoMap["patients"] as List<Map<String, Any>>
-                                allPatients.forEach { patient ->
-                                    val patientId = patient["name"] as String
-                                    val patientRoom = roomNumber.split(" ")[1].toInt()
-                                    patients[patientId]?.let { patientInfo ->
-                                        patientInfo.roomNumber = patientRoom
-                                    }
+                                if (roomInfo == null) {
+                                    log.warning("No room info for $roomNumber in $roomData")
+                                    throw Exception("No room info")
+                                }
+                                val allPatients = roomInfo.patients
+                                val patientRoom = roomNumber.split(" ")[1].toInt()
+                                patients[patient]?.let { patientInfo ->
+                                    patientInfo.roomNumber = patientRoom
                                 }
                             }
+
                         }
                     }
-                    scenarios.add(solveData)
+
+                    scenarios.add(solveData as List<Map<Room, RoomInfo>>)
                     log.info(solveData.toString())
                 }
             }
-
             return scenarios
         } catch (e: Exception) {
             "Error executing JAR: ${e.message}"
             log.log(Level.SEVERE, "Error executing JAR", e)
-            return listOf(listOf(mapOf("error" to "Error executing JAR")))
+            return listOf(listOf(mapOf("error" to null)))
         }
     }
 
     @Operation(summary = "Simulate a scenario for room allocation using smol")
-    @ApiResponses(value = [
-        ApiResponse(responseCode = "200", description = "Scenario simulated"),
-        ApiResponse(responseCode = "400", description = "Invalid scenario"),
-        ApiResponse(responseCode = "401", description = "Unauthorized"),
-        ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
-        ApiResponse(responseCode = "500", description = "Internal server error")
-    ])
+    @ApiResponses(
+        value = [
+            ApiResponse(responseCode = "200", description = "Scenario simulated"),
+            ApiResponse(responseCode = "400", description = "Invalid scenario"),
+            ApiResponse(responseCode = "401", description = "Unauthorized"),
+            ApiResponse(
+                responseCode = "403",
+                description = "Accessing the resource you were trying to reach is forbidden"
+            ),
+            ApiResponse(responseCode = "500", description = "Internal server error")
+        ]
+    )
     @PostMapping("/room-allocation-smol")
-    fun simulateSmolScenario (@SwaggerRequestBody(description = "Request to execute a simulation for room allocation") @RequestBody simulationRequest: SimulationRequest): ResponseEntity<List<List<Map<String, Any>>>> {
+    fun simulateSmolScenario(@SwaggerRequestBody(description = "Request to execute a simulation for room allocation") @RequestBody simulationRequest: SimulationRequest): ResponseEntity<SimulationResponse> {
         log.info("Simulating scenario with ${simulationRequest.scenario.size} requests")
 
         // Create a temporary directory
@@ -471,7 +531,10 @@ class SimulationController (
         return ResponseEntity.ok(sim)
     }
 
-    private fun simulateSmolScenarios (@SwaggerRequestBody(description = "Request to execute a simulation for room allocation") @RequestBody simulationRequest: SimulationRequest, numberOfRuns : Int): List<List<List<Map<String, Any>>>> {
+    private fun simulateSmolScenarios(
+        @SwaggerRequestBody(description = "Request to execute a simulation for room allocation") @RequestBody simulationRequest: SimulationRequest,
+        numberOfRuns: Int
+    ): List<SimulationResponse> {
         log.info("Simulating $numberOfRuns scenarios with ${simulationRequest.scenario.size} requests")
 
         // Create a temporary directory
@@ -483,7 +546,7 @@ class SimulationController (
         createAndPopulateTreatmentTables(bedreflytDB)
         databaseService.createTreatmentView(bedreflytDB)
 
-        val runs = mutableListOf<List<List<Map<String, Any>>>>()
+        val runs = mutableListOf<SimulationResponse>()
         for (i in 1..numberOfRuns) {
             val patients = createAndPopulatePatientTables(bedreflytDB, simulationRequest.scenario, "sample")
             log.info("Patient table populated, invoking ABS with ${simulationRequest.scenario.size} requests")
@@ -497,12 +560,13 @@ class SimulationController (
 
         return runs.toList()
     }
+
     /**
      * Given a list of scenarios, accumulate the information
      *
      * @return ResponseEntity<String> – whatever we decide an interesting response is. A string for now
      */
-    private fun collectScenarios (simulations: List<List<List<Map<String, Any>>>>): ResponseEntity<List<String>> {
+    private fun collectScenarios(simulations: List<SimulationResponse>): ResponseEntity<List<String>> {
         var results = mutableListOf<String>()
         for ((i, sim) in simulations.withIndex()) {
             log.info("Starting simulation $i")
@@ -514,8 +578,8 @@ class SimulationController (
                     }
                 }
             }
-            log.info("$unsatDays out of ${sim.size} where unsatisfiable in simulation ${i+1}")
-            results.add("$unsatDays out of ${sim.size} where unsatisfiable in simulation ${i+1}")
+            log.info("$unsatDays out of ${sim.size} where unsatisfiable in simulation ${i + 1}")
+            results.add("$unsatDays out of ${sim.size} where unsatisfiable in simulation ${i + 1}")
         }
         return ResponseEntity.ok(results)
     }
