@@ -40,7 +40,8 @@ import kotlin.random.Random
 
 data class SimulationRequest(
     val scenario: List<ScenarioRequest>,
-    val mode: String
+    val mode: String,
+    val smtMode: String = "changes"
 )
 
 data class RoomInfo(
@@ -68,7 +69,10 @@ data class SolverRequest(
     val genders: List<Boolean>,
     val infectious: List<Boolean>,
     val patient_distances: List<Int>,
-    val previous: List<Int>
+    val previous: List<Int>,
+    // options are c[hanges] to minimize number of room changes or
+    // m[ax] to minimize maximum number of patients per room
+    val mode: String
 )
 
 typealias SolverResponse = List<Allocation>
@@ -78,7 +82,8 @@ typealias SolverResponse = List<Allocation>
 data class MultiSimulationRequest(
     val scenario: List<ScenarioRequest>,
     val repetitions: Int = 10,
-    val risk: Double = 1.0
+    val risk: Double = 0.5,
+    val smtMode: String = "changes"
 )
 
 data class MultiSimulationResponse(
@@ -234,7 +239,6 @@ class SimulationController(
                 scenarioRequest.diagnosis?.let { diagnosis ->
                     try {
                         val treatment = diagnosis + "_" + selectTreatmentByDiagnosisAndMode(diagnosis, mode)
-                        log.info("Å: Patient $patientId assigned treatment $treatment")
                         databaseService.insertScenario(
                             scenarioDbUrl,
                             scenarioRequest.batch,
@@ -330,7 +334,8 @@ class SimulationController(
     private fun invokeSolver(
         patient: String,
         patientsSimulated: Map<String, Patient>,
-        roomDistributions: List<RoomDistribution>
+        roomDistributions: List<RoomDistribution>,
+        smtMode: String
     ): SolverResponse {
         val rooms = roomDistributions.size
         val capacities = roomDistributions.map { it.capacity ?: 0 }
@@ -380,10 +385,11 @@ class SimulationController(
             genders,
             infectious,
             patientDistances,
-            previous
+            previous,
+            smtMode
         )
 
-        log.info("Invoking solver with  ${solverRequest.no_rooms} rooms, ${solverRequest.no_patients} patients")
+        log.info("Invoking solver with  ${solverRequest.no_rooms} rooms, ${solverRequest.no_patients} patients in mode ${solverRequest.mode}")
 
         if (patientNumbers > 0) {
 
@@ -441,7 +447,8 @@ class SimulationController(
     private fun simulate(
         patients: Map<String, Patient>,
         roomDistributions: List<RoomDistribution>,
-        tempDir: Path
+        tempDir: Path,
+        smtMode: String
     ): SimulationResponse {
         try {
             val data = executeJar(tempDir)
@@ -476,7 +483,7 @@ class SimulationController(
 
             groupedInformation.forEach { group ->
                 group.forEach { patient ->
-                    val solveData = invokeSolver(patient, patients, roomDistributions)
+                    val solveData = invokeSolver(patient, patients, roomDistributions, smtMode)
                     if (solveData.isNotEmpty() && !solveData[0].containsKey("error") && !solveData[0].containsKey("warning")) {
                         solveData.forEach { roomData ->
                             roomData.forEach { (roomNumber, roomInfo) ->
@@ -536,7 +543,7 @@ class SimulationController(
 
         log.info("Tables populated, invoking ABS with ${simulationRequest.scenario.size} requests")
 
-        val sim = simulate(patients, roomDistributions, tempDir)
+        val sim = simulate(patients, roomDistributions, tempDir, simulationRequest.smtMode)
         Files.walk(tempDir)
             .sorted(Comparator.reverseOrder())
             .forEach(Files::delete)
@@ -563,7 +570,7 @@ class SimulationController(
             val mode = if (Random.nextDouble() <= simulationRequest.risk) "sample" else "worst"
             val patients = createAndPopulatePatientTables(bedreflytDB, simulationRequest.scenario, mode)
             log.info("Patient table populated, invoking ABS with ${simulationRequest.scenario.size} requests")
-            runs.add(simulate(patients, roomDistributions, tempDir))
+            runs.add(simulate(patients, roomDistributions, tempDir, simulationRequest.smtMode))
             databaseService.clearTable(bedreflytDB, "scenario")
         }
 
