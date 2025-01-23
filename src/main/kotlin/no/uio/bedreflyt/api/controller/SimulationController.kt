@@ -73,6 +73,19 @@ data class SolverRequest(
 
 typealias SolverResponse = List<Allocation>
 
+// request for monte carlo sim
+// the naming is a bit awkward since "SimulationRequest/Response" already exists
+data class MultiSimulationRequest(
+    val scenario: List<ScenarioRequest>,
+    val repetitions: Int = 10,
+    val risk: Double = 1.0
+)
+
+data class MultiSimulationResponse(
+    val runs: Int,
+    val results: List<SimulationResponse>
+)
+
 @RestController
 @RequestMapping("/api/simulation")
 class SimulationController(
@@ -532,10 +545,9 @@ class SimulationController(
     }
 
     private fun simulateSmolScenarios(
-        @SwaggerRequestBody(description = "Request to execute a simulation for room allocation") @RequestBody simulationRequest: SimulationRequest,
-        numberOfRuns: Int
+        @SwaggerRequestBody(description = "Request to execute a simulation for room allocation") @RequestBody simulationRequest: MultiSimulationRequest,
     ): List<SimulationResponse> {
-        log.info("Simulating $numberOfRuns scenarios with ${simulationRequest.scenario.size} requests")
+        log.info("Simulating ${simulationRequest.repetitions} scenarios with ${simulationRequest.scenario.size} requests")
 
         // Create a temporary directory
         val uniqueID = UUID.randomUUID().toString()
@@ -547,8 +559,9 @@ class SimulationController(
         databaseService.createTreatmentView(bedreflytDB)
 
         val runs = mutableListOf<SimulationResponse>()
-        for (i in 1..numberOfRuns) {
-            val patients = createAndPopulatePatientTables(bedreflytDB, simulationRequest.scenario, "sample")
+        for (i in 1..simulationRequest.repetitions) {
+            val mode = if (Random.nextDouble() <= simulationRequest.risk) "sample" else "worst"
+            val patients = createAndPopulatePatientTables(bedreflytDB, simulationRequest.scenario, mode)
             log.info("Patient table populated, invoking ABS with ${simulationRequest.scenario.size} requests")
             runs.add(simulate(patients, roomDistributions, tempDir))
             databaseService.clearTable(bedreflytDB, "scenario")
@@ -561,31 +574,10 @@ class SimulationController(
         return runs.toList()
     }
 
-    /**
-     * Given a list of scenarios, accumulate the information
-     *
-     * @return ResponseEntity<String> – whatever we decide an interesting response is. A string for now
-     */
-    private fun collectScenarios(simulations: List<SimulationResponse>): ResponseEntity<List<String>> {
-        var results = mutableListOf<String>()
-        for ((i, sim) in simulations.withIndex()) {
-            log.info("Starting simulation $i")
-            var unsatDays = 0
-            for (day in sim) {
-                for (room in day) {
-                    if (room.containsKey("error")) {
-                        unsatDays += 1
-                    }
-                }
-            }
-            log.info("$unsatDays out of ${sim.size} where unsatisfiable in simulation ${i + 1}")
-            results.add("$unsatDays out of ${sim.size} where unsatisfiable in simulation ${i + 1}")
-        }
-        return ResponseEntity.ok(results)
-    }
-
     @PostMapping("/simulate-many")
-    fun simulateAll(@SwaggerRequestBody(description = "Request to execute n simulations") @RequestBody simulationRequest: SimulationRequest): ResponseEntity<List<String>> {
-        return collectScenarios(simulateSmolScenarios(simulationRequest, 10))
+    fun simulateAll(@SwaggerRequestBody(description = "Request to execute n simulations") @RequestBody simulationRequest: MultiSimulationRequest): ResponseEntity<List<SimulationResponse>> {
+        val results = simulateSmolScenarios(simulationRequest)
+        // if we want to do any preprocessing of the results, that goes here
+        return ResponseEntity.ok(results)
     }
 }
