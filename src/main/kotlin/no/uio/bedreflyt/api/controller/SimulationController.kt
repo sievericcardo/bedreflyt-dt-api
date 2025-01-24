@@ -5,7 +5,6 @@ import com.fasterxml.jackson.module.kotlin.readValue
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.responses.ApiResponses
-import jakarta.validation.constraints.Null
 import no.uio.bedreflyt.api.config.EnvironmentConfig
 import no.uio.bedreflyt.api.config.REPLConfig
 import no.uio.bedreflyt.api.model.live.Patient
@@ -15,9 +14,6 @@ import no.uio.bedreflyt.api.model.simulation.RoomDistribution
 import no.uio.bedreflyt.api.model.triplestore.Task
 import no.uio.bedreflyt.api.model.triplestore.Treatment
 import no.uio.bedreflyt.api.service.triplestore.*
-import no.uio.microobject.runtime.REPL
-import org.apache.jena.query.QuerySolution
-import org.apache.jena.query.ResultSet
 import org.springframework.dao.EmptyResultDataAccessException
 import org.springframework.http.HttpEntity
 import org.springframework.http.HttpHeaders
@@ -70,6 +66,17 @@ data class SolverRequest(
     val infectious: List<Boolean>,
     val patient_distances: List<Int>,
     val previous: List<Int>,
+    // options are c[hanges] to minimize number of room changes or
+    // m[ax] to minimize maximum number of patients per room
+    val mode: String
+)
+
+data class GlobalSolverRequest(
+    val capacities: List<Int>,
+    val room_distances: List<Long>,
+    val genders: Map<String, Boolean>, // mapping from patientIds to gender (isMale)
+    val infectious: Map<String, Boolean>, // patientId -> infectious
+    val patient_distances: List<Map<String, Int>>, // patient_distances[i][j] = c means patient j is in category c on day i
     // options are c[hanges] to minimize number of room changes or
     // m[ax] to minimize maximum number of patients per room
     val mode: String
@@ -329,7 +336,7 @@ class SimulationController(
      * Invoke the solver with the patient data. For each patient, get the patient information and invoke the solver
      *
      * @param patient - Patient data
-     * @return String - Solver response
+     * @return List<Allocation> - Solver response
      */
     private fun invokeSolver(
         patient: String,
@@ -460,7 +467,8 @@ class SimulationController(
 
             // We need an Element Breaker to separate the information
             val information = data.split("------").filter { it.isNotEmpty() } // EB - split data over ------
-            val groupedInformation: List<List<String>> = information.map { it -> it.split("\n").filter { it.isNotEmpty() } }.filter { it.isNotEmpty() }
+            val groupedInformation: List<List<String>> =
+                information.map { it -> it.split("\n").filter { it.isNotEmpty() } }.filter { it.isNotEmpty() }
             val scenarios = mutableListOf<List<Map<Room, RoomInfo>>>()
 
             groupedInformation.forEach { group ->
@@ -494,6 +502,7 @@ class SimulationController(
             return listOf(listOf(mapOf("error" to null)))
         }
     }
+
 
     @Operation(summary = "Simulate a scenario for room allocation using smol")
     @ApiResponses(
@@ -568,5 +577,126 @@ class SimulationController(
         val results = simulateSmolScenarios(simulationRequest)
         // if we want to do any preprocessing of the results, that goes here
         return ResponseEntity.ok(results)
+    }
+
+    private fun invokeGlobal(
+        patientsSimulated: List<Map<Patient, String>>,
+        roomDistributions: List<RoomDistribution>,
+        smtMode: String
+    ): String? {
+//            List<SolverResponse> {
+        val capacities = roomDistributions.map { it.capacity ?: 0 }
+        val roomCategories: List<Long> = roomDistributions.map { it.room.toLong() ?: 0 }
+        val genders = mutableMapOf<String, Boolean>()
+        val infectious = mutableMapOf<String, Boolean>()
+        val patient_categories: List<Map<String, Int>> = patientsSimulated.map { day ->
+            day.mapKeys { it.key.patientId }
+                .mapValues { it.value.toInt() }
+        }
+
+        for (day in patientsSimulated) {
+            for (patient in day.keys) {
+                genders[patient.patientId] = patient.gender == "Male"
+                infectious[patient.patientId] = patient.infectious
+            }
+        }
+
+        val req: GlobalSolverRequest = GlobalSolverRequest(
+            capacities,
+            roomCategories,
+            genders,
+            infectious,
+            patient_categories,
+            smtMode
+        )
+
+        log.info("Invoking global solver with  ${roomDistributions.size} rooms, ${genders.size} patients in mode $smtMode")
+
+        val restTemplate = RestTemplate()
+        val headers = HttpHeaders()
+        headers.contentType = MediaType.APPLICATION_JSON
+        val request = HttpEntity(req, headers)
+
+        val solverEndpoint = environmentConfig.getOrDefault("SOLVER_ENDPOINT", "localhost")
+        val solverUrl = "http://$solverEndpoint:8000/api/solve-global"
+        log.info("Invoking global solver")
+        val response = restTemplate.postForEntity(solverUrl, request, String::class.java)
+
+        if (response.body!!.contains("Model is unsat")) {
+            return "error"
+            //return listOf(listOf(mapOf("error" to null)))
+        }
+
+        return response.body
+    }
+
+    private fun globalSolution(
+        patients: Map<String, Patient>,
+        roomDistributions: List<RoomDistribution>,
+        tempDir: Path,
+        smtMode: String
+    ): String {
+        //List<SimulationResponse> {
+        try {
+            val data = executeJar(tempDir)
+
+            // If I got error from the JAR, return the error
+            if (data.contains("Error executing JAR")) {
+                throw RuntimeException(data)
+            }
+
+            // The ABS model retuns a string consisting of:
+            // - a list of days, seperated by "------" where each day is
+            // - a list of \n-separated patients, each consisting of [patientId, category]
+            // we construct, for each day, a mapping of patientIds to categories
+            val days = mutableListOf<Map<Patient, String>>()
+            for (day in data.split("------").filter { it.isNotEmpty() }) {
+                val dayMap = mutableMapOf<Patient, String>()
+                for (patient in day.split("\n").filter {it.isNotEmpty()}) {
+                    patient.split(",").let {
+                        patients[it[0]]?.let { p ->
+                            dayMap.put(p, it[1])
+                        }
+                    }
+                }
+                if (dayMap.isNotEmpty()) { days.add(dayMap) }
+            }
+            val solverResponse = invokeGlobal(days, roomDistributions, "changes")
+            return solverResponse?: "error"
+        } catch (e: Exception) {
+            "Error executing JAR: ${e.message}"
+            log.log(Level.SEVERE, "Error executing JAR", e)
+            return "error"
+            //return listOf(listOf(listOf(mapOf("error" to null))))
+        }
+    }
+
+    @PostMapping("/room-allocation-global")
+    fun allocateGlobal(
+        @SwaggerRequestBody(description = "Simulate a scenario, but return global solution")
+        @RequestBody simulationRequest: SimulationRequest
+    ): ResponseEntity<String> {
+            //ResponseEntity<List<SimulationResponse>> {
+
+        log.info("Simulating scenario with ${simulationRequest.scenario.size} requests")
+        // Create a temporary directory
+        val uniqueID = UUID.randomUUID().toString()
+        val tempDir: Path = Files.createTempDirectory("simulation_$uniqueID")
+        val bedreflytDB = tempDir.resolve("bedreflyt.db").toString()
+        databaseService.createTables(bedreflytDB)
+
+        val roomDistributions = createAndPopulateRoomDistributions(bedreflytDB)
+        val patients = createAndPopulatePatientTables(bedreflytDB, simulationRequest.scenario, simulationRequest.mode)
+        createAndPopulateTreatmentTables(bedreflytDB)
+        databaseService.createTreatmentView(bedreflytDB)
+
+        log.info("Tables populated, invoking ABS with ${simulationRequest.scenario.size} requests")
+
+        val sim = globalSolution(patients, roomDistributions, tempDir, simulationRequest.smtMode)
+        Files.walk(tempDir)
+            .sorted(Comparator.reverseOrder())
+            .forEach(Files::delete)
+
+        return ResponseEntity.ok(sim)
     }
 }
