@@ -460,25 +460,7 @@ class SimulationController(
 
             // We need an Element Breaker to separate the information
             val information = data.split("------").filter { it.isNotEmpty() } // EB - split data over ------
-
-            val groupedInformation = mutableListOf<List<String>>()
-            var currentGroup = mutableListOf<String>()
-
-            for (item in information) {
-                if (item.isNotEmpty()) {
-                    currentGroup.add(item)
-                } else {
-                    if (currentGroup.isNotEmpty()) {
-                        groupedInformation.add(currentGroup)
-                        currentGroup = mutableListOf()
-                    }
-                }
-            }
-
-            if (currentGroup.isNotEmpty()) {
-                groupedInformation.add(currentGroup)
-            }
-
+            val groupedInformation: List<List<String>> = information.map { it -> it.split("\n").filter { it.isNotEmpty() } }.filter { it.isNotEmpty() }
             val scenarios = mutableListOf<List<Map<Room, RoomInfo>>>()
 
             groupedInformation.forEach { group ->
