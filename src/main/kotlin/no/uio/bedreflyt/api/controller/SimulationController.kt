@@ -339,7 +339,7 @@ class SimulationController(
      * @return List<Allocation> - Solver response
      */
     private fun invokeSolver(
-        patients: List<String>,
+        patientList: List<String>,
         patientsSimulated: Map<String, Patient>,
         roomDistributions: List<RoomDistribution>,
         smtMode: String
@@ -354,7 +354,7 @@ class SimulationController(
         val previous = mutableListOf<Int>()
         val patientMap = mutableMapOf<Int, Patient>()
 
-        patients.forEach { line ->
+        patientList.forEach { line ->
             val patientData = line.split(",")
 
             if (patientData.size > 1) {
@@ -486,11 +486,10 @@ class SimulationController(
                                 }
                             }
                         }
-
                     }
-                    scenarios.add(solveData as List<Map<Room, RoomInfo>>)
-                    log.info(solveData.toString())
                 }
+                scenarios.add(solveData as List<Map<Room, RoomInfo>>)
+                log.info(solveData.toString())
             }
             return scenarios
         } catch (e: Exception) {
@@ -673,7 +672,7 @@ class SimulationController(
         @SwaggerRequestBody(description = "Simulate a scenario, but return global solution")
         @RequestBody simulationRequest: SimulationRequest
     ): ResponseEntity<String> {
-            //ResponseEntity<List<SimulationResponse>> {
+        //ResponseEntity<List<SimulationResponse>> {
 
         log.info("Simulating scenario with ${simulationRequest.scenario.size} requests")
         // Create a temporary directory
