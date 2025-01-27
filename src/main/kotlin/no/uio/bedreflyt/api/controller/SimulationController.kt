@@ -335,11 +335,11 @@ class SimulationController(
      *
      * Invoke the solver with the patient data. For each patient, get the patient information and invoke the solver
      *
-     * @param patient - Patient data
+     * @param patients - Patient data
      * @return List<Allocation> - Solver response
      */
     private fun invokeSolver(
-        patient: String,
+        patients: List<String>,
         patientsSimulated: Map<String, Patient>,
         roomDistributions: List<RoomDistribution>,
         smtMode: String
@@ -352,11 +352,9 @@ class SimulationController(
         val infectious = mutableListOf<Boolean>()
         val patientDistances = mutableListOf<Int>()
         val previous = mutableListOf<Int>()
-
-        val singlePatient = patient.split("\n")
         val patientMap = mutableMapOf<Int, Patient>()
 
-        singlePatient.forEach { line ->
+        patients.forEach { line ->
             val patientData = line.split(",")
 
             if (patientData.size > 1) {
@@ -472,25 +470,24 @@ class SimulationController(
             val scenarios = mutableListOf<List<Map<Room, RoomInfo>>>()
 
             groupedInformation.forEach { group ->
-                group.forEach { patient ->
-                    val solveData = invokeSolver(patient, patients, roomDistributions, smtMode)
-                    if (solveData.isNotEmpty() && !solveData[0].containsKey("error") && !solveData[0].containsKey("warning")) {
-                        solveData.forEach { roomData ->
-                            roomData.forEach { (roomNumber, roomInfo) ->
-                                if (roomInfo == null) {
-                                    log.warning("No room info for $roomNumber in $roomData")
-                                    throw Exception("No room info")
-                                }
-                                val allPatients = roomInfo.patients
-                                val patientRoom = roomNumber.split(" ")[1].toInt()
-                                patients[patient]?.let { patientInfo ->
+                val solveData = invokeSolver(group, patients, roomDistributions, smtMode)
+                if (solveData.isNotEmpty() && !solveData[0].containsKey("error") && !solveData[0].containsKey("warning")) {
+                    solveData.forEach { roomData ->
+                        roomData.forEach { (roomNumber, roomInfo) ->
+                            if (roomInfo == null) {
+                                log.warning("No room info for $roomNumber in $roomData")
+                                throw Exception("No room info")
+                            }
+                            val allPatients = roomInfo.patients
+                            val patientRoom = roomNumber.split(" ")[1].toInt()
+                            allPatients.forEach { patient ->
+                                patients[patient.patientId]?.let { patientInfo ->
                                     patientInfo.roomNumber = patientRoom
                                 }
                             }
-
                         }
-                    }
 
+                    }
                     scenarios.add(solveData as List<Map<Room, RoomInfo>>)
                     log.info(solveData.toString())
                 }
