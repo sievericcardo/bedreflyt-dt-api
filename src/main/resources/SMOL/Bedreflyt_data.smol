@@ -13,9 +13,6 @@ class TaskDependency extends Twin (
     String taskDependency)
 end
 
-class JourneyStep extends Twin (String diagnosis, Int journeyOrder, String task)
-end
-
 class Treatment extends Twin (
     String treatmentId,
     String diagnosis,
@@ -54,17 +51,6 @@ class TreatmentDefectWeight extends Twin (
     Treatment obj,
     Double weightNew)
 end
-
-// Journey step defects
-class JourneyStepDefectDiagnosis extends Twin (
-    JourneyStep obj,
-    String diagnosisNew)
-end
-class JourneyStepDefectOrder extends Twin (
-    JourneyStep obj,
-    Int journeyOrderNew)
-end
-class JourneyStepDefectTask extends Twin (JourneyStep obj, String taskNew) end
 
 // Room category defects
 class RoomDefectBedCategory extends Twin (RoomCategory obj, Int bedCategoryNew) end
