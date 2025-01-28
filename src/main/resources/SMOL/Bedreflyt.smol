@@ -48,12 +48,11 @@ main
     AssetModel assetModel = new AssetModel(null);
 
     DiagnosisModel m1 = new DiagnosisModel("diagnosis");
-    RoomModel m2 = new RoomModel("rooms");
-    RoomDistributionModel m3 = new RoomDistributionModel("room distributions");
+    RoomCategoryModel m2 = new RoomCategoryModel("rooms");
+    RoomModel m3 = new RoomModel("room distributions");
     TaskModel m4 = new TaskModel("tasks");
     TaskDependencyModel m5 = new TaskDependencyModel("task dependencies");
-    JourneyStepModel m6 = new JourneyStepModel("journey steps");
-    TreatmentModel m7 = new TreatmentModel("treatments");
+    TreatmentModel m6 = new TreatmentModel("treatments");
 
     assetModel.register(m1);
     assetModel.register(m2);
@@ -61,7 +60,6 @@ main
     assetModel.register(m4);
     assetModel.register(m5);
     assetModel.register(m6);
-    assetModel.register(m7);
 
     assetModel.reconfigure();
 

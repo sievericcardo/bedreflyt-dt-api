@@ -5,7 +5,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.responses.ApiResponses
 import no.uio.bedreflyt.api.config.EnvironmentConfig
 import no.uio.bedreflyt.api.config.REPLConfig
-import no.uio.bedreflyt.api.service.triplestore.RoomService
+import no.uio.bedreflyt.api.service.triplestore.RoomCategoryService
 import no.uio.bedreflyt.api.service.triplestore.TriplestoreService
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.DeleteMapping
@@ -37,7 +37,7 @@ class RoomController (
     private val replConfig: REPLConfig,
     private val environmentConfig: EnvironmentConfig,
     private val triplestoreService: TriplestoreService,
-    private val roomService: RoomService
+    private val roomCategoryService: RoomCategoryService
 ) {
 
     private val log : Logger = Logger.getLogger(RoomController::class.java.name)
@@ -60,7 +60,7 @@ class RoomController (
     fun addRoom(@SwaggerRequestBody(description = "Journey step to add") @RequestBody roomRequest: RoomRequest) : ResponseEntity<String> {
         log.info("Adding room")
 
-        if (!roomService.createRoom(roomRequest.bedCategory, roomRequest.roomDescription)) {
+        if (!roomCategoryService.createRoom(roomRequest.bedCategory, roomRequest.roomDescription)) {
             return ResponseEntity.badRequest().body("Error: the room could not be added.")
         }
         replConfig.regenerateSingleModel().invoke("rooms")
@@ -94,7 +94,7 @@ class RoomController (
     @GetMapping("/retrieve")
     fun getRooms() : ResponseEntity<List<Any>> {
         log.info("Getting rooms")
-        val rooms = roomService.getAllRooms() ?: return ResponseEntity.badRequest().body(listOf("No rooms found"))
+        val rooms = roomCategoryService.getAllRooms() ?: return ResponseEntity.badRequest().body(listOf("No rooms found"))
         return ResponseEntity.ok(rooms)
     }
 
@@ -110,7 +110,7 @@ class RoomController (
     fun updateRoom(@SwaggerRequestBody(description = "Request to update a room") @RequestBody updateRoomRequest: UpdateRoomRequest) : ResponseEntity<String> {
         log.info("Updating room")
 
-        if(!roomService.updateRoom(updateRoomRequest.oldBedCategory, updateRoomRequest.oldRoomDescription, updateRoomRequest.newBedCategory, updateRoomRequest.newRoomDescription)) {
+        if(!roomCategoryService.updateRoom(updateRoomRequest.oldBedCategory, updateRoomRequest.oldRoomDescription, updateRoomRequest.newBedCategory, updateRoomRequest.newRoomDescription)) {
             return ResponseEntity.badRequest().body("Error: the room could not be updated.")
         }
         replConfig.regenerateSingleModel().invoke("rooms")
@@ -150,7 +150,7 @@ class RoomController (
     fun deleteRoom(@SwaggerRequestBody(description = "Request to delete a room") @RequestBody roomRequest: RoomRequest) : ResponseEntity<String> {
         log.info("Deleting room")
 
-        if(!roomService.deleteRoom(roomRequest.bedCategory, roomRequest.roomDescription)) {
+        if(!roomCategoryService.deleteRoom(roomRequest.bedCategory, roomRequest.roomDescription)) {
             return ResponseEntity.badRequest().body("Error: the room could not be deleted.")
         }
         replConfig.regenerateSingleModel().invoke("rooms")

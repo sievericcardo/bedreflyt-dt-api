@@ -1,6 +1,9 @@
 package no.uio.bedreflyt.api.model.triplestore
 
 class Room (
-    val bedCategory: Long,
-    val roomDescription: String
+    val roomNumber : Int,
+    val roomNumberModel : Int,
+    val room: Long,
+    val capacity: Int,
+    val bathroom: Boolean
 )

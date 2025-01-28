@@ -5,7 +5,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.responses.ApiResponses
 import no.uio.bedreflyt.api.config.EnvironmentConfig
 import no.uio.bedreflyt.api.config.REPLConfig
-import no.uio.bedreflyt.api.service.triplestore.RoomDistributionService
+import no.uio.bedreflyt.api.service.triplestore.RoomService
 import no.uio.bedreflyt.api.service.triplestore.TriplestoreService
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.DeleteMapping
@@ -46,7 +46,7 @@ class RoomDistributionController (
     private val replConfig: REPLConfig,
     private val environmentConfig: EnvironmentConfig,
     private val triplestoreService: TriplestoreService,
-    private val roomDistributionService: RoomDistributionService
+    private val roomService: RoomService
 ) {
 
     private val log : Logger = Logger.getLogger(RoomDistributionController::class.java.name)
@@ -70,7 +70,7 @@ class RoomDistributionController (
         log.info("Adding room distribution")
 
         val bathroomInt = if (roomDistributionRequest.bathroom) 1 else 0
-        if (!roomDistributionService.createRoomDistribution(
+        if (!roomService.createRoomDistribution(
                 roomDistributionRequest.roomNumber,
                 roomDistributionRequest.roomNumberModel,
                 roomDistributionRequest.room,
@@ -112,7 +112,7 @@ class RoomDistributionController (
     @GetMapping("/retrieve")
     fun getRoomDistributions() : ResponseEntity<List<Any>> {
         log.info("Retrieving room distributions")
-        val roomDistributions = roomDistributionService.getAllRoomDistributions()?: return ResponseEntity.badRequest().body(listOf("No room distributions found"))
+        val roomDistributions = roomService.getAllRoomDistributions()?: return ResponseEntity.badRequest().body(listOf("No room distributions found"))
         return ResponseEntity.ok(roomDistributions)
     }
 
@@ -130,7 +130,7 @@ class RoomDistributionController (
 
         val oldBath = if (updateRoomDistributionRequest.oldBathroom) 1 else 0
         val newBath = if (updateRoomDistributionRequest.newBathroom) 1 else 0
-        if(!roomDistributionService.updateRoomDistribution(
+        if(!roomService.updateRoomDistribution(
                 updateRoomDistributionRequest.oldRoomNumber,
                 updateRoomDistributionRequest.oldRoomNumberModel,
                 updateRoomDistributionRequest.oldRoom,
@@ -186,7 +186,7 @@ class RoomDistributionController (
         log.info("Deleting room distribution")
 
         val bath = if (roomDistributionRequest.bathroom) 1 else 0
-        if(!roomDistributionService.deleteRoomDistribution(
+        if(!roomService.deleteRoomDistribution(
                 roomDistributionRequest.roomNumber,
                 roomDistributionRequest.roomNumberModel,
                 roomDistributionRequest.room,

@@ -1,6 +1,6 @@
 package no.uio.bedreflyt.api.model.simulation
 
-class Room (
+class RoomCategory (
     val id: Long,
     val description: String
 )

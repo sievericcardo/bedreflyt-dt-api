@@ -23,10 +23,10 @@ class Treatment extends Twin (
     Double weight)
 end
 
-class Room extends Twin (String roomDescription, Int bedCategory)
+class RoomCategory extends Twin (String roomDescription, Int bedCategory)
 end
 
-class RoomDistribution extends Twin (
+class Room extends Twin (
     Int roomNumber,
     Int roomNumberModel,
     Int room,
