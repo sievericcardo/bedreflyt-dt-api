@@ -147,7 +147,7 @@ class DatabaseService (
             }
         } ?: throw IllegalArgumentException("No rooms found")
 
-        val roomDistributions = roomService.getAllRoomDistributions()
+        val roomDistributions = roomService.getAllRooms()
             ?: throw IllegalArgumentException("No room distributions found")
         val simulationRoom = mutableListOf<Room>()
 
