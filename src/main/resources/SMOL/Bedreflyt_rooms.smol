@@ -30,7 +30,7 @@ class RoomModel extends KindModel()
                 print("RECONFIG> New room detected: ");
                 print("          Room Number: " ++ intToString(newRoom.roomNumber));
                 print("          Room Number Model: " ++ intToString(newRoom.roomNumberModel));
-                print("          Room: " ++ intToString(newRoom.room));
+                print("          Room: " ++ intToString(newRoom.roomCategory));
                 print("          Capacity: " ++ intToString(newRoom.capacity));
                 print("          Bathroom: " ++ intToString(newRoom.bathroom));
 
@@ -67,7 +67,7 @@ class RoomModel extends KindModel()
                 print("RECONFIG> Misconfigured room distribution to remove: ");
                 print("          Room Number: " ++ intToString(wrongRoom.roomNumber));
                 print("          Room Number Model: " ++ intToString(wrongRoom.roomNumberModel));
-                print("          Room: " ++ intToString(wrongRoom.room));
+                print("          Room: " ++ intToString(wrongRoom.roomCategory));
                 print("          Capacity: " ++ intToString(wrongRoom.capacity));
                 print("          Bathroom: " ++ intToString(wrongRoom.bathroom));
 
@@ -195,10 +195,10 @@ class RoomModel extends KindModel()
                 destroy(lx);
 
                 print("RECONFIG> Misconfigured room: ");
-                print("          Old Room: " ++ intToString(roomDefect.obj.room));
+                print("          Old Room: " ++ intToString(roomDefect.obj.roomCategory));
                 print("          New Room: " ++ intToString(roomDefect.roomNew));
 
-                roomDefect.obj.room = roomDefect.roomNew;
+                roomDefect.obj.roomCategory = roomDefect.roomNew;
             end
 
             print("RECONFIG> Room(s) changed");

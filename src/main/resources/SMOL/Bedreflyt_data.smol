@@ -26,7 +26,7 @@ end
 class Room extends Twin (
     Int roomNumber,
     Int roomNumberModel,
-    Int room,
+    Int roomCategory,
     Int capacity,
     Int bathroom)
 end
