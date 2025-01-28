@@ -1,12 +1,28 @@
 package no.uio.bedreflyt.api.service.simulation
 
+import no.uio.bedreflyt.api.model.live.Patient
+import no.uio.bedreflyt.api.model.simulation.Room
+import no.uio.bedreflyt.api.model.triplestore.Task
+import no.uio.bedreflyt.api.service.live.PatientService
+import no.uio.bedreflyt.api.service.triplestore.*
+import no.uio.bedreflyt.api.types.ScenarioRequest
 import org.springframework.dao.EmptyResultDataAccessException
 import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.jdbc.datasource.DriverManagerDataSource
 import org.springframework.stereotype.Service
+import java.util.logging.Logger
 
 @Service
-class DatabaseService {
+class DatabaseService (
+    private val treatmentService: TreatmentService,
+    private val patientService: PatientService,
+    private val taskDependencyService: TaskDependencyService,
+    private val taskService: TaskService,
+    private val roomCategoryService: RoomCategoryService,
+    private val roomService: RoomService
+) {
+
+    private val log: Logger = Logger.getLogger(DatabaseService::class.java.name)
 
     private fun getJdbcTemplate(dbPath: String): JdbcTemplate {
         val dataSource = DriverManagerDataSource()
@@ -53,6 +69,53 @@ class DatabaseService {
         jdbcTemplate.execute(createScenarioTable)
     }
 
+    fun createAndPopulatePatientTables(
+        scenarioDbUrl: String,
+        scenario: List<ScenarioRequest>,
+        mode: String
+    ): Map<String, Patient> {
+        createPatientTable(scenarioDbUrl)
+        val patientsList = mutableMapOf<String, Patient>()
+
+        scenario.forEach { scenarioRequest ->
+            scenarioRequest.patientId?.let { patientId ->
+                try {
+                    val patients = patientService.findByPatientId(patientId)
+
+                    if (patients.isNotEmpty()) {
+                        patientsList[patientId] = patients[0]
+                        insertPatient(scenarioDbUrl, patients[0].patientId, patients[0].gender)
+                        insertPatientStatus(
+                            scenarioDbUrl,
+                            patients[0].patientId,
+                            patients[0].infectious,
+                            patients[0].roomNumber
+                        )
+                    } else {
+                        throw IllegalArgumentException("Patient not found")
+                    }
+                } catch (e: EmptyResultDataAccessException) {
+                    throw IllegalArgumentException("Patient not found")
+                }
+
+                scenarioRequest.diagnosis?.let { diagnosis ->
+                    try {
+                        val treatment = diagnosis + "_" + treatmentService.selectTreatmentByDiagnosisAndMode(diagnosis, mode)
+                        insertScenario(
+                            scenarioDbUrl,
+                            scenarioRequest.batch,
+                            scenarioRequest.patientId,
+                            treatment
+                        )
+                    } catch (e: IllegalArgumentException) {
+                        throw e
+                    }
+                }
+            }
+        }
+        return patientsList
+    }
+
     fun createRoomTables(dbPath: String) {
         val jdbcTemplate = getJdbcTemplate(dbPath)
         val createRoomTable = """
@@ -73,6 +136,35 @@ class DatabaseService {
         """
         jdbcTemplate.execute(createRoomTable)
         jdbcTemplate.execute(createRoomDistributionTable)
+    }
+
+    fun createAndPopulateRooms(roomDbUrl: String): List<Room> {
+        val roomList = roomCategoryService.getAllRooms()
+
+        roomList?.let {
+            it.forEach { room ->
+                insertRoom(roomDbUrl, room.bedCategory, room.roomDescription)
+            }
+        } ?: throw IllegalArgumentException("No rooms found")
+
+        val roomDistributions = roomService.getAllRoomDistributions()
+            ?: throw IllegalArgumentException("No room distributions found")
+        val simulationRoom = mutableListOf<Room>()
+
+        roomDistributions.forEach { roomDistribution ->
+            insertRoomDistribution(
+                roomDbUrl, roomDistribution.roomNumber.toLong(), roomDistribution.roomNumberModel.toLong(),
+                roomDistribution.room.toLong(), roomDistribution.capacity, roomDistribution.bathroom
+            )
+            simulationRoom.add(
+                Room(
+                    roomDistribution.roomNumber, roomDistribution.roomNumberModel, roomDistribution.room.toString(),
+                    roomDistribution.capacity, roomDistribution.bathroom
+                )
+            )
+        }
+
+        return simulationRoom
     }
 
     fun createTreatmentTables(dbPath: String) {
@@ -118,6 +210,46 @@ class DatabaseService {
                 FROM tasks;
         """
         jdbcTemplate.execute(createView)
+    }
+
+    fun createAndPopulateTreatmentTables(treatmentDbUrl: String) {
+        createTreatmentTables(treatmentDbUrl)
+
+        val treatments = treatmentService.getAllTreatments() ?: throw IllegalArgumentException("No treatments found")
+        treatments.forEach { treatment ->
+            val taskDependencies = taskDependencyService.getTaskDependenciesByTreatment(treatment.treatmentId)
+                ?: throw IllegalArgumentException("No task dependencies found")
+
+            // Insert the arrivals
+            val arrival: Task = taskService.getTaskByTaskName("arrival")!!
+            val appendName = treatment.diagnosis + "_" + treatment.treatmentId
+            insertTask(
+                treatmentDbUrl,
+                arrival.taskName + "_" + appendName,
+                arrival.bed,
+                arrival.averageDuration.toInt()
+            )
+
+            taskDependencies.forEach { taskDependency ->
+                val treatmentName = taskDependency.diagnosis + "_" + treatment.treatmentId
+                val task = taskService.getTaskByTaskName(taskDependency.task)
+                    ?: throw IllegalArgumentException("No task found")
+                insertTask(
+                    treatmentDbUrl,
+                    task.taskName + "_" + treatmentName,
+                    task.bed,
+                    task.averageDuration.toInt()
+                )
+                insertTaskDependency(
+                    treatmentDbUrl,
+                    treatmentName,
+                    taskDependency.task + "_" + treatmentName,
+                    taskDependency.dependsOn + "_" + treatmentName
+                )
+            }
+        }
+
+        log.info("Tables populated")
     }
 
     fun deleteDatabase(dbPath: String) {

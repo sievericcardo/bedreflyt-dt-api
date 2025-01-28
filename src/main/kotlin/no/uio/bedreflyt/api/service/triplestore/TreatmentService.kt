@@ -7,6 +7,7 @@ import org.apache.jena.query.ResultSet
 import org.apache.jena.update.UpdateExecutionFactory
 import org.apache.jena.update.UpdateFactory
 import org.springframework.stereotype.Service
+import kotlin.random.Random
 
 @Service
 class TreatmentService (
@@ -126,6 +127,47 @@ class TreatmentService (
         val weight = solution.get("weight").asLiteral().double
 
         return Treatment(treatment, diagnosis, frequency, weight)
+    }
+
+    private fun <T> List<T>.weightedChoice(weight: (T) -> Double): T {
+        val totalWeights = this.sumOf(weight)
+        val threshold: Double = Random.nextDouble(totalWeights)
+        var seen: Double = 0.toDouble()
+        for (elem in this) {
+            seen += weight(elem)
+            if (seen >= threshold) {
+                return elem
+            }
+        }
+        return this.last()
+    }
+
+    fun selectTreatmentByDiagnosisAndMode(diagnosis: String, mode: String): String {
+        val treatments: List<Treatment> = getAllTreatmentsByDiagnosis(diagnosis)
+        if (treatments.isEmpty()) {
+            throw NoSuchElementException("No treatment found for diagnosis: $diagnosis")
+        }
+        return when (mode) {
+            "worst" -> {
+                treatments.maxByOrNull { it.weight }!!.treatmentId
+            }
+
+            "common" -> {
+                treatments.maxByOrNull { it.frequency }!!.treatmentId
+            }
+
+            "random" -> {
+                treatments.random().treatmentId
+            }
+
+            "sample" -> {
+                treatments.weightedChoice { it.frequency }.treatmentId
+            }
+
+            else -> {
+                throw IllegalArgumentException("Unrecognized mode: should be one of \"worst\", \"common\", \"random\" or \"sample\"")
+            }
+        }
     }
 
     fun updateTreatment(treatmentId: String, diagnosis: String, oldFrequency: Double, oldWeight: Double, newFrequency: Double, newWeight: Double) : Boolean {

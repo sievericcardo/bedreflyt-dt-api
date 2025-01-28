@@ -1,6 +1,6 @@
 package no.uio.bedreflyt.api.model.simulation
 
-class RoomDistribution (
+class Room (
     val roomNumber : Int,
     val roomNumberModel : Int,
     val room: String,
