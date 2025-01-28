@@ -66,7 +66,7 @@ class Patient (
     var infectious : Boolean = false,
 
     @Column(name = "roomNumber")
-    var roomNumber : Int = 0,
+    var roomNumber : Int = -1,
 
 //    @Version
 //    var version: Int = 0

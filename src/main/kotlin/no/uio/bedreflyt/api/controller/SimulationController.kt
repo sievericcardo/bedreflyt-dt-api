@@ -49,7 +49,10 @@ typealias Room = String
 
 typealias Allocation = Map<Room, RoomInfo?>
 
-typealias SimulationResponse = List<List<Allocation>>
+data class SimulationResponse(
+    val allocations: List<List<Allocation>>,
+    val changes: Int
+)
 
 data class ScenarioRequest(
     val batch: Int,
@@ -82,7 +85,10 @@ data class GlobalSolverRequest(
     val mode: String
 )
 
-typealias SolverResponse = List<Allocation>
+data class SolverResponse(
+    val allocations: List<Allocation>,
+    val changes: Int
+)
 
 // request for monte carlo sim
 // the naming is a bit awkward since "SimulationRequest/Response" already exists
@@ -371,8 +377,7 @@ class SimulationController(
                         genders.add(gender)
                         infectious.add(patientInfo.infectious)
                         patientDistances.add(patientDistance.toInt())
-                        previous.add(patientInfo.roomNumber)
-
+                        previous.add(if (patientsSimulated.containsKey(patientId)) patientInfo.roomNumber else -1)
                         patientMap[patientNumbers - 1] = patientInfo
                     } else {
                         patientNumbers -= 1
@@ -409,15 +414,18 @@ class SimulationController(
             val response = restTemplate.postForEntity(solverUrl, request, String::class.java)
 
             if (response.body!!.contains("Model is unsat")) {
-                return listOf(mapOf("error" to null))
+                return SolverResponse(listOf(mapOf("error" to null)), -1)
             }
 
             // Parse the JSON string into a map
+            // TODO: this does not work
+            // response needs to be parsed into a dict of {"changes":Int, "allocations": alloc}
+            // where alloc is the old "response.body"
             val mapper = jacksonObjectMapper()
             val jsonData: List<Map<String, Any>> = mapper.readValue(response.body!!)
 
             // Transform the data into the desired structure
-            val transformedData: SolverResponse = jsonData.flatMap { roomData ->
+            val transformedData: List<Allocation> = jsonData.flatMap { roomData ->
                 roomData.map { (roomNumber, roomInfo) ->
                     val roomInfoMap = roomInfo as Map<*, *>
                     val patientNumbersMap = (roomInfoMap["patients"] as List<*>).map { it.toString().toInt() }
@@ -431,14 +439,14 @@ class SimulationController(
                     val gender = if (roomInfoMap["gender"] as String == "True") "Male" else "Female"
 
                     mapOf(
-                        "Room ${roomDistributions[roomNumber.toInt()].roomNumber}" to RoomInfo(patients, gender)
+                        "Room ${roomNumber.toInt()}" to RoomInfo(patients, gender)
                     )
                 }
             }
 
-            return transformedData
+            return SolverResponse(transformedData, -1)
         } else {
-            return listOf(mapOf("warning" to null))
+            return SolverResponse(listOf(mapOf("warning" to null)), -1)
         }
     }
 
@@ -469,8 +477,11 @@ class SimulationController(
                 information.map { it -> it.split("\n").filter { it.isNotEmpty() } }.filter { it.isNotEmpty() }
             val scenarios = mutableListOf<List<Map<Room, RoomInfo>>>()
 
+            var total_changes = 0
             groupedInformation.forEach { group ->
-                val solveData = invokeSolver(group, patients, roomDistributions, smtMode)
+                val response = invokeSolver(group, patients, roomDistributions, smtMode)
+                total_changes += response.changes
+                val solveData = response.allocations
                 if (solveData.isNotEmpty() && !solveData[0].containsKey("error") && !solveData[0].containsKey("warning")) {
                     solveData.forEach { roomData ->
                         roomData.forEach { (roomNumber, roomInfo) ->
@@ -486,16 +497,17 @@ class SimulationController(
                                 }
                             }
                         }
+
                     }
                 }
                 scenarios.add(solveData as List<Map<Room, RoomInfo>>)
                 log.info(solveData.toString())
             }
-            return scenarios
+            return SimulationResponse(scenarios, total_changes)
         } catch (e: Exception) {
             "Error executing JAR: ${e.message}"
             log.log(Level.SEVERE, "Error executing JAR", e)
-            return listOf(listOf(mapOf("error" to null)))
+            return SimulationResponse(listOf(listOf(mapOf("error" to null))), -1)
         }
     }
 
@@ -576,7 +588,7 @@ class SimulationController(
     }
 
     private fun invokeGlobal(
-        patientsSimulated: List<Map<Patient, String>>,
+        patientsSimulated: List<Map<Patient, Int>>,
         roomDistributions: List<RoomDistribution>,
         smtMode: String
     ): String? {
@@ -587,7 +599,6 @@ class SimulationController(
         val infectious = mutableMapOf<String, Boolean>()
         val patient_categories: List<Map<String, Int>> = patientsSimulated.map { day ->
             day.mapKeys { it.key.patientId }
-                .mapValues { it.value.toInt() }
         }
 
         for (day in patientsSimulated) {
@@ -645,16 +656,19 @@ class SimulationController(
             // - a list of days, seperated by "------" where each day is
             // - a list of \n-separated patients, each consisting of [patientId, category]
             // we construct, for each day, a mapping of patientIds to categories
-            val days = mutableListOf<Map<Patient, String>>()
+            val days = mutableListOf<Map<Patient, Int>>()
             for (day in data.split("------").filter { it.isNotEmpty() }) {
-                val dayMap = mutableMapOf<Patient, String>()
+                val dayMap = mutableMapOf<Patient, Int>()
                 for (patient in day.split("\n").filter {it.isNotEmpty()}) {
                     patient.split(",").let {
                         patients[it[0]]?.let { p ->
-                            dayMap.put(p, it[1])
+                            if (it[1].toInt() > 0) {
+                                dayMap.put(p, it[1].toInt())
+                            }
                         }
                     }
                 }
+                log.info("Å: Read day with requirements: $dayMap")
                 if (dayMap.isNotEmpty()) { days.add(dayMap) }
             }
             val solverResponse = invokeGlobal(days, roomDistributions, "changes")
