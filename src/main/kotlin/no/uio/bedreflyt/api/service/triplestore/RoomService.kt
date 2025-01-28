@@ -61,13 +61,13 @@ class RoomService (
                     prog:Room_bathroom ?bathroom .
             }"""
 
-        val resultRoomDistributions: ResultSet = repl.interpreter!!.query(query)!!
-        if (!resultRoomDistributions.hasNext()) {
+        val resultRooms: ResultSet = repl.interpreter!!.query(query)!!
+        if (!resultRooms.hasNext()) {
             return null
         }
 
-        while (resultRoomDistributions.hasNext()) {
-            val solution: QuerySolution = resultRoomDistributions.next()
+        while (resultRooms.hasNext()) {
+            val solution: QuerySolution = resultRooms.next()
             val roomNumber = solution.get("?roomNumber").asLiteral().toString().split("^^")[0].toInt()
             val roomNumberModel = solution.get("?roomNumberModel").asLiteral().toString().split("^^")[0].toInt()
             val room = solution.get("?roomCategory").asLiteral().toString().split("^^")[0].toLong()
