@@ -66,28 +66,28 @@ class JourneyStepDefectOrder extends Twin (
 end
 class JourneyStepDefectTask extends Twin (JourneyStep obj, String taskNew) end
 
-// Room defects
-class RoomDefectBedCategory extends Twin (Room obj, Int bedCategoryNew) end
-class RoomDefectDescription extends Twin (Room obj, String roomDescriptionNew) end
+// Room category defects
+class RoomDefectBedCategory extends Twin (RoomCategory obj, Int bedCategoryNew) end
+class RoomDefectDescription extends Twin (RoomCategory obj, String roomDescriptionNew) end
 
-// Room distribution defects
-class RoomDistributionDefectRoomNumber extends Twin (
-    RoomDistribution obj,
+// Room defects
+class RoomDefectRoomNumber extends Twin (
+    Room obj,
     Int roomNumberNew)
 end
-class RoomDistributionDefectRoomNumberModel extends Twin (
-    RoomDistribution obj,
+class RoomDefectRoomNumberModel extends Twin (
+    Room obj,
     Int roomNumberModelNew)
 end
-class RoomDistributionDefectRoom extends Twin (
-    RoomDistribution obj,
+class RoomDefectRoom extends Twin (
+    Room obj,
     Int roomNew)
 end
-class RoomDistributionDefectCapacity extends Twin (
-    RoomDistribution obj,
+class RoomDefectCapacity extends Twin (
+    Room obj,
     Int capacityNew)
 end
-class RoomDistributionDefectBathroom extends Twin (
-    RoomDistribution obj,
+class RoomDefectBathroom extends Twin (
+    Room obj,
     Int bathroomNew)
 end

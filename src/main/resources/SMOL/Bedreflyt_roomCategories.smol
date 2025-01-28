@@ -1,7 +1,7 @@
-class RoomModel extends KindModel()
+class RoomCategoryModel extends KindModel()
     
     override Unit adaptAddition()
-        List<Room> newRooms = construct("
+        List<RoomCategory> newRooms = construct("
             PREFIX ast: <http://www.smolang.org/bedreflyt#>
             SELECT DISTINCT ?roomDescription ?bedCategory {
                 ?x a ast:RoomCategory ;
@@ -18,8 +18,8 @@ class RoomModel extends KindModel()
             print("RECONFIG> New Room Category(ies) detected: repairing the model");
 
             while newRooms != null do
-                Room newRoom = newRooms.content;
-                List<Room> lx = newRooms;
+                RoomCategory newRoom = newRooms.content;
+                List<RoomCategory> lx = newRooms;
                 newRooms = newRooms.next;
                 print("RECONFIG> New room detected: ");
                 print("          Room Description: " ++ newRoom.roomDescription);
@@ -33,7 +33,7 @@ class RoomModel extends KindModel()
     end
     
     override Unit adaptRemoval()
-        List<Room> wrongRooms = access("
+        List<RoomCategory> wrongRooms = access("
             PREFIX ast: <http://www.smolang.org/bedreflyt#>
             SELECT DISTINCT ?obj {
                 ?obj a prog:RoomCategory ;
@@ -49,8 +49,8 @@ class RoomModel extends KindModel()
         if wrongRooms != null then
             print("RECONFIG> Misconfigured Room Category(ies) detected: repairing the model");
             while wrongRooms != null do
-                Room wrongRoom = wrongRooms.content;
-                List<Room> lx = wrongRooms;
+                RoomCategory wrongRoom = wrongRooms.content;
+                List<RoomCategory> lx = wrongRooms;
                 wrongRooms = wrongRooms.next;
 
                 print("RECONFIG> Misconfigured room category to remove: ");
@@ -69,7 +69,7 @@ class RoomModel extends KindModel()
 
     override Unit adaptDefect()
         print("RECONFIG> Checking for defects in the Room Category(ies)");
-        this.checkDescriptionChanged();
+        this.checkBedChanged();
         print("RECONFIG> Defects checked for the Room Category(ies)");
     end
 
