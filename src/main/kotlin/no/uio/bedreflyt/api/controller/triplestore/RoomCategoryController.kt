@@ -5,6 +5,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.responses.ApiResponses
 import no.uio.bedreflyt.api.config.EnvironmentConfig
 import no.uio.bedreflyt.api.config.REPLConfig
+import no.uio.bedreflyt.api.model.triplestore.RoomCategory
 import no.uio.bedreflyt.api.service.triplestore.RoomCategoryService
 import no.uio.bedreflyt.api.service.triplestore.TriplestoreService
 import org.springframework.http.ResponseEntity
@@ -41,13 +42,13 @@ class RoomController (
     @Operation(summary = "Add a room")
     @ApiResponses(value = [
         ApiResponse(responseCode = "200", description = "Room category added"),
-        ApiResponse(responseCode = "400", description = "Invalid room cateogyr"),
+        ApiResponse(responseCode = "400", description = "Invalid room cateogry"),
         ApiResponse(responseCode = "401", description = "Unauthorized"),
         ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
     @PostMapping("/create")
-    fun addRoom(@SwaggerRequestBody(description = "Room category to add") @RequestBody roomRequest: RoomCategoryRequest) : ResponseEntity<String> {
+    fun addRoomCategory(@SwaggerRequestBody(description = "Room category to add") @RequestBody roomRequest: RoomCategoryRequest) : ResponseEntity<String> {
         log.info("Adding room")
 
         if (!roomCategoryService.createRoom(roomRequest.bedCategory, roomRequest.roomDescription)) {
@@ -82,22 +83,22 @@ class RoomController (
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
     @GetMapping("/retrieve")
-    fun getRooms() : ResponseEntity<List<Any>> {
+    fun getRoomCategories() : ResponseEntity<List<RoomCategory>> {
         log.info("Getting rooms")
-        val rooms = roomCategoryService.getAllRooms() ?: return ResponseEntity.badRequest().body(listOf("No rooms found"))
+        val rooms = roomCategoryService.getAllRooms() ?: return ResponseEntity.noContent().build()
         return ResponseEntity.ok(rooms)
     }
 
     @Operation(summary = "Update a room")
     @ApiResponses(value = [
-        ApiResponse(responseCode = "200", description = "Room updated"),
-        ApiResponse(responseCode = "400", description = "Invalid room"),
+        ApiResponse(responseCode = "200", description = "Room category updated"),
+        ApiResponse(responseCode = "400", description = "Invalid room category"),
         ApiResponse(responseCode = "401", description = "Unauthorized"),
         ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
     @PatchMapping("/update")
-    fun updateRoom(@SwaggerRequestBody(description = "Request to update a room") @RequestBody updateRoomRequest: UpdateRoomCategoryRequest) : ResponseEntity<String> {
+    fun updateRoomCategory(@SwaggerRequestBody(description = "Request to update a room") @RequestBody updateRoomRequest: UpdateRoomCategoryRequest) : ResponseEntity<String> {
         log.info("Updating room")
 
         if(!roomCategoryService.updateRoom(updateRoomRequest.oldBedCategory, updateRoomRequest.oldRoomDescription, updateRoomRequest.newBedCategory, updateRoomRequest.newRoomDescription)) {
@@ -130,14 +131,14 @@ class RoomController (
 
     @Operation(summary = "Delete a room")
     @ApiResponses(value = [
-        ApiResponse(responseCode = "200", description = "Room deleted"),
-        ApiResponse(responseCode = "400", description = "Invalid room"),
+        ApiResponse(responseCode = "200", description = "Room category deleted"),
+        ApiResponse(responseCode = "400", description = "Invalid room category"),
         ApiResponse(responseCode = "401", description = "Unauthorized"),
         ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
     @DeleteMapping("/delete")
-    fun deleteRoom(@SwaggerRequestBody(description = "Request to delete a room") @RequestBody roomRequest: RoomCategoryRequest) : ResponseEntity<String> {
+    fun deleteRoomCategory(@SwaggerRequestBody(description = "Request to delete a room") @RequestBody roomRequest: RoomCategoryRequest) : ResponseEntity<String> {
         log.info("Deleting room")
 
         if(!roomCategoryService.deleteRoom(roomRequest.bedCategory, roomRequest.roomDescription)) {

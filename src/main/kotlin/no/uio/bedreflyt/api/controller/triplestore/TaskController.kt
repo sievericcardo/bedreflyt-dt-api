@@ -85,9 +85,9 @@ class TaskController (
         ApiResponse(responseCode = "404", description = "The resource you were trying to reach is not found")
     ])
     @GetMapping("/retrieve")
-    fun retrieveTasks() : ResponseEntity<List<Any>> {
+    fun retrieveTasks() : ResponseEntity<List<Task>> {
         log.info("Retrieving tasks")
-        val taskList = taskService.getAllTasks() ?: return ResponseEntity.badRequest().body(listOf("No tasks found"))
+        val taskList = taskService.getAllTasks() ?: return ResponseEntity.noContent().build()
         return ResponseEntity.ok(taskList)
     }
 

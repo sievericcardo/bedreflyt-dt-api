@@ -5,6 +5,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.responses.ApiResponses
 import no.uio.bedreflyt.api.config.EnvironmentConfig
 import no.uio.bedreflyt.api.config.REPLConfig
+import no.uio.bedreflyt.api.model.triplestore.Diagnosis
 import no.uio.bedreflyt.api.service.triplestore.DiagnosisService
 import no.uio.bedreflyt.api.service.triplestore.TriplestoreService
 import org.springframework.http.ResponseEntity
@@ -81,9 +82,9 @@ class DiagnosisController (
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
     @GetMapping("/retrieve")
-    fun retrieveDiagnosis() : ResponseEntity<List<Any>> {
+    fun retrieveDiagnosis() : ResponseEntity<List<Diagnosis>> {
         log.info("Retrieving diagnosis")
-        val diagnosisList = diagnosisService.getAllDiagnosis() ?: return ResponseEntity.badRequest().body(listOf("No diagnosis found"))
+        val diagnosisList = diagnosisService.getAllDiagnosis() ?: return ResponseEntity.noContent().build()
 
         return ResponseEntity.ok(diagnosisList)
     }

@@ -6,6 +6,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses
 import io.swagger.v3.oas.annotations.parameters.RequestBody as SwaggerRequestBody
 import no.uio.bedreflyt.api.config.REPLConfig
 import no.uio.bedreflyt.api.config.TriplestoreProperties
+import no.uio.bedreflyt.api.model.triplestore.Treatment
 import no.uio.bedreflyt.api.service.triplestore.*
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.DeleteMapping
@@ -88,11 +89,11 @@ class TreatmentController (
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
     @GetMapping("/retrieve")
-    fun getAllTreatments() : ResponseEntity<List<Any>> {
+    fun getAllTreatments() : ResponseEntity<List<Treatment>> {
         val treatments = treatmentService.getAllTreatments()
         if (treatments == null) {
             log.warning("No treatments found")
-            return ResponseEntity.badRequest().body(listOf("No treatments found"))
+            return ResponseEntity.noContent().build()
         }
 
         return ResponseEntity.ok(treatments)

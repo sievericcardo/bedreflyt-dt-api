@@ -5,6 +5,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.responses.ApiResponses
 import no.uio.bedreflyt.api.config.EnvironmentConfig
 import no.uio.bedreflyt.api.config.REPLConfig
+import no.uio.bedreflyt.api.model.triplestore.Room
 import no.uio.bedreflyt.api.service.triplestore.RoomService
 import no.uio.bedreflyt.api.service.triplestore.TriplestoreService
 import org.springframework.http.ResponseEntity
@@ -41,14 +42,14 @@ class RoomDistributionController (
 
     @Operation(summary = "Add a room distribution")
     @ApiResponses(value = [
-        ApiResponse(responseCode = "200", description = "Room distribution added"),
-        ApiResponse(responseCode = "400", description = "Invalid room distribution"),
+        ApiResponse(responseCode = "200", description = "Room added"),
+        ApiResponse(responseCode = "400", description = "Invalid room"),
         ApiResponse(responseCode = "401", description = "Unauthorized"),
         ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
     @PostMapping("/create")
-    fun addRoomDistribution(@SwaggerRequestBody(description = "Room distribution to add") @RequestBody roomDistributionRequest: RoomRequest) : ResponseEntity<String> {
+    fun addRoom(@SwaggerRequestBody(description = "Room distribution to add") @RequestBody roomDistributionRequest: RoomRequest) : ResponseEntity<String> {
         log.info("Adding room distribution")
 
         val bathroomInt = if (roomDistributionRequest.bathroom) 1 else 0
@@ -85,29 +86,29 @@ class RoomDistributionController (
 
     @Operation(summary = "Get all room distributions")
     @ApiResponses(value = [
-        ApiResponse(responseCode = "200", description = "Room distributions found"),
+        ApiResponse(responseCode = "200", description = "Room found"),
         ApiResponse(responseCode = "400", description = "Invalid request"),
         ApiResponse(responseCode = "401", description = "Unauthorized"),
         ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
     @GetMapping("/retrieve")
-    fun getRoomDistributions() : ResponseEntity<List<Any>> {
+    fun getRooms() : ResponseEntity<List<Room>> {
         log.info("Retrieving room distributions")
-        val roomDistributions = roomService.getAllRooms()?: return ResponseEntity.badRequest().body(listOf("No room distributions found"))
+        val roomDistributions = roomService.getAllRooms()?: return ResponseEntity.noContent().build()
         return ResponseEntity.ok(roomDistributions)
     }
 
     @Operation(summary = "Update a room distribution")
     @ApiResponses(value = [
-        ApiResponse(responseCode = "200", description = "Room distribution updated"),
-        ApiResponse(responseCode = "400", description = "Invalid room distribution"),
+        ApiResponse(responseCode = "200", description = "Room updated"),
+        ApiResponse(responseCode = "400", description = "Invalid room"),
         ApiResponse(responseCode = "401", description = "Unauthorized"),
         ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
     @PatchMapping("/update")
-    fun updateRoomDistribution(@SwaggerRequestBody(description = "Request to update a room distribution") @RequestBody updateRoomRequest: UpdateRoomRequest) : ResponseEntity<String> {
+    fun updateRoom(@SwaggerRequestBody(description = "Request to update a room distribution") @RequestBody updateRoomRequest: UpdateRoomRequest) : ResponseEntity<String> {
         log.info("Updating room distribution")
 
         val room = roomService.getRoomByRoomNumber(updateRoomRequest.roomNumber) ?: return ResponseEntity.badRequest().body("Error: the room could not be updated.")
@@ -162,14 +163,14 @@ class RoomDistributionController (
 
     @Operation(summary = "Delete a room distribution")
     @ApiResponses(value = [
-        ApiResponse(responseCode = "200", description = "Room distribution deleted"),
-        ApiResponse(responseCode = "400", description = "Invalid room distribution"),
+        ApiResponse(responseCode = "200", description = "Room deleted"),
+        ApiResponse(responseCode = "400", description = "Invalid room"),
         ApiResponse(responseCode = "401", description = "Unauthorized"),
         ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
     @DeleteMapping("/delete")
-    fun deleteRoomDistribution(@SwaggerRequestBody(description = "Request to delete a room distribution") @RequestBody roomDeleteRequest: DeleteRoomRequest) : ResponseEntity<String> {
+    fun deleteRoom(@SwaggerRequestBody(description = "Request to delete a room distribution") @RequestBody roomDeleteRequest: DeleteRoomRequest) : ResponseEntity<String> {
         log.info("Deleting room distribution")
 
         if(!roomService.deleteRoom(

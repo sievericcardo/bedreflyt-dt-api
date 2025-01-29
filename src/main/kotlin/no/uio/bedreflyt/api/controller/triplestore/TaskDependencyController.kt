@@ -42,7 +42,7 @@ class TaskDependencyController (
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
     @PostMapping("/create")
-    fun createTreatment(@SwaggerRequestBody(description = "Request to add a new task dependency") @RequestBody treatmentRequest: List<TaskDependencyRequest>) : ResponseEntity<String> {
+    fun createTaskDependency(@SwaggerRequestBody(description = "Request to add a new task dependency") @RequestBody treatmentRequest: List<TaskDependencyRequest>) : ResponseEntity<String> {
         log.info("Creating treatment $treatmentRequest")
 
         for (treatment in treatmentRequest) {
@@ -88,9 +88,9 @@ class TaskDependencyController (
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
     @GetMapping("/retrieve")
-    fun getTaskDependencies() : ResponseEntity<Map<String, List<Any>>> {
+    fun getTaskDependencies() : ResponseEntity<Map<String, List<TaskDependency>>> {
         log.info("Getting task dependencies")
-        val taskDependencies = taskDependencyService.getAllTaskDependencies() ?: return ResponseEntity.badRequest().body(mapOf("error" to listOf("No task dependencies steps found")))
+        val taskDependencies = taskDependencyService.getAllTaskDependencies() ?: return ResponseEntity.noContent().build()
 
         val taskDependenciesDict = mutableMapOf<String, MutableList<TaskDependency>>()
         taskDependencies.forEach { taskDependency ->
