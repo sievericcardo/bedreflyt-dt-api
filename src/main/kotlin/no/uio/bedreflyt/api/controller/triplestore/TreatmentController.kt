@@ -87,7 +87,7 @@ class TreatmentController (
         ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
-    @GetMapping("/all")
+    @GetMapping("/retrieve")
     fun getAllTreatments() : ResponseEntity<List<Any>> {
         val treatments = treatmentService.getAllTreatments()
         if (treatments == null) {
