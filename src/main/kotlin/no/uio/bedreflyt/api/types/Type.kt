@@ -90,16 +90,15 @@ data class RoomRequest (
 )
 
 data class UpdateRoomRequest (
-    val oldRoomNumber: Int,
-    val oldRoomNumberModel: Int,
-    val oldRoom: Long,
-    val oldCapacity: Int,
-    val oldBathroom: Boolean,
-    val newRoomNumber: Int,
-    val newRoomNumberModel: Int,
-    val newRoom: Long,
-    val newCapacity: Int,
-    val newBathroom: Boolean
+    val roomNumber: Int,
+    val newRoomNumberModel: Int?,
+    val newRoom: Long?,
+    val newCapacity: Int?,
+    val newBathroom: Boolean?
+)
+
+data class DeleteRoomRequest (
+    val roomNumber: Int
 )
 
 data class RoomCategoryRequest (

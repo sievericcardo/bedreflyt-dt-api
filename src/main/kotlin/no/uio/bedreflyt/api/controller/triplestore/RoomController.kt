@@ -20,6 +20,7 @@ import java.io.File
 import java.util.logging.Logger
 import no.uio.bedreflyt.api.types.RoomRequest
 import no.uio.bedreflyt.api.types.UpdateRoomRequest
+import no.uio.bedreflyt.api.types.DeleteRoomRequest
 
 @RestController
 @RequestMapping("/api/fuseki/room")
@@ -106,21 +107,30 @@ class RoomDistributionController (
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
     @PatchMapping("/update")
-    fun updateRoomDistribution(@SwaggerRequestBody(description = "Request to update a room distribution") @RequestBody updateRoomDistributionRequest: UpdateRoomRequest) : ResponseEntity<String> {
+    fun updateRoomDistribution(@SwaggerRequestBody(description = "Request to update a room distribution") @RequestBody updateRoomRequest: UpdateRoomRequest) : ResponseEntity<String> {
         log.info("Updating room distribution")
 
-        val oldBath = if (updateRoomDistributionRequest.oldBathroom) 1 else 0
-        val newBath = if (updateRoomDistributionRequest.newBathroom) 1 else 0
+        val room = roomService.getRoomByRoomNumber(updateRoomRequest.roomNumber) ?: return ResponseEntity.badRequest().body("Error: the room could not be updated.")
+        val oldBath = if (room.bathroom) 1 else 0
+        val newBath = if (updateRoomRequest.newBathroom != null) {
+            if (updateRoomRequest.newBathroom) 1 else 0
+        } else {
+            oldBath
+        }
+
+        val newRoomNumberModel = updateRoomRequest.newRoomNumberModel ?: room.roomNumberModel
+        val newRoomCategory = updateRoomRequest.newRoom ?: room.roomCategory
+        val newCapacity = updateRoomRequest.newCapacity ?: room.capacity
+
         if(!roomService.updateRoom(
-                updateRoomDistributionRequest.oldRoomNumber,
-                updateRoomDistributionRequest.oldRoomNumberModel,
-                updateRoomDistributionRequest.oldRoom,
-                updateRoomDistributionRequest.oldCapacity,
+                updateRoomRequest.roomNumber,
+                room.roomNumberModel,
+                room.roomCategory,
+                room.capacity,
                 oldBath,
-                updateRoomDistributionRequest.newRoomNumber,
-                updateRoomDistributionRequest.newRoomNumberModel,
-                updateRoomDistributionRequest.newRoom,
-                updateRoomDistributionRequest.newCapacity,
+                newRoomNumberModel,
+                newRoomCategory,
+                newCapacity,
                 newBath)) {
             return ResponseEntity.badRequest().body("Error: the room distribution could not be updated.")
         }
@@ -129,23 +139,23 @@ class RoomDistributionController (
         // Append to the file bedreflyt.ttl
         val path = "bedreflyt.ttl"
         val oldContent = """
-            ###  $ttlPrefix/room${updateRoomDistributionRequest.oldRoomNumber}
-            :room${updateRoomDistributionRequest.oldRoomNumber} rdf:type owl:NamedIndividual ,
+            ###  $ttlPrefix/room${updateRoomRequest.roomNumber}
+            :room${updateRoomRequest.roomNumber} rdf:type owl:NamedIndividual ,
                             :Room ;
-                :roomNumber ${updateRoomDistributionRequest.oldRoomNumber} ;
-                :roomNumberModel ${updateRoomDistributionRequest.oldRoomNumberModel} ;
-                :roomCategory ${updateRoomDistributionRequest.oldRoom} ;
-                :capacity ${updateRoomDistributionRequest.oldCapacity} ;
+                :roomNumber ${room.roomNumber} ;
+                :roomNumberModel ${room.roomNumberModel} ;
+                :roomCategory ${room.roomCategory} ;
+                :capacity ${room.capacity} ;
                 :bathroom $oldBath .
         """.trimIndent()
         val newContent = """
-            ###  $ttlPrefix/room${updateRoomDistributionRequest.newRoomNumber}
-            :room${updateRoomDistributionRequest.newRoomNumber} rdf:type owl:NamedIndividual ,
+            ###  $ttlPrefix/room${updateRoomRequest.roomNumber}
+            :room${updateRoomRequest.roomNumber} rdf:type owl:NamedIndividual ,
                             :Room ;
-                :roomNumber ${updateRoomDistributionRequest.newRoomNumber} ;
-                :roomNumberModel ${updateRoomDistributionRequest.newRoomNumberModel} ;
-                :roomCategory ${updateRoomDistributionRequest.newRoom} ;
-                :capacity ${updateRoomDistributionRequest.newCapacity} ;
+                :roomNumber ${updateRoomRequest.roomNumber} ;
+                :roomNumberModel $newRoomNumberModel ;
+                :roomCategory $newRoomCategory ;
+                :capacity $newCapacity ;
                 :bathroom $newBath .
         """.trimIndent()
 
@@ -163,30 +173,28 @@ class RoomDistributionController (
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
     @DeleteMapping("/delete")
-    fun deleteRoomDistribution(@SwaggerRequestBody(description = "Request to delete a room distribution") @RequestBody roomDistributionRequest: RoomRequest) : ResponseEntity<String> {
+    fun deleteRoomDistribution(@SwaggerRequestBody(description = "Request to delete a room distribution") @RequestBody roomDeleteRequest: DeleteRoomRequest) : ResponseEntity<String> {
         log.info("Deleting room distribution")
 
-        val bath = if (roomDistributionRequest.bathroom) 1 else 0
         if(!roomService.deleteRoom(
-                roomDistributionRequest.roomNumber,
-                roomDistributionRequest.roomNumberModel,
-                roomDistributionRequest.room,
-                roomDistributionRequest.capacity,
-                bath)) {
+                roomDeleteRequest.roomNumber)) {
             return ResponseEntity.badRequest().body("Error: the room distribution could not be deleted.")
         }
         replConfig.regenerateSingleModel().invoke("room distributions")
 
+        val room = roomService.getRoomByRoomNumber(roomDeleteRequest.roomNumber)!!
+        val bath = if (room.bathroom) 1 else 0
+
         // Append to the file bedreflyt.ttl
         val path = "bedreflyt.ttl"
         val oldContent = """
-            ###  $ttlPrefix/room${roomDistributionRequest.roomNumber}
-            :room${roomDistributionRequest.roomNumber} rdf:type owl:NamedIndividual ,
+            ###  $ttlPrefix/room${roomDeleteRequest.roomNumber}
+            :room${roomDeleteRequest.roomNumber} rdf:type owl:NamedIndividual ,
                             :Room ;
-                :roomNumber ${roomDistributionRequest.roomNumber} ;
-                :roomNumberModel ${roomDistributionRequest.roomNumberModel} ;
-                :roomCategory ${roomDistributionRequest.room} ;
-                :capacity ${roomDistributionRequest.capacity} ;
+                :roomNumber ${roomDeleteRequest.roomNumber} ;
+                :roomNumberModel ${room.roomNumberModel} ;
+                :roomCategory ${room.roomCategory} ;
+                :capacity ${room.capacity} ;
                 :bathroom $bath .
         """.trimIndent()
 
