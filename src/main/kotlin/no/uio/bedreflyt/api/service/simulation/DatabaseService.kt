@@ -84,6 +84,7 @@ class DatabaseService (
 
                     if (patients.isNotEmpty()) {
                         patientsList[patientId] = patients[0]
+                        patientsList[patientId]?.let { it.roomNumber = -1 }
                         insertPatient(scenarioDbUrl, patients[0].patientId, patients[0].gender)
                         insertPatientStatus(
                             scenarioDbUrl,
