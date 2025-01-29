@@ -89,9 +89,7 @@ class Simulator (
 
     private fun invokeSolver(
         solverRequest: SolverRequest,
-        patientMap: Map<Int, Patient>,
-        roomDistributions: List<Room>,
-        smtMode: String
+        patientMap: Map<Int, Patient>, // Map of patient based on the order that is passed to the solver
     ) : SolverResponse {
         val restTemplate = RestTemplate()
         val headers = HttpHeaders()
@@ -107,9 +105,6 @@ class Simulator (
             return SolverResponse(listOf(mapOf("error" to null)), -1)
         }
 
-        // TODO: this does not work
-        // response needs to be parsed into a dict of {"changes":Int, "allocations": alloc}
-        // where alloc is the old "response.body"
         val mapper = jacksonObjectMapper()
         val responseMap: Map<String, Any> = mapper.readValue(response.body!!)
 
@@ -120,8 +115,8 @@ class Simulator (
         // Transform the allocations into the desired structure
         val transformedData: List<Allocation> = allocations.flatMap { roomData ->
             roomData.map { (roomNumber, roomInfo) ->
-                val roomInfoMap = roomInfo as Map<*, *>
-                val patientNumbersMap = (roomInfoMap["patients"] as List<*>).map { it.toString().toInt() }
+                val roomInfoMap = roomInfo as Map<String, Any>
+                val patientNumbersMap = (roomInfoMap["patients"] as List<String>).map { it.toInt() }
                 val patients = patientNumbersMap.map { number ->
                     val singlePatientMap = patientMap[number]!!
                     Patient(
@@ -132,41 +127,37 @@ class Simulator (
                 val gender = if (roomInfoMap["gender"] as String == "True") "Male" else "Female"
 
                 mapOf(
-                    "Room ${roomNumber.toInt()}" to RoomInfo(patients, gender)
+                    "${roomNumber.toInt()}" to RoomInfo(patients, gender)
                 )
             }
         }
 
         // Return the transformed data along with the changes
         return SolverResponse(transformedData, changes)
-
-//        return SolverResponse(transformedData, -1)
     }
 
     private fun solve(
-        patientList: List<String>,
-        patientsSimulated: Map<String, Patient>,
-        roomDistributions: List<Room>,
+        patientListForDay: List<String>,
+        patientsSimulated: Map<String, Patient>, // All patients that are simulated
+        rooms: List<Room>,
         smtMode: String
     ): SolverResponse {
-        val rooms = roomDistributions.size
-        val capacities = roomDistributions.map { it.capacity ?: 0 }
-        val roomCategories: List<Long> = roomDistributions.map { it.room.toLong() ?: 0 }
-        var patientNumbers = patientList.size
+        val numberOfRooms = rooms.size
+        val capacities = rooms.map { it.capacity ?: 0 }
+        val roomCategories: List<Long> = rooms.map { it.room.toLong() ?: 0 }
+        var patientNumbers = 0
         val genders = mutableListOf<Boolean>()
         val infectious = mutableListOf<Boolean>()
         val patientDistances = mutableListOf<Int>()
         val previous = mutableListOf<Int>()
         val patientMap = mutableMapOf<Int, Patient>()
 
-        patientList.forEach { line ->
+        patientListForDay.forEach { line ->
             val patientData = line.split(",")
             val patientId = patientData[0]
             val patientDistance = patientData[1]
 
             patientsSimulated[patientId]?.let { patientInfo ->
-                // We won't be including the 0 category that is arrival
-                // as arrival does not have a room yet
                 if (patientDistance.toInt() > 0) {
                     val gender = patientInfo.gender == "Male"
                     genders.add(gender)
@@ -174,17 +165,14 @@ class Simulator (
                     patientDistances.add(patientDistance.toInt())
                     previous.add(if (patientsSimulated.containsKey(patientId)) patientInfo.roomNumber else -1)
                     patientMap[patientNumbers] = patientInfo
-                } else {
-                    patientNumbers -= 1
+                    patientNumbers += 1
                 }
-            } ?: run {
-                patientNumbers -= 1
             }
         }
 
         // call the localhost:8000/api/solve passing all the lists as requirements
         val solverRequest = SolverRequest(
-            rooms,
+            numberOfRooms,
             capacities,
             roomCategories,
             patientNumbers,
@@ -198,7 +186,7 @@ class Simulator (
         log.info("Invoking solver with  ${solverRequest.no_rooms} rooms, ${solverRequest.no_patients} patients in mode ${solverRequest.mode}")
 
         if (patientNumbers > 0) {
-            return invokeSolver(solverRequest, patientMap, roomDistributions, smtMode)
+            return invokeSolver(solverRequest, patientMap)
         } else {
             return SolverResponse(listOf(mapOf("warning" to null)), -1)
         }
@@ -226,9 +214,11 @@ class Simulator (
 
             var totalChanges = 0
             groupedInformation.forEach { group ->
+                // Solve each day
                 val response = solve(group, patients, rooms, smtMode)
                 totalChanges += response.changes
                 val solveData = response.allocations
+                // We ignore the day that had an unsat model
                 if (solveData.isNotEmpty() && !solveData[0].containsKey("error") && !solveData[0].containsKey("warning")) {
                     solveData.forEach { roomData ->
                         roomData.forEach { (roomNumber, roomInfo) ->
@@ -237,14 +227,15 @@ class Simulator (
                                 throw Exception("No room info")
                             }
                             val allPatients = roomInfo.patients
-                            val patientRoom = roomNumber.split(" ")[1].toInt()
+                            // We use strings to index the map. Convert it to int
+                            val patientRoom = roomNumber.toInt()
+                            // Insert patient data
                             allPatients.forEach { patient ->
                                 patients[patient.patientId]?.let { patientInfo ->
                                     patientInfo.roomNumber = patientRoom
                                 }
                             }
                         }
-
                     }
                 }
                 scenarios.add(solveData as List<Map<SingleRoom, RoomInfo>>)
