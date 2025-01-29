@@ -21,7 +21,7 @@ To run the API, you can either build it using Docker, or you can setup a develop
 
 ## Triplestore
 
-The triplestore is a RDF database that stores the data in triples. The triplestore is used to store the data of the simulations, and it is used to query the data and accessed using the SPARQL query language. For this project we used ![Apache Jena Fuseki](https://jena.apache.org/download/) and we used the configuration present in the `config.ttl` file. The triplestore can be run with the command
+The triplestore is a RDF database that stores the data in triples. The triplestore is used to store the data of the simulations, and it is used to query the data and accessed using the SPARQL query language. For this project we used [Apache Jena Fuseki](https://jena.apache.org/download/) and we used the configuration present in the `config.ttl` file. The triplestore can be run with the command
 
 ```bash
 $FUSEKI_PATH/fuseki-server --update --config config.ttl
