@@ -155,11 +155,11 @@ class DatabaseService (
         roomDistributions.forEach { roomDistribution ->
             insertRoomDistribution(
                 roomDbUrl, roomDistribution.roomNumber.toLong(), roomDistribution.roomNumberModel.toLong(),
-                roomDistribution.room.toLong(), roomDistribution.capacity, roomDistribution.bathroom
+                roomDistribution.roomCategory.toLong(), roomDistribution.capacity, roomDistribution.bathroom
             )
             simulationRoom.add(
                 Room(
-                    roomDistribution.roomNumber, roomDistribution.roomNumberModel, roomDistribution.room.toString(),
+                    roomDistribution.roomNumber, roomDistribution.roomNumberModel, roomDistribution.roomCategory.toString(),
                     roomDistribution.capacity, roomDistribution.bathroom
                 )
             )
