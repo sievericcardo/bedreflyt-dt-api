@@ -17,29 +17,9 @@ import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
 import java.io.File
 import java.util.logging.Logger
-
-data class TreatmentRequest (
-    val treatmentId: String,
-    val diagnosis: String,
-    val frequency: Double,
-    val weight: Double
-)
-
-data class UpdateTreatmentRequest (
-    val treatmentId: String,
-    val diagnosis: String,
-    val oldFrequency: Double,
-    val oldWeight: Double,
-    val newFrequency: Double,
-    val newWeight: Double
-)
-
-data class DeteleTreatmentRequest (
-    val treatmentId: String,
-    val diagnosis: String,
-    val frequency: Double,
-    val weight: Double
-)
+import no.uio.bedreflyt.api.types.TreatmentRequest
+import no.uio.bedreflyt.api.types.UpdateTreatmentRequest
+import no.uio.bedreflyt.api.types.DeteleTreatmentRequest
 
 @RestController
 @RequestMapping("/api/fuseki/treatment")

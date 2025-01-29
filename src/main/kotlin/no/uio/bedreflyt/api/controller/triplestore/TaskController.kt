@@ -19,21 +19,8 @@ import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
 import java.io.File
 import java.util.logging.Logger
-
-data class TaskRequest (
-    val taskName : String,
-    val averageDuration: Double,
-    val bed: Int
-)
-
-data class UpdateTaskRequest (
-    val oldTaskName: String,
-    val newTaskName: String,
-    val oldAverageDuration: Double,
-    val newAverageDuration: Double,
-    val oldBed: Int,
-    val newBed: Int
-)
+import no.uio.bedreflyt.api.types.TaskRequest
+import no.uio.bedreflyt.api.types.UpdateTaskRequest
 
 @RestController
 @RequestMapping("/api/fuseki/task")

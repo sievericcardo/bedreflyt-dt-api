@@ -18,18 +18,8 @@ import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
 import java.io.File
 import java.util.logging.Logger
-
-data class RoomRequest (
-    val bedCategory: Long,
-    val roomDescription: String
-)
-
-data class UpdateRoomRequest (
-    val oldBedCategory: Long,
-    val oldRoomDescription: String,
-    val newBedCategory: Long,
-    val newRoomDescription: String
-)
+import no.uio.bedreflyt.api.types.RoomCategoryRequest
+import no.uio.bedreflyt.api.types.UpdateRoomCategoryRequest
 
 @RestController
 @RequestMapping("/api/fuseki/room-category")
@@ -50,14 +40,14 @@ class RoomController (
 
     @Operation(summary = "Add a room")
     @ApiResponses(value = [
-        ApiResponse(responseCode = "200", description = "Journey step added"),
-        ApiResponse(responseCode = "400", description = "Invalid journey step"),
+        ApiResponse(responseCode = "200", description = "Room category added"),
+        ApiResponse(responseCode = "400", description = "Invalid room cateogyr"),
         ApiResponse(responseCode = "401", description = "Unauthorized"),
         ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
     @PostMapping("/create")
-    fun addRoom(@SwaggerRequestBody(description = "Journey step to add") @RequestBody roomRequest: RoomRequest) : ResponseEntity<String> {
+    fun addRoom(@SwaggerRequestBody(description = "Room category to add") @RequestBody roomRequest: RoomCategoryRequest) : ResponseEntity<String> {
         log.info("Adding room")
 
         if (!roomCategoryService.createRoom(roomRequest.bedCategory, roomRequest.roomDescription)) {
@@ -71,16 +61,16 @@ class RoomController (
         val newContent = """
             $fileContent
             
-            ###  $ttlPrefix/room${roomRequest.bedCategory}
-            :room${roomRequest.bedCategory} rdf:type owl:NamedIndividual ,
-                            :Room ;
+            ###  $ttlPrefix/roomCategory${roomRequest.bedCategory}
+            :roomCategory${roomRequest.bedCategory} rdf:type owl:NamedIndividual ,
+                            :RoomCategory ;
                 :bedCategory ${roomRequest.bedCategory} ;
                 :roomDescription "${roomRequest.roomDescription}" .
         """.trimIndent()
 
         File(path).writeText(newContent)
 
-        return ResponseEntity.ok("Journey step added")
+        return ResponseEntity.ok("Room category added")
     }
 
     @Operation(summary = "Get all rooms")
@@ -107,7 +97,7 @@ class RoomController (
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
     @PatchMapping("/update")
-    fun updateRoom(@SwaggerRequestBody(description = "Request to update a room") @RequestBody updateRoomRequest: UpdateRoomRequest) : ResponseEntity<String> {
+    fun updateRoom(@SwaggerRequestBody(description = "Request to update a room") @RequestBody updateRoomRequest: UpdateRoomCategoryRequest) : ResponseEntity<String> {
         log.info("Updating room")
 
         if(!roomCategoryService.updateRoom(updateRoomRequest.oldBedCategory, updateRoomRequest.oldRoomDescription, updateRoomRequest.newBedCategory, updateRoomRequest.newRoomDescription)) {
@@ -116,16 +106,16 @@ class RoomController (
         replConfig.regenerateSingleModel().invoke("rooms")
 
         val oldContent = """
-            ###  $ttlPrefix/room${updateRoomRequest.oldBedCategory}
-            :room${updateRoomRequest.oldBedCategory} rdf:type owl:NamedIndividual ,
-                            :Room ;
+            ###  $ttlPrefix/roomCategory${updateRoomRequest.oldBedCategory}
+            :roomCategory${updateRoomRequest.oldBedCategory} rdf:type owl:NamedIndividual ,
+                            :RoomCategory ;
                 :bedCategory ${updateRoomRequest.oldBedCategory} ;
                 :roomDescription "${updateRoomRequest.oldRoomDescription}" .
             """.trimIndent()
         val newContent = """
-            ###  $ttlPrefix/room${updateRoomRequest.newBedCategory}
-            :room${updateRoomRequest.newBedCategory} rdf:type owl:NamedIndividual ,
-                            :Room ;
+            ###  $ttlPrefix/roomCategory${updateRoomRequest.newBedCategory}
+            :roomCategory${updateRoomRequest.newBedCategory} rdf:type owl:NamedIndividual ,
+                            :RoomCategory ;
                 :bedCategory ${updateRoomRequest.newBedCategory} ;
                 :roomDescription "${updateRoomRequest.newRoomDescription}" .
         """.trimIndent()
@@ -147,7 +137,7 @@ class RoomController (
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
     @DeleteMapping("/delete")
-    fun deleteRoom(@SwaggerRequestBody(description = "Request to delete a room") @RequestBody roomRequest: RoomRequest) : ResponseEntity<String> {
+    fun deleteRoom(@SwaggerRequestBody(description = "Request to delete a room") @RequestBody roomRequest: RoomCategoryRequest) : ResponseEntity<String> {
         log.info("Deleting room")
 
         if(!roomCategoryService.deleteRoom(roomRequest.bedCategory, roomRequest.roomDescription)) {
@@ -158,9 +148,9 @@ class RoomController (
         // Append to the file bedreflyt.ttl
         val path = "bedreflyt.ttl"
         val oldContent = """
-            ###  $ttlPrefix/room${roomRequest.bedCategory}
-            :room${roomRequest.bedCategory} rdf:type owl:NamedIndividual ,
-                            :Room ;
+            ###  $ttlPrefix/roomCategory${roomRequest.bedCategory}
+            :roomCategory${roomRequest.bedCategory} rdf:type owl:NamedIndividual ,
+                            :RoomCategory ;
                 :bedCategory ${roomRequest.bedCategory} ;
                 :roomDescription "${roomRequest.roomDescription}" .
         """.trimIndent()

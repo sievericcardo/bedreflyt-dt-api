@@ -18,15 +18,8 @@ import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
 import java.io.File
 import java.util.logging.Logger
-
-data class DiagnosisRequest (
-    val diagnosisName : String,
-)
-
-data class UpdateDiagnosisRequest (
-    val oldDiagnosisName : String,
-    val newDiagnosisName : String,
-)
+import no.uio.bedreflyt.api.types.DiagnosisRequest
+import no.uio.bedreflyt.api.types.UpdateDiagnosisRequest
 
 @RestController
 @RequestMapping("/api/fuseki/diagnosis")

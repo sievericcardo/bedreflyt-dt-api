@@ -15,28 +15,9 @@ import org.springframework.web.bind.annotation.*
 import io.swagger.v3.oas.annotations.parameters.RequestBody as SwaggerRequestBody
 import java.io.File
 import java.util.logging.Logger
-
-data class TaskDependencyRequest (
-    val treatment: String,
-    val diagnosis: String,
-    val taskName: String,
-    val dependsOn: String
-)
-
-data class UpdateTaskDependencyRequest (
-    val treatment: String,
-    val diagnosis: String,
-    val taskName: String,
-    val oldDependsOn: String,
-    val newDependsOn: String
-)
-
-data class DeleteTaskDependencyRequest (
-    val treatment: String,
-    val diagnosis: String,
-    val taskName: String,
-    val dependsOn: String
-)
+import no.uio.bedreflyt.api.types.TaskDependencyRequest
+import no.uio.bedreflyt.api.types.DeleteTaskDependencyRequest
+import no.uio.bedreflyt.api.types.UpdateTaskDependencyRequest
 
 @RestController
 @RequestMapping("/api/fuseki/task-dependency")
