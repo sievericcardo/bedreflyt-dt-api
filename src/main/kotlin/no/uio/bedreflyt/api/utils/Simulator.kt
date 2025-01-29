@@ -267,7 +267,7 @@ class Simulator (
         val roomCategories: List<Long> = rooms.map { it.room.toLong() ?: 0 }
         val genders = mutableMapOf<String, Boolean>()
         val infectious = mutableMapOf<String, Boolean>()
-        val patient_categories: List<Map<String, Int>> = patientsSimulated.map { day ->
+        val patientCategories: List<Map<String, Int>> = patientsSimulated.map { day ->
             day.mapKeys { it.key.patientId }
         }
 
@@ -283,7 +283,7 @@ class Simulator (
             roomCategories,
             genders,
             infectious,
-            patient_categories,
+            patientCategories,
             smtMode
         )
 
