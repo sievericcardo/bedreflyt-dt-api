@@ -1,39 +1,18 @@
 package no.uio.bedreflyt.api.controller
 
-import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
-import com.fasterxml.jackson.module.kotlin.readValue
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.responses.ApiResponses
-import no.uio.bedreflyt.api.config.EnvironmentConfig
-import no.uio.bedreflyt.api.config.REPLConfig
-import no.uio.bedreflyt.api.model.live.Patient
 import no.uio.bedreflyt.api.service.simulation.DatabaseService
-import no.uio.bedreflyt.api.service.live.PatientService
-import no.uio.bedreflyt.api.model.simulation.Room
-import no.uio.bedreflyt.api.model.triplestore.Task
-import no.uio.bedreflyt.api.model.triplestore.Treatment
-import no.uio.bedreflyt.api.service.triplestore.*
 import no.uio.bedreflyt.api.types.*
 import no.uio.bedreflyt.api.utils.Simulator
-import org.springframework.dao.EmptyResultDataAccessException
-import org.springframework.http.HttpEntity
-import org.springframework.http.HttpHeaders
-import org.springframework.http.MediaType
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
-import org.springframework.web.client.RestTemplate
-import java.io.BufferedReader
-import java.io.InputStreamReader
 import java.nio.file.Files
 import java.nio.file.Path
-import java.nio.file.Paths
-import java.nio.file.StandardCopyOption
 import java.util.*
-import java.util.logging.Level
 import io.swagger.v3.oas.annotations.parameters.RequestBody as SwaggerRequestBody
 import java.util.logging.Logger
-import kotlin.NoSuchElementException
 import kotlin.random.Random
 
 @RestController
