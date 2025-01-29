@@ -216,7 +216,7 @@ class Simulator (
             groupedInformation.forEach { group ->
                 // Solve each day
                 val response = solve(group, patients, rooms, smtMode)
-                totalChanges += response.changes
+                if (response.changes != -1) {totalChanges += response.changes}
                 val solveData = response.allocations
                 // We ignore the day that had an unsat model
                 if (solveData.isNotEmpty() && !solveData[0].containsKey("error") && !solveData[0].containsKey("warning")) {

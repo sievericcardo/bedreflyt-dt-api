@@ -233,7 +233,7 @@ class DatabaseService (
             taskDependencies.forEach { taskDependency ->
                 val treatmentName = taskDependency.diagnosis + "_" + treatment.treatmentId
                 val task = taskService.getTaskByTaskName(taskDependency.task)
-                    ?: throw IllegalArgumentException("No task found")
+                    ?: throw IllegalArgumentException("No task ${taskDependency.task} found")
                 insertTask(
                     treatmentDbUrl,
                     task.taskName + "_" + treatmentName,
