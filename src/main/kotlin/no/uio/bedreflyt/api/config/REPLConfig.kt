@@ -81,8 +81,6 @@ open class REPLConfig (
         val domainPrefixUri = environmentConfig.getOrDefault("DOMAIN_PREFIX_URI", "")
         val reasoner = ReasonerMode.off
 
-//        println(updateTriplestore(triplestoreUrl))
-
         if (environmentConfig.get("EXTRA_PREFIXES") != null) {
             val prefixes = environmentConfig.get("EXTRA_PREFIXES")!!.split(";")
             for (prefix in prefixes) {
