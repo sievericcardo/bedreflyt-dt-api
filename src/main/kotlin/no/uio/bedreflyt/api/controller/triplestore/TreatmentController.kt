@@ -114,7 +114,12 @@ class TreatmentController (
             return ResponseEntity.badRequest().body("Treatment ${updateTreatmentRequest.treatmentId} does not exist")
         }
 
-        if (!treatmentService.updateTreatment(updateTreatmentRequest.treatmentId, updateTreatmentRequest.diagnosis, updateTreatmentRequest.oldFrequency, updateTreatmentRequest.oldWeight, updateTreatmentRequest.newFrequency, updateTreatmentRequest.newWeight)) {
+        val treatment = treatmentService.getTreatmentByTreamentDiagnosis(updateTreatmentRequest.treatmentId, updateTreatmentRequest.diagnosis)
+            ?: return ResponseEntity.badRequest().body("Treatment ${updateTreatmentRequest.treatmentId} does not exist")
+        val newWeight = updateTreatmentRequest.newWeight ?: treatment.weight
+        val newFrequency = updateTreatmentRequest.newFrequency ?: treatment.frequency
+
+        if (!treatmentService.updateTreatment(treatment, newFrequency, newWeight)) {
             log.warning("Failed to update treatment ${updateTreatmentRequest.treatmentId}")
             return ResponseEntity.badRequest().body("Failed to update treatment ${updateTreatmentRequest.treatmentId}")
         }
@@ -127,8 +132,8 @@ class TreatmentController (
                                 :Treatment ;
                     :treatmentId "${updateTreatmentRequest.treatmentId}" ;
                     :diagnosis "${updateTreatmentRequest.diagnosis}" ;
-                    :frequency "${updateTreatmentRequest.oldFrequency}"^^xsd:double ;
-                    :weight "${updateTreatmentRequest.oldWeight}"^^xsd:double .
+                    :frequency "${treatment.frequency}"^^xsd:double ;
+                    :weight "${treatment.frequency}"^^xsd:double .
                 """.trimIndent()
         val newContent = """
                 ###  $ttlPrefix/treatment_${updateTreatmentRequest.treatmentId}_${updateTreatmentRequest.diagnosis}
@@ -136,8 +141,8 @@ class TreatmentController (
                                 :Treatment ;
                     :treatmentId "${updateTreatmentRequest.treatmentId}" ;
                     :diagnosis "${updateTreatmentRequest.diagnosis}" ;
-                    :frequency "${updateTreatmentRequest.newFrequency}"^^xsd:double ;
-                    :weight "${updateTreatmentRequest.newWeight}"^^xsd:double .
+                    :frequency "$newFrequency"^^xsd:double ;
+                    :weight "$newWeight"^^xsd:double .
                 """.trimIndent()
 
         triplestoreService.replaceContentIgnoringSpaces(path, oldContent, newContent)
@@ -162,7 +167,10 @@ class TreatmentController (
             return ResponseEntity.badRequest().body("Treatment ${deleteTreatmentRequest.treatmentId} does not exist")
         }
 
-        if (!treatmentService.deleteTreatment(deleteTreatmentRequest.treatmentId, deleteTreatmentRequest.diagnosis)) {
+        val treatment = treatmentService.getTreatmentByTreamentDiagnosis(deleteTreatmentRequest.treatmentId, deleteTreatmentRequest.diagnosis)
+            ?: return ResponseEntity.badRequest().body("Treatment ${deleteTreatmentRequest.treatmentId} does not exist")
+
+        if (!treatmentService.deleteTreatment(treatment)) {
             log.warning("Failed to delete treatment ${deleteTreatmentRequest.treatmentId}")
             return ResponseEntity.badRequest().body("Failed to delete treatment ${deleteTreatmentRequest.treatmentId}")
         }
@@ -170,18 +178,18 @@ class TreatmentController (
         // Append to the file bedreflyt.ttl
         val path = "bedreflyt.ttl"
         val content = """
-                ###  $ttlPrefix/treatment_${deleteTreatmentRequest.treatmentId}_${deleteTreatmentRequest.diagnosis}
-                :treatment_${deleteTreatmentRequest.treatmentId}_${deleteTreatmentRequest.diagnosis} rdf:type owl:NamedIndividual ,
+                ###  $ttlPrefix/treatment_${treatment.treatmentId}_${treatment.diagnosis}
+                :treatment_${treatment.treatmentId}_${treatment.diagnosis} rdf:type owl:NamedIndividual ,
                                 :Treatment ;
-                    :treatmentId "${deleteTreatmentRequest.treatmentId}" ;
-                    :diagnosis "${deleteTreatmentRequest.diagnosis}" ;
-                    :frequency "${deleteTreatmentRequest.frequency}"^^xsd:double ;
-                    :weight "${deleteTreatmentRequest.weight}"^^xsd:double .
+                    :treatmentId "${treatment.treatmentId}" ;
+                    :diagnosis "${treatment.diagnosis}" ;
+                    :frequency "${treatment.frequency}"^^xsd:double ;
+                    :weight "${treatment.weight}"^^xsd:double .
                 """.trimIndent()
 
         triplestoreService.replaceContentIgnoringSpaces(path, content, "")
         replConfig.regenerateSingleModel().invoke("treatments")
 
-        return ResponseEntity.ok("Treatment ${deleteTreatmentRequest.treatmentId} deleted")
+        return ResponseEntity.ok("Treatment ${treatment.treatmentId} deleted")
     }
 }

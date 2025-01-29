@@ -161,15 +161,11 @@ data class TreatmentRequest (
 data class UpdateTreatmentRequest (
     val treatmentId: String,
     val diagnosis: String,
-    val oldFrequency: Double,
-    val oldWeight: Double,
-    val newFrequency: Double,
-    val newWeight: Double
+    val newFrequency: Double?,
+    val newWeight: Double?
 )
 
 data class DeteleTreatmentRequest (
     val treatmentId: String,
-    val diagnosis: String,
-    val frequency: Double,
-    val weight: Double
+    val diagnosis: String
 )

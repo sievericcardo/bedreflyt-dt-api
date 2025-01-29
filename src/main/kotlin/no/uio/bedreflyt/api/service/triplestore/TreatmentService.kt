@@ -129,6 +129,29 @@ class TreatmentService (
         return Treatment(treatment, diagnosis, frequency, weight)
     }
 
+    fun getTreatmentByTreamentDiagnosis (diagnosis: String, treatment: String) : Treatment? {
+        val query = """
+            SELECT DISTINCT ?frequency ?weight WHERE {
+                ?obj a prog:Treatment ;
+                    prog:Treatment_treatmentId "$treatment" ;
+                    prog:Treatment_diagnosis "$diagnosis" ;
+                    prog:Treatment_frequency ?frequency ;
+                    prog:Treatment_weight ?weight .
+            }"""
+
+        val resultSet : ResultSet = repl.interpreter!!.query(query)!!
+
+        if (!resultSet.hasNext()) {
+            return null
+        }
+
+        val solution = resultSet.next()
+        val frequency = solution.get("frequency").asLiteral().double
+        val weight = solution.get("weight").asLiteral().double
+
+        return Treatment(treatment, diagnosis, frequency, weight)
+    }
+
     private fun <T> List<T>.weightedChoice(weight: (T) -> Double): T {
         val totalWeights = this.sumOf(weight)
         val threshold: Double = Random.nextDouble(totalWeights)
@@ -170,30 +193,30 @@ class TreatmentService (
         }
     }
 
-    fun updateTreatment(treatmentId: String, diagnosis: String, oldFrequency: Double, oldWeight: Double, newFrequency: Double, newWeight: Double) : Boolean {
+    fun updateTreatment(treatment: Treatment, newFrequency: Double, newWeight: Double) : Boolean {
         val query = """
             PREFIX : <$prefix>
             
             DELETE {
-                :treatment_${treatmentId}_$diagnosis a :Treatment ;
-                    :treatmentId "$treatmentId" ;
-                    :diagnosis "$diagnosis" ;
-                    :frequency "$oldFrequency"^^xsd:double ;
-                    :weight "$oldWeight"^^xsd:double ;
+                :treatment_${treatment.treatmentId}_${treatment.diagnosis} a :Treatment ;
+                    :treatmentId "${treatment.treatmentId}" ;
+                    :diagnosis "${treatment.diagnosis}" ;
+                    :frequency "${treatment.frequency}"^^xsd:double ;
+                    :weight "${treatment.weight}"^^xsd:double ;
             }
             INSERT {
-                :treatment_${treatmentId}_$diagnosis a :Treatment ;
-                    :treatmentId "$treatmentId" ;
-                    :diagnosis "$diagnosis" ;
+                :treatment_${treatment.treatmentId}_${treatment.diagnosis} a :Treatment ;
+                    :treatmentId "${treatment.treatmentId}" ;
+                    :diagnosis "${treatment.diagnosis}" ;
                     :frequency "$newFrequency"^^xsd:double ;
                     :weight "$newWeight"^^xsd:double ;
             }
             WHERE {
-                :treatment_${treatmentId}_$diagnosis a :Treatment ;
-                    :treatmentId "$treatmentId" ;
-                    :diagnosis "$diagnosis" ;
-                    :frequency "$oldFrequency"^^xsd:double ;
-                    :weight "$oldWeight"^^xsd:double ;
+                :treatment_${treatment.treatmentId}_${treatment.diagnosis} a :Treatment ;
+                    :treatmentId "${treatment.treatmentId}" ;
+                    :diagnosis "${treatment.diagnosis}" ;
+                    :frequency "${treatment.frequency}"^^xsd:double ;
+                    :weight "${treatment.weight}"^^xsd:double ;
             }
         """
 
@@ -209,23 +232,23 @@ class TreatmentService (
         }
     }
 
-    fun deleteTreatment(treatmentId: String, diagnosis: String) : Boolean {
+    fun deleteTreatment(treatment: Treatment) : Boolean {
         val query = """
             PREFIX : <$prefix>
             
             DELETE {
-                :treatment_${treatmentId}_$diagnosis a :Treatment ;
-                    :treatmentId "$treatmentId" ;
-                    :diagnosis "$diagnosis" ;
-                    :frequency ?frequency ;
-                    :weight ?weight ;
+                :treatment_${treatment.treatmentId}_${treatment.diagnosis} a :Treatment ;
+                    :treatmentId "${treatment.treatmentId}" ;
+                    :diagnosis "${treatment.diagnosis}" ;
+                    :frequency "${treatment.frequency}"^^xsd:double ;
+                    :weight "${treatment.weight}"^^xsd:double ;
             }
             WHERE {
-                :treatment_${treatmentId}_$diagnosis a :Treatment ;
-                    :treatmentId "$treatmentId" ;
-                    :diagnosis "$diagnosis" ;
-                    :frequency ?frequency ;
-                    :weight ?weight ;
+                :treatment_${treatment.treatmentId}_${treatment.diagnosis} a :Treatment ;
+                    :treatmentId "${treatment.treatmentId}" ;
+                    :diagnosis "${treatment.diagnosis}" ;
+                    :frequency "${treatment.frequency}"^^xsd:double ;
+                    :weight "${treatment.weight}"^^xsd:double ;
             }
         """
 
