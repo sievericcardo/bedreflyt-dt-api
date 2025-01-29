@@ -21,6 +21,7 @@ import java.io.File
 import java.util.logging.Logger
 import no.uio.bedreflyt.api.types.TaskRequest
 import no.uio.bedreflyt.api.types.UpdateTaskRequest
+import no.uio.bedreflyt.api.types.DeleteTaskRequest
 
 @RestController
 @RequestMapping("/api/fuseki/task")
@@ -102,7 +103,11 @@ class TaskController (
     fun updateTask(@SwaggerRequestBody(description = "Request to update a task") @RequestBody updateTaskRequest: UpdateTaskRequest) : ResponseEntity<String> {
         log.info("Updating task $updateTaskRequest")
 
-        if(!taskService.updateTask(updateTaskRequest.oldTaskName, updateTaskRequest.oldAverageDuration, updateTaskRequest.oldBed, updateTaskRequest.newTaskName, updateTaskRequest.newAverageDuration,  updateTaskRequest.newBed)) {
+        val task = taskService.getTaskByTaskName(updateTaskRequest.taskName) ?: return ResponseEntity.badRequest().body("Error: the task could not be found.")
+        val newAverageDuration = updateTaskRequest.newAverageDuration ?: task.averageDuration
+        val newBed = updateTaskRequest.newBed ?: task.bed
+
+        if(!taskService.updateTask(task, newAverageDuration, newBed)) {
             return ResponseEntity.badRequest().body("Error: the task could not be updated.")
         }
         replConfig.regenerateSingleModel().invoke("tasks")
@@ -110,18 +115,18 @@ class TaskController (
         // Append to the file bedreflyt.ttl
         val path = "bedreflyt.ttl"
         val oldContent = """
-            ###  $ttlPrefix/task_${updateTaskRequest.oldTaskName}
-           :task_${updateTaskRequest.oldTaskName} rdf:type owl:NamedIndividual ,
+            ###  $ttlPrefix/task_${task.taskName}
+           :task_${task.taskName} rdf:type owl:NamedIndividual ,
                             :Task ;
-                :taskName "${updateTaskRequest.oldTaskName}" ;
-                :averageDuration "${updateTaskRequest.oldAverageDuration}"^^xsd:double ;
-                :bed "${updateTaskRequest.oldBed}"^^xsd:integer .
+                :taskName "${task.taskName}" ;
+                :averageDuration "${task.averageDuration}"^^xsd:double ;
+                :bed "${task.bed}"^^xsd:integer .
         """.trimIndent()
         val newContent = """
-            ###  $ttlPrefix/task_${updateTaskRequest.newTaskName}
-            :task_${updateTaskRequest.newTaskName} rdf:type owl:NamedIndividual ,
+            ###  $ttlPrefix/task_${task.taskName}
+            :task_${task.taskName} rdf:type owl:NamedIndividual ,
                              :Task ;
-                 :taskName "${updateTaskRequest.newTaskName}" ;
+                 :taskName "${task.taskName}" ;
                  :averageDuration "${updateTaskRequest.newAverageDuration}"^^xsd:double ;
                  :bed "${updateTaskRequest.newBed}"^^xsd:integer .
         """.trimIndent()
@@ -140,10 +145,12 @@ class TaskController (
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
     @DeleteMapping("/delete")
-    fun deleteTask(@SwaggerRequestBody(description = "Request to delete a task") @RequestBody taskRequest: TaskRequest) : ResponseEntity<String> {
+    fun deleteTask(@SwaggerRequestBody(description = "Request to delete a task") @RequestBody taskRequest: DeleteTaskRequest) : ResponseEntity<String> {
         log.info("Deleting task $taskRequest")
 
-        if(!taskService.deleteTask(taskRequest.taskName, taskRequest.averageDuration, taskRequest.bed)) {
+        val task = taskService.getTaskByTaskName(taskRequest.taskName) ?: return ResponseEntity.badRequest().body("Error: the task could not be found.")
+
+        if(!taskService.deleteTask(task)) {
             return ResponseEntity.badRequest().body("Error: the task could not be deleted.")
         }
         replConfig.regenerateSingleModel().invoke("tasks")
@@ -151,12 +158,12 @@ class TaskController (
         // Append to the file bedreflyt.ttl
         val path = "bedreflyt.ttl"
         val oldContent = """
-            ###  $ttlPrefix/task_${taskRequest.taskName}
-            :task_${taskRequest.taskName} rdf:type owl:NamedIndividual ,
+            ###  $ttlPrefix/task_${task.taskName}
+            :task_${task.taskName} rdf:type owl:NamedIndividual ,
                             :Task ;
-                :taskName "${taskRequest.taskName}" ;
-                :averageDuration "${taskRequest.averageDuration}"^^xsd:double ;
-                :bed "${taskRequest.bed}"^^xsd:integer .
+                :taskName "${task.taskName}" ;
+                :averageDuration "${task.averageDuration}"^^xsd:double ;
+                :bed "${task.bed}"^^xsd:integer .
         """.trimIndent()
 
         triplestoreService.replaceContentIgnoringSpaces(path, oldContent, "")

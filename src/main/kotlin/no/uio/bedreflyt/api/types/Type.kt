@@ -120,12 +120,13 @@ data class TaskRequest (
 )
 
 data class UpdateTaskRequest (
-    val oldTaskName: String,
-    val newTaskName: String,
-    val oldAverageDuration: Double,
-    val newAverageDuration: Double,
-    val oldBed: Int,
-    val newBed: Int
+    val taskName: String,
+    val newAverageDuration: Double?,
+    val newBed: Int?
+)
+
+data class DeleteTaskRequest (
+    val taskName: String
 )
 
 data class TaskDependencyRequest (
