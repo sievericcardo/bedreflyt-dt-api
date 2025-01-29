@@ -105,34 +105,33 @@ class RoomService (
         return Room(roomNumber, roomNumberModel, room, capacity, bathBool)
     }
 
-    fun updateRoom(roomNumber: Int, oldRoomNumberModel: Int, oldRoom: Long, oldCapacity: Int, oldBathroom: Int,
-                               newRoomNumberModel: Int, newRoom: Long, newCapacity: Int, newBathroom: Int) : Boolean {
+    fun updateRoom(room: Room, newRoomNumberModel: Int, newRoom: Long, newCapacity: Int, newBathroom: Int) : Boolean {
         val query = """
             PREFIX : <$prefix>
             
             DELETE {
-                :room$roomNumber a :Room ;
-                    :roomNumber $roomNumber ;
-                    :roomNumberModel $oldRoomNumberModel ;
-                    :roomCategory $oldRoom ;
-                    :capacity $oldCapacity ;
-                    :bathroom $oldBathroom .
+                :room${room.roomNumber} a :Room ;
+                    :roomNumber ${room.roomNumber} ;
+                    :roomNumberModel ${room.roomNumberModel} ;
+                    :roomCategory ${room.roomCategory} ;
+                    :capacity ${room.capacity} ;
+                    :bathroom ${room.bathroom} .
             }
             INSERT {
-                :room$roomNumber a :Room ;
-                    :roomNumber $roomNumber ;
+                :room${room.roomNumber} a :Room ;
+                    :roomNumber ${room.roomNumber} ;
                     :roomNumberModel $newRoomNumberModel ;
                     :roomCategory $newRoom ;
                     :capacity $newCapacity ;
                     :bathroom $newBathroom .
             }
             WHERE {
-                :room$roomNumber a :Room ;
-                    :roomNumber $roomNumber ;
-                    :roomNumberModel $oldRoomNumberModel ;
-                    :roomCategory $oldRoom ;
-                    :capacity $oldCapacity ;
-                    :bathroom $oldBathroom .
+                :room${room.roomNumber} a :Room ;
+                    :roomNumber ${room.roomNumber} ;
+                    :roomNumberModel ${room.roomNumberModel} ;
+                    :roomCategory ${room.roomCategory} ;
+                    :capacity ${room.capacity} ;
+                    :bathroom ${room.bathroom} .
             }
         """.trimIndent()
 

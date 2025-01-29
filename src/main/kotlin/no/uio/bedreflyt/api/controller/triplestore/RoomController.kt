@@ -123,11 +123,7 @@ class RoomDistributionController (
         val newCapacity = updateRoomRequest.newCapacity ?: room.capacity
 
         if(!roomService.updateRoom(
-                updateRoomRequest.roomNumber,
-                room.roomNumberModel,
-                room.roomCategory,
-                room.capacity,
-                oldBath,
+                room,
                 newRoomNumberModel,
                 newRoomCategory,
                 newCapacity,
