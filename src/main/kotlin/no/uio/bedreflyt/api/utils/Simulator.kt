@@ -148,7 +148,7 @@ class Simulator (
     ): SolverResponse {
         val numberOfRooms = rooms.size
         val capacities = rooms.map { it.capacity ?: 0 }
-        val roomCategories: List<Long> = rooms.map { it.room.toLong() ?: 0 }
+        val roomCategories: List<Long> = rooms.map { it.roomCategory ?: 0 }
         var patientNumbers = 0
         val genders = mutableListOf<Boolean>()
         val infectious = mutableListOf<Boolean>()
@@ -264,7 +264,7 @@ class Simulator (
     ): String? {
 //            List<SolverResponse> {
         val capacities = rooms.map { it.capacity ?: 0 }
-        val roomCategories: List<Long> = rooms.map { it.room.toLong() ?: 0 }
+        val roomCategories: List<Long> = rooms.map { it.roomCategory ?: 0 }
         val genders = mutableMapOf<String, Boolean>()
         val infectious = mutableMapOf<String, Boolean>()
         val patientCategories: List<Map<String, Int>> = patientsSimulated.map { day ->

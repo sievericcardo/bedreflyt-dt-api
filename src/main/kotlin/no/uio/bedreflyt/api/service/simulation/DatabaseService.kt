@@ -148,19 +148,19 @@ class DatabaseService (
             }
         } ?: throw IllegalArgumentException("No rooms found")
 
-        val roomDistributions = roomService.getAllRooms()
+        val rooms = roomService.getAllRooms()
             ?: throw IllegalArgumentException("No room distributions found")
         val simulationRoom = mutableListOf<Room>()
 
-        roomDistributions.forEach { roomDistribution ->
+        rooms.forEach { singleRoom ->
             insertRoomDistribution(
-                roomDbUrl, roomDistribution.roomNumber.toLong(), roomDistribution.roomNumberModel.toLong(),
-                roomDistribution.roomCategory.toLong(), roomDistribution.capacity, roomDistribution.bathroom
+                roomDbUrl, singleRoom.roomNumber.toLong(), singleRoom.roomNumberModel.toLong(),
+                singleRoom.roomCategory, singleRoom.capacity, singleRoom.bathroom
             )
             simulationRoom.add(
                 Room(
-                    roomDistribution.roomNumber, roomDistribution.roomNumberModel, roomDistribution.roomCategory.toString(),
-                    roomDistribution.capacity, roomDistribution.bathroom
+                    singleRoom.roomNumber, singleRoom.roomNumberModel, singleRoom.roomCategory,
+                    singleRoom.capacity, singleRoom.bathroom
                 )
             )
         }
