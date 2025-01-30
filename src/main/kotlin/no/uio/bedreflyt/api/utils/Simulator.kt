@@ -338,7 +338,6 @@ class Simulator (
                         }
                     }
                 }
-                log.info("Å: Read day with requirements: $dayMap")
                 if (dayMap.isNotEmpty()) { days.add(dayMap) }
             }
             val solverResponse = invokeGlobal(days, rooms, "changes")

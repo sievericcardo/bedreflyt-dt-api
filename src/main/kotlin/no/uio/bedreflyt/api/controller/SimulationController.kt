@@ -105,10 +105,11 @@ class SimulationController(
         databaseService.createTreatmentView(bedreflytDB)
 
         val runs = mutableListOf<SimulationResponse>()
-        for (i in 1..simulationRequest.repetitions) {
+        // if the risk is 0 we only need to run one simulation – worst case is deterministic
+        for (i in 1.. (if (simulationRequest.risk == 0.0) 1 else simulationRequest.repetitions)) {
             val mode = if (Random.nextDouble() <= simulationRequest.risk) "sample" else "worst"
             val patients = databaseService.createAndPopulatePatientTables(bedreflytDB, simulationRequest.scenario, mode)
-            log.info("Patient table populated, invoking ABS with ${simulationRequest.scenario.size} requests")
+            log.info("Run $i / ${simulationRequest.repetitions}:\n\tPatient table populated, invoking ABS with ${simulationRequest.scenario.size} requests")
             runs.add(simulator.simulate(patients, roomDistributions, tempDir, simulationRequest.smtMode))
             databaseService.clearTable(bedreflytDB, "scenario")
         }
