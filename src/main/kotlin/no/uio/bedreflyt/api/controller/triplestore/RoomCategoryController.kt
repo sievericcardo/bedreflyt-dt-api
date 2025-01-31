@@ -24,14 +24,14 @@ import no.uio.bedreflyt.api.types.UpdateRoomCategoryRequest
 
 @RestController
 @RequestMapping("/api/fuseki/room-category")
-class RoomController (
+class RoomCategoryController (
     private val replConfig: REPLConfig,
     private val environmentConfig: EnvironmentConfig,
     private val triplestoreService: TriplestoreService,
     private val roomCategoryService: RoomCategoryService
 ) {
 
-    private val log : Logger = Logger.getLogger(RoomController::class.java.name)
+    private val log : Logger = Logger.getLogger(RoomCategoryController::class.java.name)
     private val host = environmentConfig.getOrDefault("TRIPLESTORE_URL", "localhost")
     private val dataStore = environmentConfig.getOrDefault("TRIPLESTORE_DATASET", "Bedreflyt")
     private val tripleStore = "http://$host:3030/$dataStore"
