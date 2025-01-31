@@ -57,15 +57,11 @@ class RoomDefectBedCategory extends Twin (RoomCategory obj, Int bedCategoryNew) 
 class RoomDefectDescription extends Twin (RoomCategory obj, String roomDescriptionNew) end
 
 // Room defects
-class RoomDefectRoomNumber extends Twin (
-    Room obj,
-    Int roomNumberNew)
-end
 class RoomDefectRoomNumberModel extends Twin (
     Room obj,
     Int roomNumberModelNew)
 end
-class RoomDefectRoom extends Twin (
+class RoomDefectRoomCategory extends Twin (
     Room obj,
     Int roomNew)
 end
