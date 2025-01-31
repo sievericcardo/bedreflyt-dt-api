@@ -25,14 +25,14 @@ import no.uio.bedreflyt.api.types.DeleteRoomRequest
 
 @RestController
 @RequestMapping("/api/fuseki/room")
-class RoomDistributionController (
+class RoomController (
     private val replConfig: REPLConfig,
     private val environmentConfig: EnvironmentConfig,
     private val triplestoreService: TriplestoreService,
     private val roomService: RoomService
 ) {
 
-    private val log : Logger = Logger.getLogger(RoomDistributionController::class.java.name)
+    private val log : Logger = Logger.getLogger(RoomController::class.java.name)
     private val host = environmentConfig.getOrDefault("TRIPLESTORE_URL", "localhost")
     private val dataStore = environmentConfig.getOrDefault("TRIPLESTORE_DATASET", "Bedreflyt")
     private val tripleStore = "http://$host:3030/$dataStore"
@@ -99,7 +99,7 @@ class RoomDistributionController (
         return ResponseEntity.ok(roomDistributions)
     }
 
-    @Operation(summary = "Update a room distribution")
+    @Operation(summary = "Update a room")
     @ApiResponses(value = [
         ApiResponse(responseCode = "200", description = "Room updated"),
         ApiResponse(responseCode = "400", description = "Invalid room"),
@@ -109,7 +109,7 @@ class RoomDistributionController (
     ])
     @PatchMapping("/update")
     fun updateRoom(@SwaggerRequestBody(description = "Request to update a room distribution") @RequestBody updateRoomRequest: UpdateRoomRequest) : ResponseEntity<String> {
-        log.info("Updating room distribution")
+        log.info("Updating room ${updateRoomRequest.roomNumber}")
 
         val room = roomService.getRoomByRoomNumber(updateRoomRequest.roomNumber) ?: return ResponseEntity.badRequest().body("Error: the room could not be updated.")
         val oldBath = if (room.bathroom) 1 else 0
@@ -161,7 +161,77 @@ class RoomDistributionController (
         return ResponseEntity.ok("Room distribution updated")
     }
 
-    @Operation(summary = "Delete a room distribution")
+    @Operation(summary = "Update multiple room distribution")
+    @ApiResponses(value = [
+        ApiResponse(responseCode = "200", description = "Rooms updated"),
+        ApiResponse(responseCode = "400", description = "Invalid rooms"),
+        ApiResponse(responseCode = "401", description = "Unauthorized"),
+        ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
+        ApiResponse(responseCode = "500", description = "Internal server error")
+    ])
+    @PatchMapping("/update-multi")
+    fun updateMultipleRooms(@SwaggerRequestBody(description = "Request to update a room distribution") @RequestBody updateRoomRequests: List<UpdateRoomRequest>) : ResponseEntity<String> {
+        log.info("Updating ${updateRoomRequests.size} rooms")
+        val rooms = mutableListOf<Room>()
+        updateRoomRequests.forEach { updateRoomRequest ->
+            val room = roomService.getRoomByRoomNumber(updateRoomRequest.roomNumber) ?: return ResponseEntity.badRequest().body("Error: the room ${updateRoomRequest.roomNumber} could not be updated.")
+            rooms.add(room)
+        }
+
+        updateRoomRequests.forEach { updateRoomRequest ->
+            val room = rooms.find { it.roomNumber == updateRoomRequest.roomNumber } ?: return ResponseEntity.badRequest().body("Error: the room could not be updated.")
+            val oldBath = if (room.bathroom) 1 else 0
+            val newBath = if (updateRoomRequest.newBathroom != null) {
+                if (updateRoomRequest.newBathroom) 1 else 0
+            } else {
+                oldBath
+            }
+
+            val newRoomNumberModel = updateRoomRequest.newRoomNumberModel ?: room.roomNumberModel
+            val newRoomCategory = updateRoomRequest.newRoom ?: room.roomCategory
+            val newCapacity = updateRoomRequest.newCapacity ?: room.capacity
+
+            if(!roomService.updateRoom(
+                    room,
+                    newRoomNumberModel,
+                    newRoomCategory,
+                    newCapacity,
+                    newBath)) {
+                return ResponseEntity.badRequest().body("Error: the room distribution could not be updated.")
+            }
+
+            // Append to the file bedreflyt.ttl
+            val path = "bedreflyt.ttl"
+            val oldContent = """
+                ###  $ttlPrefix/room${updateRoomRequest.roomNumber}
+                :room${updateRoomRequest.roomNumber} rdf:type owl:NamedIndividual ,
+                                :Room ;
+                    :roomNumber ${room.roomNumber} ;
+                    :roomNumberModel ${room.roomNumberModel} ;
+                    :roomCategory ${room.roomCategory} ;
+                    :capacity ${room.capacity} ;
+                    :bathroom $oldBath .
+            """.trimIndent()
+            val newContent = """
+                ###  $ttlPrefix/room${updateRoomRequest.roomNumber}
+                :room${updateRoomRequest.roomNumber} rdf:type owl:NamedIndividual ,
+                                :Room ;
+                    :roomNumber ${updateRoomRequest.roomNumber} ;
+                    :roomNumberModel $newRoomNumberModel ;
+                    :roomCategory $newRoomCategory ;
+                    :capacity $newCapacity ;
+                    :bathroom $newBath .
+            """.trimIndent()
+
+            triplestoreService.replaceContentIgnoringSpaces(path, oldContent, newContent)
+        }
+
+        replConfig.regenerateSingleModel().invoke("room distributions")
+
+        return ResponseEntity.ok("Room distribution updated")
+    }
+
+    @Operation(summary = "Delete a room")
     @ApiResponses(value = [
         ApiResponse(responseCode = "200", description = "Room deleted"),
         ApiResponse(responseCode = "400", description = "Invalid room"),
