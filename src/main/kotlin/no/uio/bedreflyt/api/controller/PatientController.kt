@@ -80,14 +80,11 @@ class PatientController (
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
     @GetMapping("/retrieve")
-    fun getAllPatients() : ResponseEntity<HashMap<String, List<Patient>>> {
+    fun getAllPatients() : ResponseEntity<List<Patient?>> {
         log.info("Getting all patients")
         val patients = patientService.findAll()
 
-        val response = HashMap<String, List<Patient>>()
-        response["patients"] = patients.toList() as List<Patient>
-
-        return ResponseEntity.ok(response)
+        return ResponseEntity.ok(patients)
     }
 
     @Operation(summary = "Update a patient")
