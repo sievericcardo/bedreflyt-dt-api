@@ -119,14 +119,14 @@ class PatientController (
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
     @GetMapping("/get/{patientId}")
-    fun getPatient(@SwaggerRequestBody(description = "Request to get a patient by patientId") @PathVariable patientId: String) : ResponseEntity<List<Patient>> {
+    fun getPatient(@SwaggerRequestBody(description = "Request to get a patient by patientId") @PathVariable patientId: String) : ResponseEntity<Patient> {
         log.info("Getting patient")
 
         if (patientId.isEmpty()) {
             return ResponseEntity.badRequest().build()
         }
 
-        val patient = patientService.findByPatientId(patientId)
+        val patient = patientService.findByPatientId(patientId) ?: return ResponseEntity.badRequest().build()
 
         return ResponseEntity.ok(patient)
     }
