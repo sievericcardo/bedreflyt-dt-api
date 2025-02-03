@@ -11,11 +11,11 @@ import org.springframework.stereotype.Service
 open class PatientService (
     private val patientRepository: PatientRepository
 ) {
-    open fun findAll(): MutableList<Patient?> {
+    open fun findAll(): List<Patient?> {
         return patientRepository.findAll()
     }
 
-    open fun findByPatientId(patientId: String): List<Patient> {
+    open fun findByPatientId(patientId: String): Patient? {
         return patientRepository.findByPatientId(patientId)
     }
 
@@ -27,19 +27,6 @@ open class PatientService (
     open fun updatePatient(patient: Patient): Patient {
         return patientRepository.save(patient)
     }
-
-//    fun updatePatient(patient: Patient, counterValue: Int = 0) {
-//        while (counterValue <= 10) {
-//            try {
-//                patientRepository.save(patient)
-//                return
-//            } catch (e: OptimisticLockException) {
-//                println("OptimisticLockException caught, retrying")
-//                updatePatient(patient, counterValue + 1)
-//            }
-//        }
-//        throw RuntimeException("Failed to update counter after retries")
-//    }
 
     open fun deletePatient(patient: Patient) {
         patientRepository.delete(patient)
