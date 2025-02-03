@@ -3,10 +3,16 @@ package no.uio.bedreflyt.api.controller
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.responses.ApiResponses
+import jakarta.validation.constraints.Min
+import jakarta.validation.constraints.NotBlank
+import jakarta.validation.constraints.Pattern
 import no.uio.bedreflyt.api.model.live.Patient
 import no.uio.bedreflyt.api.service.live.PatientService
 import org.springframework.http.ResponseEntity
+import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
+import org.springframework.web.bind.annotation.PatchMapping
+import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
@@ -16,16 +22,24 @@ import java.time.LocalDateTime
 import java.util.logging.Logger
 
 data class PatientRequest (
+    @NotBlank(message = "Patient ID is required")
     val patientId : String,
     val operationId : String = "",
+    @Pattern(regexp = "\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}", message = "Invalid date format")
     val operationStart : String? = "",
+    @Pattern(regexp = "\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}", message = "Invalid date format")
     val operationEnd : String? = "",
+    @Min(0, message = "Operation length must be non-negative")
     val operationLengthDays : Float = 0.0f,
     val acute : Boolean = false,
+    @NotBlank(message = "Gender is required")
     val gender : String = "",
+    @Min(0, message = "Age must be non-negative")
     val age : Int = 0,
     val oslo : Boolean = false,
+    @NotBlank(message = "Main diagnosis code is required")
     val mainDiagnosisCode : String = "",
+    @NotBlank(message = "Main diagnosis name is required")
     val mainDiagnosisName : String = "",
     val acuteCategory : Int = 0,
     val careCategory : Int = 0,
@@ -96,7 +110,7 @@ class PatientController (
         ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
-    @PostMapping("/update")
+    @PatchMapping("/update")
     fun updatePatient(@SwaggerRequestBody(description = "Request to update a patient") @RequestBody patientRequest: PatientRequest) : ResponseEntity<String> {
         log.info("Updating patient")
 
@@ -138,7 +152,7 @@ class PatientController (
         ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
-    @PostMapping("/delete")
+    @DeleteMapping("/delete")
     fun deletePatient(@SwaggerRequestBody(description = "Request to delete a patient") @RequestBody patientRequest: PatientRequest) : ResponseEntity<String> {
         log.info("Deleting patient")
 
@@ -163,15 +177,15 @@ class PatientController (
         ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
-    @GetMapping("/get")
-    fun getPatient(@SwaggerRequestBody(description = "Request to get a patient by patientId") @RequestBody patientRequest: PatientRequest) : ResponseEntity<List<Patient>> {
+    @GetMapping("/get/{patientId}")
+    fun getPatient(@SwaggerRequestBody(description = "Request to get a patient by patientId") @PathVariable patientId: String) : ResponseEntity<List<Patient>> {
         log.info("Getting patient")
 
-        if (patientRequest.patientId.isEmpty()) {
+        if (patientId.isEmpty()) {
             return ResponseEntity.badRequest().build()
         }
 
-        val patient = patientService.findByPatientId(patientRequest.patientId)
+        val patient = patientService.findByPatientId(patientId)
 
         return ResponseEntity.ok(patient)
     }

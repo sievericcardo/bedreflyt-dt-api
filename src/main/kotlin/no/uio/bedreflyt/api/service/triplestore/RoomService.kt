@@ -22,14 +22,17 @@ class RoomService (
     private val ttlPrefix = triplestoreProperties.ttlPrefix
     private val repl = replConfig.repl()
 
-    fun createRoom(bedCategory: Long, roomDescription: String): Boolean {
+    fun createRoom(roomNumber: Int, roomNumberModel: Int, room: Long, capacity: Int, bathroom: Int) : Boolean {
         val query = """
             PREFIX : <$prefix>
             
             INSERT DATA {
-                :room$bedCategory a :Room ;
-                    :bedCategory $bedCategory ;
-                    :roomDescription "$roomDescription" .
+                :room$roomNumber a :Room ;
+                    :roomNumber $roomNumber ;
+                    :roomNumberModel $roomNumberModel ;
+                    :roomCategory $room ;
+                    :capacity $capacity ;
+                    :bathroom $bathroom .
             }
         """.trimIndent()
 
@@ -46,14 +49,16 @@ class RoomService (
     }
 
     fun getAllRooms() : List<Room>? {
-        val rooms = mutableListOf<Room>()
+        val rooms: MutableList<Room> = mutableListOf()
 
-        val query =
-            """
-               SELECT DISTINCT ?bedCategory ?roomDescription WHERE {
+        val query =  """
+            SELECT DISTINCT ?roomNumber ?roomNumberModel ?roomCategory ?capacity ?bathroom WHERE {
                 ?obj a prog:Room ;
-                    prog:Room_bedCategory ?bedCategory ;
-                    prog:Room_roomDescription ?roomDescription .
+                    prog:Room_roomNumber ?roomNumber ;
+                    prog:Room_roomNumberModel ?roomNumberModel ;
+                    prog:Room_roomCategory ?roomCategory ;
+                    prog:Room_capacity ?capacity ;
+                    prog:Room_bathroom ?bathroom .
             }"""
 
         val resultRooms: ResultSet = repl.interpreter!!.query(query)!!
@@ -63,32 +68,71 @@ class RoomService (
 
         while (resultRooms.hasNext()) {
             val solution: QuerySolution = resultRooms.next()
-            val roomId = solution.get("?bedCategory").asLiteral().toString().split("^^")[0].toLong()
-            val roomDescription = solution.get("?roomDescription").asLiteral().toString()
-            rooms.add(Room(roomId, roomDescription))
+            val roomNumber = solution.get("?roomNumber").asLiteral().toString().split("^^")[0].toInt()
+            val roomNumberModel = solution.get("?roomNumberModel").asLiteral().toString().split("^^")[0].toInt()
+            val room = solution.get("?roomCategory").asLiteral().toString().split("^^")[0].toLong()
+            val capacity = solution.get("?capacity").asLiteral().toString().split("^^")[0].toInt()
+            val bathroom = solution.get("?bathroom").asLiteral().toString().split("^^")[0].toInt()
+            val bathBool = bathroom == 1
+            rooms.add(Room(roomNumber, roomNumberModel, room, capacity, bathBool))
         }
 
         return rooms
     }
 
-    fun updateRoom(oldBedCategory: Long, oldRoomDescription: String, newBedCategory: Long, newRoomDescription: String) : Boolean {
+    fun getRoomByRoomNumber(roomNumber: Int): Room? {
+        val query = """
+            SELECT DISTINCT ?roomNumber ?roomNumberModel ?roomCategory ?capacity ?bathroom WHERE {
+                ?obj a prog:Room ;
+                    prog:Room_roomNumber $roomNumber ;
+                    prog:Room_roomNumberModel ?roomNumberModel ;
+                    prog:Room_roomCategory ?roomCategory ;
+                    prog:Room_capacity ?capacity ;
+                    prog:Room_bathroom ?bathroom .
+            }"""
+
+        val resultRooms: ResultSet = repl.interpreter!!.query(query)!!
+        if (!resultRooms.hasNext()) {
+            return null
+        }
+
+        val solution: QuerySolution = resultRooms.next()
+        val roomNumberModel = solution.get("?roomNumberModel").asLiteral().toString().split("^^")[0].toInt()
+        val room = solution.get("?roomCategory").asLiteral().toString().split("^^")[0].toLong()
+        val capacity = solution.get("?capacity").asLiteral().toString().split("^^")[0].toInt()
+        val bathroom = solution.get("?bathroom").asLiteral().toString().split("^^")[0].toInt()
+        val bathBool = bathroom == 1
+        return Room(roomNumber, roomNumberModel, room, capacity, bathBool)
+    }
+
+    fun updateRoom(room: Room, newRoomNumberModel: Int, newRoom: Long, newCapacity: Int, newBathroom: Int) : Boolean {
+        val bathroom = if (room.bathroom) 1 else 0
         val query = """
             PREFIX : <$prefix>
             
             DELETE {
-                :room$oldBedCategory a :Room ;
-                    :bedCategory $oldBedCategory ;
-                    :roomDescription "$oldRoomDescription" .
+                :room${room.roomNumber} a :Room ;
+                    :roomNumber ${room.roomNumber} ;
+                    :roomNumberModel ${room.roomNumberModel} ;
+                    :roomCategory ${room.roomCategory} ;
+                    :capacity ${room.capacity} ;
+                    :bathroom $bathroom .
             }
             INSERT {
-                :room$newBedCategory a :Room ;
-                    :bedCategory $newBedCategory ;
-                    :roomDescription "$newRoomDescription" .
+                :room${room.roomNumber} a :Room ;
+                    :roomNumber ${room.roomNumber} ;
+                    :roomNumberModel $newRoomNumberModel ;
+                    :roomCategory $newRoom ;
+                    :capacity $newCapacity ;
+                    :bathroom $newBathroom .
             }
             WHERE {
-                :room$oldBedCategory a :Room ;
-                    :bedCategory $oldBedCategory ;
-                    :roomDescription "$oldRoomDescription" .
+                :room${room.roomNumber} a :Room ;
+                    :roomNumber ${room.roomNumber} ;
+                    :roomNumberModel ${room.roomNumberModel} ;
+                    :roomCategory ${room.roomCategory} ;
+                    :capacity ${room.capacity} ;
+                    :bathroom $bathroom .
             }
         """.trimIndent()
 
@@ -104,19 +148,28 @@ class RoomService (
         }
     }
 
-    fun deleteRoom(bedCategory: Long, roomDescription: String) : Boolean {
+    fun deleteRoom(roomNumber: Int) : Boolean {
+        val room = getRoomByRoomNumber(roomNumber) ?: return true
+        val bathroom = if (room.bathroom) 1 else 0
+
         val query = """
             PREFIX : <$prefix>
             
             DELETE {
-                :room$bedCategory a :Room ;
-                    :bedCategory $bedCategory ;
-                    :roomDescription "$roomDescription" .
+                :room$roomNumber a :Room ;
+                    :roomNumber $roomNumber ;
+                    :roomNumberModel ${room.roomNumberModel} ;
+                    :roomCategory ${room.roomCategory} ;
+                    :capacity ${room.capacity} ;
+                    :bathroom $bathroom .
             }
             WHERE {
-                :room$bedCategory a :Room ;
-                    :bedCategory $bedCategory ;
-                    :roomDescription "$roomDescription" .
+                :room$roomNumber a :Room ;
+                    :roomNumber $roomNumber ;
+                    :roomNumberModel ${room.roomNumberModel} ;
+                    :roomCategory ${room.roomCategory} ;
+                    :capacity ${room.capacity} ;
+                    :bathroom ${bathroom} .
             }
         """.trimIndent()
 

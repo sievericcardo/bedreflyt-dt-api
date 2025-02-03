@@ -1,14 +1,160 @@
 class TreatmentModel extends KindModel()
 
     override Unit adaptAddition()
-        skip;
+        List<Treatment> newTreatments = construct("
+            PREFIX ast: <http://www.smolang.org/bedreflyt#>
+            SELECT DISTINCT ?treatmentId ?diagnosis ?frequency ?weight {
+                ?x a ast:Treatment ;
+                    ast:treatmentId ?treatmentId ;
+                    ast:diagnosisCode ?diagnosis ;
+                    ast:frequency ?frequency ;
+                    ast:weight ?weight .
+                FILTER NOT EXISTS {
+                    ?y a prog:Treatment ;
+                        prog:Treatment_treatmentId ?treatmentId ;
+                        prog:Treatment_diagnosis ?diagnosis ;
+                        prog:Treatment_frequency ?frequency ;
+                        prog:Treatment_weight ?weight .
+                }
+            }");
+
+        if newTreatments != null then
+            print("RECONFIG> New Treatment(s) detected: repairing the model");
+
+            while newTreatments != null do
+                Treatment newTreatment = newTreatments.content;
+                List<Treatment> lx = newTreatments;
+                newTreatments = newTreatments.next;
+                print("RECONFIG> New treatment detected: ");
+                print("          Treatment ID: " ++ newTreatment.treatmentId);
+                print("          Diagnosis: " ++ newTreatment.diagnosis);
+                print("          Frequency: " ++ doubleToString(newTreatment.frequency));
+                print("          Weight: " ++ doubleToString(newTreatment.weight));
+
+                destroy(lx);
+            end
+
+            print("RECONFIG> Treatment(s) added");
+        end
     end
 
     override Unit adaptRemoval()
-        skip;
+        List<Treatment> wrongTreatments = access("
+            PREFIX ast: <http://www.smolang.org/bedreflyt#>
+            SELECT DISTINCT ?obj {
+                ?obj a prog:Treatment ;
+                     prog:Treatment_treatmentId ?treatmentId ;
+                     prog:Treatment_diagnosis ?diagnosis ;
+                     prog:Treatment_frequency ?frequency ;
+                     prog:Treatment_weight ?weight .
+                FILTER NOT EXISTS {
+                    ?y a ast:Treatment ;
+                       ast:treatmentId ?treatmentId ;
+                       ast:diagnosisCode ?diagnosis ;
+                       ast:frequency ?frequency ;
+                       ast:weight ?weight .
+                }
+            }");
+        
+        if wrongTreatments != null then
+            print("RECONFIG> Misconfigured Treatment(s) detected: repairing the model");
+            while wrongTreatments != null do
+                Treatment wrongTreatment = wrongTreatments.content;
+                List<Treatment> lx = wrongTreatments;
+                wrongTreatments = wrongTreatments.next;
+
+                print("RECONFIG> Misconfigured treatment detected: ");
+                print("          Treatment ID: " ++ wrongTreatment.treatmentId);
+                print("          Diagnosis: " ++ wrongTreatment.diagnosis);
+                print("          Frequency: " ++ doubleToString(wrongTreatment.frequency));
+                print("          Weight: " ++ doubleToString(wrongTreatment.weight));
+
+                destroy(wrongTreatment);
+                destroy(lx);
+            end
+
+            print("RECONFIG> Treatment(s) removed");
+        end
     end
 
     override Unit adaptDefect()
-        skip;
+        this.adaptDefectFrequency();
+        this.adaptDefectWeight();
+    end
+
+    Unit adaptDefectFrequency()
+        List<TreatmentDefectFrequency> defects = construct("
+            PREFIX ast: <http://www.smolang.org/bedreflyt#>
+
+            SELECT DISTINCT ?obj ?frequencyNew {
+                ?obj a prog:Treatment ;
+                     prog:Treatment_treatmentId ?treatmentId ;
+                     prog:Treatment_diagnosis ?diagnosis ;
+                     prog:Treatment_frequency ?frequency ;
+                     prog:Treatment_weight ?weight .
+                ?y a ast:Treatment ;
+                   ast:treatmentId ?treatmentId ;
+                   ast:diagnosisCode ?diagnosis ;
+                   ast:frequency ?frequencyNew ;
+                   ast:weight ?weight .
+                FILTER (?frequency != ?frequencyNew)
+            }");
+
+        if defects != null then
+            print("RECONFIG> Defects in the frequency of the Treatment(s) detected: repairing the model");
+            while defects != null do
+                TreatmentDefectFrequency defect = defects.content;
+                List<TreatmentDefectFrequency> lx = defects;
+                defects = defects.next;
+
+                print("RECONFIG> Defect in the frequency of the treatment detected: ");
+                print("          Treatment ID: " ++ defect.obj.treatmentId);
+                print("          Diagnosis: " ++ defect.obj.diagnosis);
+                print("          Frequency: " ++ doubleToString(defect.obj.frequency) ++ " -> " ++ doubleToString(defect.frequencyNew));
+                print("          Weight: " ++ doubleToString(defect.obj.weight));
+
+                defect.obj.frequency = defect.frequencyNew;
+            end
+
+            print("RECONFIG> Defects in the frequency of the Treatment(s) repaired");
+        end
+    end
+
+    Unit adaptDefectWeight()
+        List<TreatmentDefectWeight> defects = construct("
+            PREFIX ast: <http://www.smolang.org/bedreflyt#>
+
+            SELECT DISTINCT ?obj ?weightNew {
+                ?obj a prog:Treatment ;
+                     prog:Treatment_treatmentId ?treatmentId ;
+                     prog:Treatment_diagnosis ?diagnosis ;
+                     prog:Treatment_frequency ?frequency ;
+                     prog:Treatment_weight ?weight .
+                ?y a ast:Treatment ;
+                   ast:treatmentId ?treatmentId ;
+                   ast:diagnosisCode ?diagnosis ;
+                   ast:frequency ?frequency ;
+                   ast:weight ?weightNew .
+                FILTER (?weight != ?weightNew)
+            }");
+
+        if defects != null then
+            print("RECONFIG> Defects in the weight of the Treatment(s) detected: repairing the model");
+            while defects != null do
+                TreatmentDefectWeight defect = defects.content;
+                List<TreatmentDefectWeight> lx = defects;
+                defects = defects.next;
+
+                print("RECONFIG> Defect in the weight of the treatment detected: ");
+                print("          Treatment ID: " ++ defect.obj.treatmentId);
+                print("          Diagnosis: " ++ defect.obj.diagnosis);
+                print("          Frequency: " ++ doubleToString(defect.obj.frequency));
+                print("          Weight: " ++ doubleToString(defect.obj.weight) ++ " -> " ++ doubleToString(defect.weightNew));
+
+                defect.obj.weight = defect.weightNew;
+            end
+
+            print("RECONFIG> Defects in the weight of the Treatment(s) repaired");
+        end
     end
 end

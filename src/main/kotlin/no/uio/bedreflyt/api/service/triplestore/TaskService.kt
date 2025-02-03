@@ -95,34 +95,33 @@ class TaskService (
         }
 
         val solution: QuerySolution = resultTask.next()
-        val taskName = solution.get("?taskName").asLiteral().toString()
         val averageDuration = solution.get("?averageDuration").asLiteral().toString().split("^^")[0].toDouble()
         val bed = solution.get("?bed").asLiteral().toString().split("^^")[0].toInt()
 
         return Task(taskName, averageDuration, bed)
     }
 
-    fun updateTask(oldTaskName: String, oldAverageDuration: Double, oldBed: Int, newTaskName: String, newAverageDuration: Double, newBed: Int) : Boolean {
+    fun updateTask(task: Task, newAverageDuration: Double, newBed: Int) : Boolean {
         val query = """
             PREFIX : <$prefix>
             
             DELETE {
-                :task_$oldTaskName a :Task ;
-                    :taskName "$oldTaskName" ;
-                    :averageDuration $oldAverageDuration ;
-                    :bed $oldBed .
+                :task_${task.taskName} a :Task ;
+                    :taskName "${task.taskName}" ;
+                    :averageDuration ${task.averageDuration} ;
+                    :bed ${task.bed} .
             }
             INSERT {
-                :task_$newTaskName a :Task ;
-                    :taskName "$newTaskName" ;
+                :task_${task.taskName} a :Task ;
+                    :taskName "${task.taskName}" ;
                     :averageDuration $newAverageDuration ;
                     :bed $newBed .
             }
             WHERE {
-               :task_$oldTaskName a :Task ;
-                    :taskName "$oldTaskName" ;
-                    :averageDuration $oldAverageDuration ;
-                    :bed $oldBed .
+               :task_${task.taskName} a :Task ;
+                    :taskName "${task.taskName}" ;
+                    :averageDuration ${task.averageDuration} ;
+                    :bed ${task.bed} .
             }
         """
 
@@ -138,21 +137,21 @@ class TaskService (
         }
     }
 
-    fun deleteTask(taskName: String, averageDuration: Double, bed: Int) : Boolean {
+    fun deleteTask(task: Task) : Boolean {
         val query = """
             PREFIX : <$prefix>
             
             DELETE {
-                :task_$taskName a :Task ;
-                    :taskName "$taskName" ;
-                    :averageDuration $averageDuration ;
-                    :bed $bed .
+                :task_${task.taskName} a :Task ;
+                    :taskName "${task.taskName}" ;
+                    :averageDuration ${task.averageDuration} ;
+                    :bed ${task.bed} .
             }
             WHERE {
-                :task_$taskName a :Task ;
-                    :taskName "$taskName" ;
-                    :averageDuration $averageDuration ;
-                    :bed $bed .
+                :task_${task.taskName} a :Task ;
+                    :taskName "${task.taskName}" ;
+                    :averageDuration ${task.averageDuration} ;
+                    :bed ${task.bed} .
             }
         """
 
