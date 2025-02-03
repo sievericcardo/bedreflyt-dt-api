@@ -1,0 +1,33 @@
+package no.uio.bedreflyt.api.model.live
+
+import jakarta.persistence.*
+import java.time.LocalDateTime
+
+class PatientHistoryData (
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "id")
+    var id: Long? = null,
+
+    @ManyToOne
+    @JoinColumn(name = "patient_id", referencedColumnName = "id")
+    var patientId : Patient,
+
+    @Column(name = "operation_id")
+    var operationId : String = "",
+
+    @Column(name = "operation_start")
+    var operationStart : LocalDateTime? = null,
+
+    @Column(name = "operation_end")
+    var operationEnd : LocalDateTime? = null,
+
+    @Column(name = "operation_length_days")
+    var operationLengthDays : Float = 0.0f,
+
+    @Column(name = "post_operation_bedtime_hours_category")
+    var postOperationBedtimeHoursCategory : Int = 0,
+
+    @Column(name = "lengh_stay_days_category")
+    var lengthStayDaysCategory : Int = 0,
+)
