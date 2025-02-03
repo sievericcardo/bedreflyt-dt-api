@@ -13,6 +13,9 @@ class PatientAllocation (
     @JoinColumn(name = "patient_id", referencedColumnName = "id")
     var patientId : Patient,
 
+    @Column(name = "acute")
+    var acute : Boolean = false,
+
     @Column(name = "main_diagnosis_code")
     var mainDiagnosisCode : String = "",
 
