@@ -1,6 +1,7 @@
 package no.uio.bedreflyt.api.model.live
 
 import jakarta.persistence.*
+import java.security.MessageDigest
 import java.time.LocalDateTime
 import java.time.Period
 
@@ -8,10 +9,6 @@ import java.time.Period
 @Table(name = "patient")
 class Patient (
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "id")
-    var id: Long? = null,
-
     @Column(name = "patient_id")
     var patientId : String = "",
 
@@ -21,17 +18,17 @@ class Patient (
     @Column(name = "patient_surname")
     var patientSurname : String = "",
 
+    @Column(name = "patient_address")
+    var patientAddress : String = "",
+
+    @Column(name = "patient_city")
+    var city : String = "",
+
     @Column(name = "patient_birthdate")
     var patientBirthdate : LocalDateTime? = null,
 
-    @Column(name = "acute")
-    var acute : Boolean = false,
-
     @Column(name = "gender")
     var gender : String = "",
-
-    @Column(name = "Oslo")
-    var oslo : Boolean = false,
 ) {
     fun computeAge(): Int {
         return if (patientBirthdate != null) {
@@ -39,5 +36,11 @@ class Patient (
         } else {
             0
         }
+    }
+
+    fun generatePatientId(birthdate: String): String {
+        val input = "${patientName}_${patientSurname}_${birthdate}"
+        val bytes = MessageDigest.getInstance("SHA-256").digest(input.toByteArray())
+        return bytes.joinToString("") { "%02x".format(it) }
     }
 }
