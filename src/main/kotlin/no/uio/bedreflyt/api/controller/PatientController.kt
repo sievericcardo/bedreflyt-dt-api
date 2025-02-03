@@ -20,36 +20,9 @@ import org.springframework.web.bind.annotation.RestController
 import io.swagger.v3.oas.annotations.parameters.RequestBody as SwaggerRequestBody
 import java.time.LocalDateTime
 import java.util.logging.Logger
-
-data class PatientRequest (
-    @NotBlank(message = "Patient ID is required")
-    val patientId : String,
-    val operationId : String = "",
-    @Pattern(regexp = "\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}", message = "Invalid date format")
-    val operationStart : String? = "",
-    @Pattern(regexp = "\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}", message = "Invalid date format")
-    val operationEnd : String? = "",
-    @Min(0, message = "Operation length must be non-negative")
-    val operationLengthDays : Float = 0.0f,
-    val acute : Boolean = false,
-    @NotBlank(message = "Gender is required")
-    val gender : String = "",
-    @Min(0, message = "Age must be non-negative")
-    val age : Int = 0,
-    val oslo : Boolean = false,
-    @NotBlank(message = "Main diagnosis code is required")
-    val mainDiagnosisCode : String = "",
-    @NotBlank(message = "Main diagnosis name is required")
-    val mainDiagnosisName : String = "",
-    val acuteCategory : Int = 0,
-    val careCategory : Int = 0,
-    val monitoringCategory : Int = 0,
-    val postOperationBedtimeHoursCategory : Int = 0,
-    val lengthStayDaysCategory : Int = 0,
-    val careId : String = "",
-    val infectious : Boolean = false,
-    val roomNumber: Int = 0
-)
+import no.uio.bedreflyt.api.types.PatientRequest
+import no.uio.bedreflyt.api.types.UpdatePatientRequest
+import no.uio.bedreflyt.api.types.DeletePatientRequest
 
 @RestController
 @RequestMapping("/api/patient")
@@ -71,31 +44,15 @@ class PatientController (
     fun createPatient(@SwaggerRequestBody(description = "Request to add a new patient") @RequestBody patientRequest: PatientRequest) : ResponseEntity<String> {
         log.info("Creating patient $patientRequest")
 
-        if (patientRequest.patientId.isEmpty()) {
-            return ResponseEntity.badRequest().body("Patient id is required")
-        }
-
         val patient = Patient(
-            patientId = patientRequest.patientId,
-            operationId = patientRequest.operationId,
-            operationStart = patientRequest.operationStart?.let { LocalDateTime.parse(it) },
-            operationEnd = patientRequest.operationEnd?.let { LocalDateTime.parse(it) },
-            operationLengthDays = patientRequest.operationLengthDays,
-            acute = patientRequest.acute,
-            gender = patientRequest.gender,
-            age = patientRequest.age,
-            oslo = patientRequest.oslo,
-            mainDiagnosisCode = patientRequest.mainDiagnosisCode,
-            mainDiagnosisName = patientRequest.mainDiagnosisName,
-            acuteCategory = patientRequest.acuteCategory,
-            careCategory = patientRequest.careCategory,
-            monitoringCategory = patientRequest.monitoringCategory,
-            postOperationBedtimeHoursCategory = patientRequest.postOperationBedtimeHoursCategory,
-            lengthStayDaysCategory = patientRequest.lengthStayDaysCategory,
-            careId = patientRequest.careId,
-            infectious = patientRequest.infectious,
-            roomNumber = patientRequest.roomNumber
+            patientName = patientRequest.patientName,
+            patientSurname = patientRequest.patientSurname,
+            patientAddress = patientRequest.patientAddress,
+            city = patientRequest.city,
+            patientBirthdate = patientRequest.patientBirthdate.let { LocalDateTime.parse(it) },
+            gender = patientRequest.gender
         )
+        patient.patientId = patient.generatePatientId(patientRequest.patientBirthdate)
 
         patientService.savePatient(patient)
 
@@ -111,33 +68,20 @@ class PatientController (
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
     @PatchMapping("/update")
-    fun updatePatient(@SwaggerRequestBody(description = "Request to update a patient") @RequestBody patientRequest: PatientRequest) : ResponseEntity<String> {
+    fun updatePatient(@SwaggerRequestBody(description = "Request to update a patient") @RequestBody patientRequest: UpdatePatientRequest) : ResponseEntity<String> {
         log.info("Updating patient")
 
         if (patientRequest.patientId.isEmpty()) {
             return ResponseEntity.badRequest().body("Patient information are required")
         }
 
-        val patient = Patient(
-            patientId = patientRequest.patientId,
-            operationId = patientRequest.operationId,
-            operationStart = patientRequest.operationStart?.let { LocalDateTime.parse(it) },
-            operationEnd = patientRequest.operationEnd?.let { LocalDateTime.parse(it) },
-            operationLengthDays = patientRequest.operationLengthDays,
-            acute = patientRequest.acute,
-            age = patientRequest.age,
-            oslo = patientRequest.oslo,
-            mainDiagnosisCode = patientRequest.mainDiagnosisCode,
-            mainDiagnosisName = patientRequest.mainDiagnosisName,
-            acuteCategory = patientRequest.acuteCategory,
-            careCategory = patientRequest.careCategory,
-            monitoringCategory = patientRequest.monitoringCategory,
-            postOperationBedtimeHoursCategory = patientRequest.postOperationBedtimeHoursCategory,
-            lengthStayDaysCategory = patientRequest.lengthStayDaysCategory,
-            careId = patientRequest.careId,
-            infectious = patientRequest.infectious,
-            roomNumber = patientRequest.roomNumber
-        )
+        val patient = patientService.findByPatientId(patientRequest.patientId) ?: return ResponseEntity.badRequest().body("Patient not found")
+        patient.patientName = patientRequest.patientName ?: patient.patientName
+        patient.patientSurname = patientRequest.patientSurname ?: patient.patientSurname
+        patient.patientAddress = patientRequest.patientAddress ?: patient.patientAddress
+        patient.city = patientRequest.city ?: patient.city
+        patient.patientBirthdate = patientRequest.patientBirthdate?.let { LocalDateTime.parse(it) } ?: patient.patientBirthdate
+        patient.gender = patientRequest.gender ?: patient.gender
 
         patientService.updatePatient(patient)
 
@@ -153,18 +97,15 @@ class PatientController (
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
     @DeleteMapping("/delete")
-    fun deletePatient(@SwaggerRequestBody(description = "Request to delete a patient") @RequestBody patientRequest: PatientRequest) : ResponseEntity<String> {
+    fun deletePatient(@SwaggerRequestBody(description = "Request to delete a patient") @RequestBody patientRequest: DeletePatientRequest) : ResponseEntity<String> {
         log.info("Deleting patient")
 
         if (patientRequest.patientId.isEmpty()) {
             return ResponseEntity.badRequest().body("Patient information are required")
         }
 
-        val patients = patientService.findByPatientId(patientRequest.patientId)
-
-        patients.forEach { patient ->
-            patientService.deletePatient(patient)
-        }
+        val patient = patientService.findByPatientId(patientRequest.patientId) ?: return ResponseEntity.badRequest().body("Patient not found")
+        patientService.deletePatient(patient)
 
         return ResponseEntity.ok("Patient deleted")
     }
