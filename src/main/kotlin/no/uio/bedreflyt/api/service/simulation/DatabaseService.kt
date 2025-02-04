@@ -3,6 +3,7 @@ package no.uio.bedreflyt.api.service.simulation
 import no.uio.bedreflyt.api.model.live.Patient
 import no.uio.bedreflyt.api.model.simulation.Room
 import no.uio.bedreflyt.api.model.triplestore.Task
+import no.uio.bedreflyt.api.service.live.PatientAllocationService
 import no.uio.bedreflyt.api.service.live.PatientService
 import no.uio.bedreflyt.api.service.triplestore.*
 import no.uio.bedreflyt.api.types.ScenarioRequest
@@ -16,6 +17,7 @@ import java.util.logging.Logger
 class DatabaseService (
     private val treatmentService: TreatmentService,
     private val patientService: PatientService,
+    private val patientAllocationService: PatientAllocationService,
     private val taskDependencyService: TaskDependencyService,
     private val taskService: TaskService,
     private val roomCategoryService: RoomCategoryService,
@@ -80,21 +82,16 @@ class DatabaseService (
         scenario.forEach { scenarioRequest ->
             scenarioRequest.patientId?.let { patientId ->
                 try {
-                    val patients = patientService.findByPatientId(patientId)
+                    val patient = patientService.findByPatientId(patientId) ?: throw IllegalArgumentException("Patient not found")
+                    val patientAllocation = patientAllocationService.findByPatientId(patient)
 
-                    if (patients.isNotEmpty()) {
-                        patientsList[patientId] = patients[0]
-                        patientsList[patientId]?.let { it.roomNumber = -1 }
-                        insertPatient(scenarioDbUrl, patients[0].patientId, patients[0].gender)
-                        insertPatientStatus(
-                            scenarioDbUrl,
-                            patients[0].patientId,
-                            patients[0].infectious,
-                            patients[0].roomNumber
-                        )
-                    } else {
-                        throw IllegalArgumentException("Patient not found")
-                    }
+                    insertPatient(scenarioDbUrl, patient.patientId, patient.gender)
+                    insertPatientStatus(
+                        scenarioDbUrl,
+                        patient.patientId,
+                        patientAllocation.contagious,
+                        patientAllocation.roomNumber
+                    )
                 } catch (e: EmptyResultDataAccessException) {
                     throw IllegalArgumentException("Patient not found")
                 }
