@@ -14,7 +14,7 @@ open class PatientAllocationService (
         return patientAllocationRepository.findAll()
     }
 
-    open fun findByPatientId(patientId: Patient): List<PatientAllocation> {
+    open fun findByPatientId(patientId: Patient): PatientAllocation {
         return patientAllocationRepository.findByPatientId(patientId)
     }
 
