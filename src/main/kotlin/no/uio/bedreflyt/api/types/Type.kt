@@ -34,7 +34,7 @@ data class SolverRequest(
     val room_distances: List<Long>,
     val no_patients: Int,
     val genders: List<Boolean>,
-    val infectious: List<Boolean>,
+    val contagious: List<Boolean>,
     val patient_distances: List<Int>,
     val previous: List<Int>,
     // options are c[hanges] to minimize number of room changes or
@@ -46,7 +46,7 @@ data class GlobalSolverRequest(
     val capacities: List<Int>,
     val room_distances: List<Long>,
     val genders: Map<String, Boolean>, // mapping from patientIds to gender (isMale)
-    val infectious: Map<String, Boolean>, // patientId -> infectious
+    val contagious: Map<String, Boolean>, // patientId -> contagious
     val patient_distances: List<Map<String, Int>>, // patient_distances[i][j] = c means patient j is in category c on day i
     // options are c[hanges] to minimize number of room changes or
     // m[ax] to minimize maximum number of patients per room
