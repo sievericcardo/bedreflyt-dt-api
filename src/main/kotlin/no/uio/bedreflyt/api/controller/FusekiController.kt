@@ -119,6 +119,9 @@ class FusekiController (
         val uploadResponse = makePostRequest(uploadUrl, uploadHeaders, ontologyData)
         println(uploadResponse)
 
+        val path = "bedreflyt.ttl"
+        modelFile.transferTo(File(path))
+
         return ResponseEntity.ok("Model uploaded")
     }
 }
