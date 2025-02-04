@@ -1,6 +1,7 @@
 package no.uio.bedreflyt.api.service.live
 
 import jakarta.transaction.Transactional
+import no.uio.bedreflyt.api.model.live.Patient
 import no.uio.bedreflyt.api.model.live.PatientHistoryData
 import no.uio.bedreflyt.api.repository.live.PatientHistoryDataRepository
 import org.springframework.stereotype.Service
@@ -14,7 +15,7 @@ open class PatientHistoryDataService (
         return patientHistoryDataRepository.findAll()
     }
 
-    open fun findByPatientId(patientId: String): List<PatientHistoryData> {
+    open fun findByPatientId(patientId: Patient): List<PatientHistoryData> {
         return patientHistoryDataRepository.findByPatientId(patientId)
     }
 

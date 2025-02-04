@@ -1,6 +1,7 @@
 package no.uio.bedreflyt.api.service.live
 
 import jakarta.transaction.Transactional
+import no.uio.bedreflyt.api.model.live.Patient
 import no.uio.bedreflyt.api.model.live.PatientAllocation
 import no.uio.bedreflyt.api.repository.live.PatientAllocationRepository
 import org.springframework.stereotype.Service
@@ -13,7 +14,7 @@ open class PatientAllocationService (
         return patientAllocationRepository.findAll()
     }
 
-    open fun findByPatientId(patientId: String): List<PatientAllocation> {
+    open fun findByPatientId(patientId: Patient): List<PatientAllocation> {
         return patientAllocationRepository.findByPatientId(patientId)
     }
 
