@@ -1,16 +1,16 @@
 package no.uio.bedreflyt.api.model.live
 
 import jakarta.persistence.*
-import java.security.MessageDigest
 import java.time.LocalDateTime
 import java.time.Period
+import java.util.UUID
 
 @Entity
 @Table(name = "patient")
 class Patient (
     @Id
-    @Column(name = "patient_id")
-    var patientId : String = "",
+    @Column(name = "patient_id", unique = true)
+    var patientId : String = UUID.randomUUID().toString(),
 
     @Column(name = "patient_name")
     var patientName : String = "",
@@ -36,11 +36,5 @@ class Patient (
         } else {
             0
         }
-    }
-
-    fun generatePatientId(birthdate: String): String {
-        val input = "${patientName}_${patientSurname}_${birthdate}"
-        val bytes = MessageDigest.getInstance("SHA-256").digest(input.toByteArray())
-        return bytes.joinToString("") { "%02x".format(it) }
     }
 }

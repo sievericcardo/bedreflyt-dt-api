@@ -43,7 +43,6 @@ class PatientController (
             patientBirthdate = patientRequest.patientBirthdate.let { LocalDateTime.parse(it) },
             gender = patientRequest.gender
         )
-        patient.patientId = patient.generatePatientId(patientRequest.patientBirthdate)
 
         patientService.savePatient(patient)
 
