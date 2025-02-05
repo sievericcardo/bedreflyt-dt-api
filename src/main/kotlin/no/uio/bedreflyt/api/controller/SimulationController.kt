@@ -3,6 +3,10 @@ package no.uio.bedreflyt.api.controller
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.responses.ApiResponses
+import no.uio.bedreflyt.api.model.live.Patient
+import no.uio.bedreflyt.api.model.live.PatientAllocation
+import no.uio.bedreflyt.api.service.live.PatientAllocationService
+import no.uio.bedreflyt.api.service.live.PatientService
 import no.uio.bedreflyt.api.service.simulation.DatabaseService
 import no.uio.bedreflyt.api.types.*
 import no.uio.bedreflyt.api.utils.Simulator
@@ -19,7 +23,9 @@ import kotlin.random.Random
 @RequestMapping("/api/simulation")
 class SimulationController(
     private val databaseService: DatabaseService,
-    private val simulator: Simulator
+    private val simulator: Simulator,
+    private val patientAllocationService: PatientAllocationService,
+    private val patientService: PatientService
 ) {
 
     private val log: Logger = Logger.getLogger(SimulationController::class.java.name)
@@ -37,7 +43,7 @@ class SimulationController(
             ApiResponse(responseCode = "500", description = "Internal server error")
         ]
     )
-    @PostMapping("/room-allocation-smol")
+    @PostMapping("/simulate")
     fun simulateSmolScenario(@SwaggerRequestBody(description = "Request to execute a simulation for room allocation") @RequestBody simulationRequest: SimulationRequest): ResponseEntity<SimulationResponse> {
         log.info("Simulating scenario with ${simulationRequest.scenario.size} requests")
 
@@ -47,14 +53,23 @@ class SimulationController(
         val bedreflytDB = tempDir.resolve("bedreflyt.db").toString()
         databaseService.createTables(bedreflytDB)
 
-        val roomDistributions = databaseService.createAndPopulateRooms(bedreflytDB)
-        val patients = databaseService.createAndPopulatePatientTables(bedreflytDB, simulationRequest.scenario, simulationRequest.mode)
+        val rooms = databaseService.createAndPopulateRooms(bedreflytDB)
+        val patients : Map<String, Patient> = databaseService.createAndPopulatePatientTables(bedreflytDB, simulationRequest.scenario, simulationRequest.mode)
+        val allocations : MutableMap<Patient, PatientAllocation> = mutableMapOf()
+        patients.forEach { (_, patient) ->
+            val allocation = patientAllocationService.findByPatientId(patient)
+            allocations[patient] = allocation
+        }
+
         databaseService.createAndPopulateTreatmentTables(bedreflytDB)
         databaseService.createTreatmentView(bedreflytDB)
 
         log.info("Tables populated, invoking ABS with ${simulationRequest.scenario.size} requests")
 
-        val sim = simulator.simulate(patients, roomDistributions, tempDir, simulationRequest.smtMode)
+//        val sim = simulator.simulate(patients, roomDistributions, tempDir, simulationRequest.smtMode)
+        val simulationNeeds = simulator.computeDailyNeeds(tempDir) ?: throw Exception("Could not compute daily needs")
+        val sim = simulator.simulate(simulationNeeds, patients, allocations, rooms, tempDir, simulationRequest.smtMode)
+
         Files.walk(tempDir)
             .sorted(Comparator.reverseOrder())
             .forEach(Files::delete)
@@ -62,7 +77,7 @@ class SimulationController(
         return ResponseEntity.ok(sim)
     }
 
-    @PostMapping("/room-allocation-global")
+    @PostMapping("/simulate-global")
     fun allocateGlobal(
         @SwaggerRequestBody(description = "Simulate a scenario, but return global solution")
         @RequestBody simulationRequest: SimulationRequest
@@ -83,7 +98,9 @@ class SimulationController(
 
         log.info("Tables populated, invoking ABS with ${simulationRequest.scenario.size} requests")
 
-        val sim = simulator.globalSolution(patients, roomDistributions, tempDir, simulationRequest.smtMode)
+        val needs = simulator.computeDailyNeeds(tempDir) ?: throw Exception("Could not compute daily needs")
+
+        val sim = simulator.globalSolution(needs, patients, roomDistributions, tempDir, simulationRequest.smtMode)
         Files.walk(tempDir)
             .sorted(Comparator.reverseOrder())
             .forEach(Files::delete)
@@ -100,7 +117,7 @@ class SimulationController(
         val tempDir: Path = Files.createTempDirectory("simulation_$uniqueID")
         val bedreflytDB = tempDir.resolve("bedreflyt.db").toString()
         databaseService.createTables(bedreflytDB)
-        val roomDistributions = databaseService.createAndPopulateRooms(bedreflytDB)
+        val rooms = databaseService.createAndPopulateRooms(bedreflytDB)
         databaseService.createAndPopulateTreatmentTables(bedreflytDB)
         databaseService.createTreatmentView(bedreflytDB)
 
@@ -109,8 +126,15 @@ class SimulationController(
         for (i in 1.. (if (simulationRequest.risk == 0.0) 1 else simulationRequest.repetitions)) {
             val mode = if (Random.nextDouble() <= simulationRequest.risk) "sample" else "worst"
             val patients = databaseService.createAndPopulatePatientTables(bedreflytDB, simulationRequest.scenario, mode)
+            val allocations : MutableMap<Patient, PatientAllocation> = mutableMapOf()
+            patients.forEach { (_, patient) ->
+                val allocation = patientAllocationService.findByPatientId(patient)
+                allocations[patient] = allocation
+            }
+
             log.info("Run $i / ${simulationRequest.repetitions}:\n\tPatient table populated, invoking ABS with ${simulationRequest.scenario.size} requests")
-            runs.add(simulator.simulate(patients, roomDistributions, tempDir, simulationRequest.smtMode))
+            val needs = simulator.computeDailyNeeds(tempDir) ?: throw Exception("Could not compute daily needs")
+            runs.add(simulator.simulate(needs, patients, allocations, rooms, tempDir, simulationRequest.smtMode))
             databaseService.clearTable(bedreflytDB, "scenario")
         }
 
