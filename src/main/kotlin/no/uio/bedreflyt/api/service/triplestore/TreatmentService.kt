@@ -6,6 +6,9 @@ import no.uio.bedreflyt.api.model.triplestore.Treatment
 import org.apache.jena.query.ResultSet
 import org.apache.jena.update.UpdateExecutionFactory
 import org.apache.jena.update.UpdateFactory
+import org.springframework.cache.annotation.CacheEvict
+import org.springframework.cache.annotation.CachePut
+import org.springframework.cache.annotation.Cacheable
 import org.springframework.stereotype.Service
 import kotlin.random.Random
 
@@ -21,6 +24,7 @@ class TreatmentService (
     private val ttlPrefix = triplestoreProperties.ttlPrefix
     private val repl = replConfig.repl()
 
+    @CachePut("treatments", key = "#treatmentId + '_' + #diagnosis")
     fun createTreatment (treatmentId: String, diagnosis: String, frequency: Double, weight: Double) : Boolean {
         val query = """
             PREFIX : <$prefix>
@@ -46,6 +50,7 @@ class TreatmentService (
         }
     }
 
+    @Cacheable("treatments")
     fun getAllTreatments() : List<Treatment>? {
         val treatments: MutableList<Treatment> = mutableListOf()
 
@@ -77,6 +82,7 @@ class TreatmentService (
         return treatments
     }
 
+    @Cacheable("treatments", key = "#diagnosis")
     fun getAllTreatmentsByDiagnosis(diagnosis: String) : List<Treatment> {
         val treatments: MutableList<Treatment> = mutableListOf()
 
@@ -104,6 +110,7 @@ class TreatmentService (
         return treatments
     }
 
+    @Cacheable("treatments", key = "#treatment")
     fun getTreatmentById(treatment: String) : Treatment? {
         val query = """
             SELECT DISTINCT ?diagnosis ?frequency ?weight WHERE {
@@ -129,6 +136,7 @@ class TreatmentService (
         return Treatment(treatment, diagnosis, frequency, weight)
     }
 
+    @Cacheable("treatments", key = "#diagnosis + '_' + #treatment")
     fun getTreatmentByTreamentDiagnosis (diagnosis: String, treatment: String) : Treatment? {
         val query = """
             SELECT DISTINCT ?frequency ?weight WHERE {
@@ -193,6 +201,8 @@ class TreatmentService (
         }
     }
 
+    @CacheEvict(value = ["treatments"], key = "#treatment.treatmentId + '_' + #treatment.diagnosis")
+    @CachePut(value = ["treatments"], key = "#treatment.treatmentId + '_' + #treatment.diagnosis")
     fun updateTreatment(treatment: Treatment, newFrequency: Double, newWeight: Double) : Boolean {
         val query = """
             PREFIX : <$prefix>
@@ -232,6 +242,7 @@ class TreatmentService (
         }
     }
 
+    @CacheEvict(value = ["treatments"], key = "#treatment.treatmentId + '_' + #treatment.diagnosis")
     fun deleteTreatment(treatment: Treatment) : Boolean {
         val query = """
             PREFIX : <$prefix>
