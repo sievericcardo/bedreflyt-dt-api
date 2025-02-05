@@ -17,10 +17,10 @@ class PatientAllocation (
     var acute : Boolean = false,
 
     @Column(name = "main_diagnosis_code")
-    var mainDiagnosisCode : String = "",
+    var diagnosisCode : String = "",
 
     @Column(name = "main_diagnosis_name")
-    var mainDiagnosisName : String = "",
+    var diagnosisName : String = "",
 
     @Column(name = "acute_category")
     var acuteCategory : Int = 0,
@@ -32,7 +32,7 @@ class PatientAllocation (
     var monitoringCategory : Int = 0,
 
     @Column(name = "care_id")
-    var careId : String = "",
+    var careId : Int = 0,
 
     @Column(name = "contagious")
     var contagious : Boolean = false,
