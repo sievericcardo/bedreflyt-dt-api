@@ -14,8 +14,9 @@ data class RoomInfo(
 )
 
 typealias SingleRoom = String
-
 typealias Allocation = Map<SingleRoom, RoomInfo?>
+typealias DailyNeeds = List<Pair<Patient, Int>>
+typealias SimulationNeeds = List<DailyNeeds>
 
 data class SimulationResponse(
     val allocations: List<List<Allocation>>,
