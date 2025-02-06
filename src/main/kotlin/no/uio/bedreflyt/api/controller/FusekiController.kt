@@ -4,6 +4,9 @@ import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.responses.ApiResponses
 import no.uio.bedreflyt.api.config.EnvironmentConfig
+import no.uio.bedreflyt.api.config.REPLConfig
+import no.uio.microobject.ast.expr.LiteralExpr
+import no.uio.microobject.type.STRINGTYPE
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.GetMapping
 import io.swagger.v3.oas.annotations.parameters.RequestBody as SwaggerRequestBody
@@ -20,7 +23,8 @@ import java.util.logging.Logger
 @RestController
 @RequestMapping("/api/fuseki")
 class FusekiController (
-    private val environmentConfig: EnvironmentConfig
+    private val environmentConfig: EnvironmentConfig,
+    private val replConfig: REPLConfig
 ) {
 
     private val log : Logger = Logger.getLogger(FusekiController::class.java.name)
@@ -118,6 +122,14 @@ class FusekiController (
 
         val uploadResponse = makePostRequest(uploadUrl, uploadHeaders, ontologyData)
         println(uploadResponse)
+
+        val repl = replConfig.repl()
+        repl.interpreter!!.tripleManager.regenerateTripleStoreModel()
+        repl.interpreter!!.evalCall(
+            repl.interpreter!!.getObjectNames("AssetModel")[0],
+            "AssetModel",
+            "reconfigure"
+        )
 
         return ResponseEntity.ok("Model uploaded")
     }
