@@ -3,6 +3,8 @@ package no.uio.bedreflyt.api.model.live
 import jakarta.persistence.*
 import java.time.LocalDateTime
 
+@Entity
+@Table(name = "patient_allocation")
 class PatientAllocation (
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
