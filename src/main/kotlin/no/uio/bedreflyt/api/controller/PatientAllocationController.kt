@@ -65,7 +65,7 @@ class PatientAllocationController (
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
     @GetMapping("/retrieve")
-    fun retrievePatientAllocations() : ResponseEntity<MutableList<PatientAllocation?>> {
+    fun retrievePatientAllocations() : ResponseEntity<List<PatientAllocation>?> {
         log.info("Retrieving all patient allocations")
 
         val patientAllocations = patientAllocationService.findAll()
@@ -108,7 +108,7 @@ class PatientAllocationController (
         log.info("Updating patient allocation")
 
         val patient = patientService.findByPatientId(updatedPatientAllocation.patientId) ?: return ResponseEntity.badRequest().body("Patient not found")
-        val currentAllocation = patientAllocationService.findByPatientId(patient)
+        val currentAllocation = patientAllocationService.findByPatientId(patient) ?: return ResponseEntity.badRequest().body("Patient allocation not found")
         val patientAllocation = PatientAllocation(
             patientId = patient,
             acute = updatedPatientAllocation.newAcute ?: currentAllocation.acute,
@@ -140,7 +140,7 @@ class PatientAllocationController (
         log.info("Deleting patient allocation")
 
         val patient = patientService.findByPatientId(patientAllocation.patientId) ?: return ResponseEntity.badRequest().body("Patient not found")
-        val allocation = patientAllocationService.findByPatientId(patient)
+        val allocation = patientAllocationService.findByPatientId(patient) ?: return ResponseEntity.badRequest().body("Patient allocation not found")
         patientAllocationService.deletePatientAllocation(allocation)
 
         return ResponseEntity.ok("Patient allocation deleted")
