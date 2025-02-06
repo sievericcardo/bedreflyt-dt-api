@@ -4,6 +4,7 @@ import no.uio.bedreflyt.api.model.live.Patient
 import no.uio.bedreflyt.api.model.live.PatientTrajectory
 import no.uio.bedreflyt.api.repository.live.PatientTrajectoryRepository
 import org.springframework.stereotype.Service
+import java.time.LocalDate
 
 @Service
 open class PatientTrajectoryService (
@@ -27,5 +28,15 @@ open class PatientTrajectoryService (
 
     open fun deletePatientTrajectory(patientTrajectory: PatientTrajectory) {
         patientTrajectoryRepository.delete(patientTrajectory)
+    }
+
+    open fun deleteExpiredTrajectory() {
+        val trajectories = patientTrajectoryRepository.findAll()
+        // for each check if the date is expired
+        trajectories.forEach { trajectory ->
+            if (trajectory.date.isBefore(LocalDate.now())) {
+                patientTrajectoryRepository.delete(trajectory)
+            }
+        }
     }
 }
