@@ -341,7 +341,7 @@ class Simulator (
                 }
                 if (dayMap.isNotEmpty()) { days.add(dayMap) }
             }
-            val solverResponse = invokeGlobal(days, rooms, "changes")
+            val solverResponse = invokeGlobal(days, rooms, smtMode)
             return solverResponse?: "error"
         } catch (e: Exception) {
             "Error executing JAR: ${e.message}"

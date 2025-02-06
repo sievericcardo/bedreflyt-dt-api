@@ -62,8 +62,8 @@ data class SolverResponse(
 // the naming is a bit awkward since "SimulationRequest/Response" already exists
 data class MultiSimulationRequest(
     val scenario: List<ScenarioRequest>,
-    val repetitions: Int = 10,
-    val risk: Double = 0.5,
+    val repetitions: Int,
+    val risk: Double,
     val smtMode: String = "changes"
 )
 
