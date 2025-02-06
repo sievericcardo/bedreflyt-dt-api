@@ -89,8 +89,8 @@ class DatabaseService (
                     insertPatientStatus(
                         scenarioDbUrl,
                         patient.patientId,
-                        patientAllocation.contagious,
-                        patientAllocation.roomNumber
+                        patientAllocation?.contagious ?: false,
+                        patientAllocation?.roomNumber ?: -1
                     )
                 } catch (e: EmptyResultDataAccessException) {
                     throw IllegalArgumentException("Patient not found")
