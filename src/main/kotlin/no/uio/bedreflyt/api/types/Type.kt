@@ -15,8 +15,10 @@ data class RoomInfo(
 
 typealias SingleRoom = String
 typealias Allocation = Map<SingleRoom, RoomInfo?>
-typealias DailyNeeds = List<Pair<Patient, Int>>
+typealias DailyNeeds = MutableList<Pair<Patient, Int>>
 typealias SimulationNeeds = List<DailyNeeds>
+typealias AllocationRequest = SimulationRequest
+typealias AllocationResponse = SimulationResponse
 
 data class SimulationResponse(
     val allocations: List<List<Allocation>>,
@@ -25,8 +27,8 @@ data class SimulationResponse(
 
 data class ScenarioRequest(
     val batch: Int,
-    val patientId: String?,
-    val diagnosis: String?
+    val patientId: String,
+    val diagnosis: String
 )
 
 data class SolverRequest(
