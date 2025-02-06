@@ -112,23 +112,24 @@ class TaskService (
     fun updateTask(task: Task, newAverageDuration: Double, newBed: Int) : Boolean {
         val query = """
             PREFIX : <$prefix>
+            PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
             
             DELETE {
                 :task_${task.taskName} a :Task ;
                     :taskName "${task.taskName}" ;
-                    :averageDuration ${task.averageDuration} ;
+                    :averageDuration "${task.averageDuration}"^^xsd:double ;
                     :bed ${task.bed} .
             }
             INSERT {
                 :task_${task.taskName} a :Task ;
                     :taskName "${task.taskName}" ;
-                    :averageDuration $newAverageDuration ;
+                    :averageDuration "$newAverageDuration"^^xsd:double ;
                     :bed $newBed .
             }
             WHERE {
                :task_${task.taskName} a :Task ;
                     :taskName "${task.taskName}" ;
-                    :averageDuration ${task.averageDuration} ;
+                    :averageDuration "${task.averageDuration}"^^xsd:double ;
                     :bed ${task.bed} .
             }
         """
@@ -149,17 +150,18 @@ class TaskService (
     fun deleteTask(task: Task) : Boolean {
         val query = """
             PREFIX : <$prefix>
+            PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
             
             DELETE {
                 :task_${task.taskName} a :Task ;
                     :taskName "${task.taskName}" ;
-                    :averageDuration ${task.averageDuration} ;
+                    :averageDuration "${task.averageDuration}"^^xsd:double ;
                     :bed ${task.bed} .
             }
             WHERE {
                 :task_${task.taskName} a :Task ;
                     :taskName "${task.taskName}" ;
-                    :averageDuration ${task.averageDuration} ;
+                    :averageDuration "${task.averageDuration}"^^xsd:double ;
                     :bed ${task.bed} .
             }
         """
