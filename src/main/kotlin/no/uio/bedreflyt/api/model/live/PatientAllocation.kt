@@ -18,10 +18,10 @@ class PatientAllocation (
     @Column(name = "acute")
     var acute : Boolean = false,
 
-    @Column(name = "main_diagnosis_code")
+    @Column(name = "diagnosis_code")
     var diagnosisCode : String = "",
 
-    @Column(name = "main_diagnosis_name")
+    @Column(name = "diagnosis_name")
     var diagnosisName : String = "",
 
     @Column(name = "acute_category")
@@ -39,6 +39,6 @@ class PatientAllocation (
     @Column(name = "contagious")
     var contagious : Boolean = false,
 
-    @Column(name = "roomNumber")
+    @Column(name = "room_number")
     var roomNumber : Int = -1,
 )

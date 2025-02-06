@@ -27,9 +27,9 @@ class PatientHistoryData (
     @Column(name = "operation_length_days")
     var operationLengthDays : Float = 0.0f,
 
-    @Column(name = "post_operation_bedtime_hours_category")
+    @Column(name = "postop_bedhours_cat")
     var postOperationBedtimeHoursCategory : Int = 0,
 
-    @Column(name = "lengh_stay_days_category")
+    @Column(name = "lengh_stay_cat")
     var lengthStayDaysCategory : Int = 0,
 )
