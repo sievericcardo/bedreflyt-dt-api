@@ -46,7 +46,7 @@ class Simulator (
                 val patientId = patientData[0]
                 val patientDistance = patientData[1]
                 Pair(patientService.findByPatientId(patientId)!!, patientDistance.toInt())
-            }
+            }.toMutableList()
         }
     }
 
