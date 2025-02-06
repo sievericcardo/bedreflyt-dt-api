@@ -64,7 +64,7 @@ class RoomModel extends KindModel()
                 List<Room> lx = wrongRooms;
                 wrongRooms = wrongRooms.next;
 
-                print("RECONFIG> Misconfigured room distribution to remove: ");
+                print("RECONFIG> Misconfigured room to remove: ");
                 print("          Room Number: " ++ intToString(wrongRoom.roomNumber));
                 print("          Room Number Model: " ++ intToString(wrongRoom.roomNumberModel));
                 print("          Room: " ++ intToString(wrongRoom.roomCategory));
@@ -74,8 +74,6 @@ class RoomModel extends KindModel()
                 destroy(wrongRoom);
                 destroy(lx);
             end
-
-            destroy(wrongRooms);
 
             print("RECONFIG> Room(s) removed");
         end

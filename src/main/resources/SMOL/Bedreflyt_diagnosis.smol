@@ -55,8 +55,6 @@ class DiagnosisModel extends KindModel()
                 destroy(lx);
             end
 
-            destroy(wrongDiagnoses);
-
             print("RECONFIG> Diagnosis(es) removed");
         end
     end
