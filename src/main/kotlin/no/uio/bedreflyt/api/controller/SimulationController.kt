@@ -114,6 +114,7 @@ class SimulationController(
                     val patientsWC = databaseService.createAndPopulatePatientTables(bedreflytDB, simulationRequest.scenario, "worst")
                     worstCase = simulator.simulate(patientsWC, roomDistributions, tempDir, simulationRequest.smtMode)
                     databaseService.clearTable(bedreflytDB, "scenario")
+                    runs.add(worstCase)
                 } else {
                     log.info("Å: Run $i / ${simulationRequest.repetitions}:\tReusing worst case")
                     runs.add(worstCase)
@@ -133,6 +134,7 @@ class SimulationController(
             .sorted(Comparator.reverseOrder())
             .forEach(Files::delete)
 
+        log.info("Å: returning $runs")
         return ResponseEntity.ok(runs.toList())
     }
 }
