@@ -11,11 +11,11 @@ open class PatientHistoryDataService (
     private val patientHistoryDataRepository: PatientHistoryDataRepository
 ) {
 
-    open fun findAll(): MutableList<PatientHistoryData?> {
+    open fun findAll(): MutableList<PatientHistoryData>? {
         return patientHistoryDataRepository.findAll()
     }
 
-    open fun findByPatientId(patientId: Patient): List<PatientHistoryData> {
+    open fun findByPatientId(patientId: Patient): List<PatientHistoryData>? {
         return patientHistoryDataRepository.findByPatientId(patientId)
     }
 

@@ -10,11 +10,11 @@ import org.springframework.stereotype.Service
 open class PatientAllocationService (
     private val patientAllocationRepository: PatientAllocationRepository
 ) {
-    open fun findAll(): MutableList<PatientAllocation?> {
+    open fun findAll(): MutableList<PatientAllocation>? {
         return patientAllocationRepository.findAll()
     }
 
-    open fun findByPatientId(patientId: Patient): PatientAllocation {
+    open fun findByPatientId(patientId: Patient): PatientAllocation? {
         return patientAllocationRepository.findByPatientId(patientId)
     }
 

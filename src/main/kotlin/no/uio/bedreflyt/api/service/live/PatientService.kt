@@ -11,7 +11,7 @@ import org.springframework.stereotype.Service
 open class PatientService (
     private val patientRepository: PatientRepository
 ) {
-    open fun findAll(): List<Patient?> {
+    open fun findAll(): List<Patient>? {
         return patientRepository.findAll()
     }
 
