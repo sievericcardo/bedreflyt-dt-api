@@ -57,7 +57,7 @@ class SimulationController(
         val patients : Map<String, Patient> = databaseService.createAndPopulatePatientTables(bedreflytDB, simulationRequest.scenario, simulationRequest.mode)
         val allocations : MutableMap<Patient, PatientAllocation> = mutableMapOf()
         patients.forEach { (_, patient) ->
-            val allocation = patientAllocationService.findByPatientId(patient)
+            val allocation = PatientAllocation(patientId = patient, acute = false, diagnosisCode = "", diagnosisName = "", acuteCategory = 0, careCategory = 0, monitoringCategory = 0, careId = 0, contagious = false, roomNumber = -1)
             allocations[patient] = allocation
         }
 
@@ -128,7 +128,7 @@ class SimulationController(
             val patients = databaseService.createAndPopulatePatientTables(bedreflytDB, simulationRequest.scenario, mode)
             val allocations : MutableMap<Patient, PatientAllocation> = mutableMapOf()
             patients.forEach { (_, patient) ->
-                val allocation = patientAllocationService.findByPatientId(patient)
+                val allocation = PatientAllocation(patientId = patient, acute = false, diagnosisCode = "", diagnosisName = "", acuteCategory = 0, careCategory = 0, monitoringCategory = 0, careId = 0, contagious = false, roomNumber = -1)
                 allocations[patient] = allocation
             }
 
