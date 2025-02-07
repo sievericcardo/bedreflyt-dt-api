@@ -64,11 +64,13 @@ class TaskDependencyModel extends KindModel ()
                 TaskDependency wrongTaskDep = wrongTaskDeps.content;
                 List<TaskDependency> lx = wrongTaskDeps;
                 wrongTaskDeps = wrongTaskDeps.next;
-                destroy(lx);
 
                 print("RECONFIG> Misconfigured task dependency to remove: ");
                 print("          Task Name: " ++ wrongTaskDep.taskName);
                 print("          Task Dependency: " ++ wrongTaskDep.taskDependency);
+
+                destroy(wrongTaskDep);
+                destroy(lx);
             end
         end
     end

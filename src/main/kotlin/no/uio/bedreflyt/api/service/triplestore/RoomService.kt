@@ -9,6 +9,9 @@ import org.apache.jena.update.UpdateExecutionFactory
 import org.apache.jena.update.UpdateFactory
 import org.apache.jena.update.UpdateProcessor
 import org.apache.jena.update.UpdateRequest
+import org.springframework.cache.annotation.CacheEvict
+import org.springframework.cache.annotation.CachePut
+import org.springframework.cache.annotation.Cacheable
 import org.springframework.stereotype.Service
 
 @Service
@@ -22,6 +25,7 @@ class RoomService (
     private val ttlPrefix = triplestoreProperties.ttlPrefix
     private val repl = replConfig.repl()
 
+    @CachePut("rooms", key = "#roomNumber")
     fun createRoom(roomNumber: Int, roomNumberModel: Int, room: Long, capacity: Int, bathroom: Int) : Boolean {
         val query = """
             PREFIX : <$prefix>
@@ -48,6 +52,7 @@ class RoomService (
         }
     }
 
+    @Cacheable("rooms")
     fun getAllRooms() : List<Room>? {
         val rooms: MutableList<Room> = mutableListOf()
 
@@ -80,6 +85,7 @@ class RoomService (
         return rooms
     }
 
+    @Cacheable("rooms", key = "#roomNumber")
     fun getRoomByRoomNumber(roomNumber: Int): Room? {
         val query = """
             SELECT DISTINCT ?roomNumber ?roomNumberModel ?roomCategory ?capacity ?bathroom WHERE {
@@ -105,6 +111,8 @@ class RoomService (
         return Room(roomNumber, roomNumberModel, room, capacity, bathBool)
     }
 
+    @CacheEvict(value = ["rooms"])
+    @CachePut(value = ["rooms"])
     fun updateRoom(room: Room, newRoomNumberModel: Int, newRoom: Long, newCapacity: Int, newBathroom: Int) : Boolean {
         val bathroom = if (room.bathroom) 1 else 0
         val query = """
@@ -148,6 +156,7 @@ class RoomService (
         }
     }
 
+    @CacheEvict(value = ["rooms"], key = "#roomNumber")
     fun deleteRoom(roomNumber: Int) : Boolean {
         val room = getRoomByRoomNumber(roomNumber) ?: return true
         val bathroom = if (room.bathroom) 1 else 0

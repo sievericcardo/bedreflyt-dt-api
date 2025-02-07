@@ -69,45 +69,9 @@ class TaskModel extends KindModel ()
 
     override Unit adaptDefect()
         print("RECONFIG> Checking for defects in the Task(s)");
-        // this.checkNameChanged();
         this.checkBedChanged();
-        // this.checkDurationChanged();
+        this.checkDurationChanged();
         print("RECONFIG> Defects checked for the Task(s)");
-    end
-
-    Unit checkNameChanged()
-        List<TaskDefectName> taskDefectNames = construct("
-            PREFIX ast: <http://www.smolang.org/bedreflyt#>
-            SELECT DISTINCT ?obj ?taskNameNew {
-                ?obj a prog:Task ;
-                    prog:Task_taskName ?taskName ;
-                    prog:Task_bed ?bed ;
-                    prog:Task_durationAverage ?durationAverage .
-                ?y a ast:Task ;
-                    ast:taskName ?taskNameNew ;
-                    ast:bed ?bed ;
-                    ast:averageDuration ?durationAverage .
-                FILTER (?taskName != ?taskNameNew)
-            }");
-
-        if taskDefectNames != null then
-            print("RECONFIG> Task(s) with name defect detected: repairing the model");
-            while taskDefectNames != null do
-                TaskDefectName taskDefectName = taskDefectNames.content;
-                List<TaskDefectName> lx = taskDefectNames;
-                taskDefectNames = taskDefectNames.next;
-                destroy(lx);
-
-                print("RECONFIG> Task with name defect detected: ");
-                print("          Task: " ++ taskDefectName.obj.taskName);
-                print("          New Task Name: " ++ taskDefectName.taskNameNew);
-
-                // Repair the defect
-                taskDefectName.obj.taskName = taskDefectName.taskNameNew;
-            end
-
-            print("RECONFIG> Task(s) with name defect repaired");
-        end
     end
 
     Unit checkBedChanged()

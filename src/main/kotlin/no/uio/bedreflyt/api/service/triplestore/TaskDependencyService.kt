@@ -9,6 +9,9 @@ import org.apache.jena.update.UpdateExecutionFactory
 import org.apache.jena.update.UpdateFactory
 import org.apache.jena.update.UpdateProcessor
 import org.apache.jena.update.UpdateRequest
+import org.springframework.cache.annotation.CacheEvict
+import org.springframework.cache.annotation.CachePut
+import org.springframework.cache.annotation.Cacheable
 import org.springframework.stereotype.Service
 
 @Service
@@ -23,6 +26,7 @@ class TaskDependencyService (
     private val ttlPrefix = triplestoreProperties.ttlPrefix
     private val repl = replConfig.repl()
 
+    @CachePut("taskDependencies", key = "#taskName + '_' + #diagnosis + '_' + #treatment")
     fun createTaskDependency(treatment: String, diagnosis: String, taskName: String, dependencyName: String) : Boolean {
         val query = """
             PREFIX : <$prefix>
@@ -48,6 +52,7 @@ class TaskDependencyService (
         }
     }
 
+    @Cacheable("taskDependencies")
     fun getAllTaskDependencies() : List<TaskDependency>? {
         val taskDependencies: MutableList<TaskDependency> = mutableListOf()
 
@@ -79,6 +84,7 @@ class TaskDependencyService (
         return taskDependencies
     }
 
+    @Cacheable("taskDependencies", key ="#treatment")
     fun getTaskDependenciesByTreatment(treatment: String) : List<TaskDependency>? {
         val taskDependencies: MutableList<TaskDependency> = mutableListOf()
 
@@ -109,6 +115,7 @@ class TaskDependencyService (
         return taskDependencies
     }
 
+    @Cacheable("taskDependencies", key = "#treatment + '_' + #diagnosis")
     fun getTaskDependenciesByTreatmentAndDiagnosis(treatment: String, diagnosis: String) : List<TaskDependency>? {
         val taskDependencies: MutableList<TaskDependency> = mutableListOf()
 
@@ -138,6 +145,8 @@ class TaskDependencyService (
         return taskDependencies
     }
 
+    @CacheEvict(value = ["taskDependencies"], key = "#treatment + '_' + #diagnosis + '_' + #taskName")
+    @CachePut("taskDependencies", key = "#treatment + '_' + #diagnosis + '_' + #taskName")
     fun updateTaskDependency(treatment: String, diagnosis: String, taskName: String, oldDependencyName: String, newDependencyName: String) : Boolean {
         val query = """
             PREFIX : <$prefix>
@@ -177,6 +186,7 @@ class TaskDependencyService (
         }
     }
 
+    @CacheEvict(value = ["taskDependencies"], key = "#treatment + '_' + #diagnosis + '_' + #taskName")
     fun deleteTaskDependency(treatment: String, diagnosis: String, taskName: String, taskToWait: String) : Boolean {
         val query = """
             PREFIX : <$prefix>

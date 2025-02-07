@@ -9,6 +9,9 @@ import org.apache.jena.update.UpdateExecutionFactory
 import org.apache.jena.update.UpdateFactory
 import org.apache.jena.update.UpdateProcessor
 import org.apache.jena.update.UpdateRequest
+import org.springframework.cache.annotation.CacheEvict
+import org.springframework.cache.annotation.CachePut
+import org.springframework.cache.annotation.Cacheable
 import org.springframework.stereotype.Service
 
 @Service
@@ -43,6 +46,7 @@ class DiagnosisService (
         }
     }
 
+    @Cacheable("diagnosis")
     fun getAllDiagnosis(): List<Diagnosis>? {
         val diagnosis: MutableList<Diagnosis> = mutableListOf()
 
@@ -67,12 +71,13 @@ class DiagnosisService (
         return diagnosis
     }
 
-    fun getDiagnosisByName(diagnosis: String) : Diagnosis? {
+    @Cacheable("diagnosis", key = "#diagnosis")
+    fun getDiagnosisByName(diagnosisName: String) : Diagnosis? {
         val query = """
             SELECT DISTINCT ?name WHERE {
                 ?obj a prog:Diagnosis ;
                     prog:Diagnosis_diagnosisName ?diagnosis .
-                FILTER (?diagnosis = "$diagnosis")
+                FILTER (?diagnosis = "$diagnosisName")
             }"""
 
         val resultDiagnosis: ResultSet = repl.interpreter!!.query(query)!!
@@ -86,6 +91,8 @@ class DiagnosisService (
         return Diagnosis(name)
     }
 
+    @CacheEvict(value = ["diagnosis"], key = "#oldDiagnosisName")
+    @CachePut(value = ["diagnosis"], key = "#newDiagnosisName")
     fun updateDiagnosis(oldDiagnosisName: String, newDiagnosisName: String) : Boolean {
         val query = """
             PREFIX : <$prefix>
@@ -118,6 +125,7 @@ class DiagnosisService (
         }
     }
 
+    @CacheEvict("diagnosis", key = "#diagnosisName")
     fun deleteDiagnosis(diagnosisName: String) : Boolean {
         val query = """
             PREFIX : <$prefix>

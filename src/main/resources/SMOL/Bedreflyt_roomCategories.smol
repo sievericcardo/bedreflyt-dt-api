@@ -61,15 +61,13 @@ class RoomCategoryModel extends KindModel()
                 destroy(lx);
             end
 
-            destroy(wrongRooms);
-
             print("RECONFIG> Room Category(ies) removed");
         end
     end
 
     override Unit adaptDefect()
         print("RECONFIG> Checking for defects in the Room Category(ies)");
-        this.checkBedChanged();
+        // this.checkBedChanged();
         print("RECONFIG> Defects checked for the Room Category(ies)");
     end
 

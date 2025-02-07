@@ -9,6 +9,9 @@ import org.apache.jena.update.UpdateExecutionFactory
 import org.apache.jena.update.UpdateFactory
 import org.apache.jena.update.UpdateProcessor
 import org.apache.jena.update.UpdateRequest
+import org.springframework.cache.annotation.CacheEvict
+import org.springframework.cache.annotation.CachePut
+import org.springframework.cache.annotation.Cacheable
 import org.springframework.stereotype.Service
 
 @Service
@@ -22,6 +25,7 @@ class TaskService (
     private val ttlPrefix = triplestoreProperties.ttlPrefix
     private val repl = replConfig.repl()
 
+    @CachePut("tasks", key = "#taskName")
     fun createTask(taskName: String, averageDuration: Double, bed: Int) : Boolean {
         val query = """
             PREFIX : <$prefix>
@@ -46,6 +50,7 @@ class TaskService (
         }
     }
 
+    @Cacheable("tasks")
     fun getAllTasks() : List<Task>? {
         val tasks: MutableList<Task> = mutableListOf()
 
@@ -75,6 +80,7 @@ class TaskService (
         return tasks
     }
 
+    @Cacheable("tasks", key = "#taskName")
     fun getTaskByTaskName(taskName: String) : Task? {
         val query = """
             PREFIX : <$prefix>
@@ -101,26 +107,29 @@ class TaskService (
         return Task(taskName, averageDuration, bed)
     }
 
+    @CacheEvict(value = ["tasks"], key = "#task.taskName")
+    @CachePut(value = ["tasks"], key = "#task.taskName")
     fun updateTask(task: Task, newAverageDuration: Double, newBed: Int) : Boolean {
         val query = """
             PREFIX : <$prefix>
+            PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
             
             DELETE {
                 :task_${task.taskName} a :Task ;
                     :taskName "${task.taskName}" ;
-                    :averageDuration ${task.averageDuration} ;
+                    :averageDuration "${task.averageDuration}"^^xsd:double ;
                     :bed ${task.bed} .
             }
             INSERT {
                 :task_${task.taskName} a :Task ;
                     :taskName "${task.taskName}" ;
-                    :averageDuration $newAverageDuration ;
+                    :averageDuration "$newAverageDuration"^^xsd:double ;
                     :bed $newBed .
             }
             WHERE {
                :task_${task.taskName} a :Task ;
                     :taskName "${task.taskName}" ;
-                    :averageDuration ${task.averageDuration} ;
+                    :averageDuration "${task.averageDuration}"^^xsd:double ;
                     :bed ${task.bed} .
             }
         """
@@ -137,20 +146,22 @@ class TaskService (
         }
     }
 
+    @CacheEvict(value = ["tasks"], key = "#task.taskName")
     fun deleteTask(task: Task) : Boolean {
         val query = """
             PREFIX : <$prefix>
+            PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
             
             DELETE {
                 :task_${task.taskName} a :Task ;
                     :taskName "${task.taskName}" ;
-                    :averageDuration ${task.averageDuration} ;
+                    :averageDuration "${task.averageDuration}"^^xsd:double ;
                     :bed ${task.bed} .
             }
             WHERE {
                 :task_${task.taskName} a :Task ;
                     :taskName "${task.taskName}" ;
-                    :averageDuration ${task.averageDuration} ;
+                    :averageDuration "${task.averageDuration}"^^xsd:double ;
                     :bed ${task.bed} .
             }
         """

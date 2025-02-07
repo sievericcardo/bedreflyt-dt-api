@@ -9,6 +9,9 @@ import org.apache.jena.update.UpdateExecutionFactory
 import org.apache.jena.update.UpdateFactory
 import org.apache.jena.update.UpdateProcessor
 import org.apache.jena.update.UpdateRequest
+import org.springframework.cache.annotation.CacheEvict
+import org.springframework.cache.annotation.CachePut
+import org.springframework.cache.annotation.Cacheable
 import org.springframework.stereotype.Service
 
 @Service
@@ -22,6 +25,7 @@ class RoomCategoryService (
     private val ttlPrefix = triplestoreProperties.ttlPrefix
     private val repl = replConfig.repl()
 
+    @CachePut("roomCategories", key = "#bedCategory")
     fun createRoom(bedCategory: Long, roomDescription: String): Boolean {
         val query = """
             PREFIX : <$prefix>
@@ -45,6 +49,7 @@ class RoomCategoryService (
         }
     }
 
+    @Cacheable("roomCategories")
     fun getAllRooms() : List<RoomCategory>? {
         val roomCategories = mutableListOf<RoomCategory>()
 
@@ -71,6 +76,8 @@ class RoomCategoryService (
         return roomCategories
     }
 
+    @CacheEvict(value = ["roomCategories"], key = "#oldBedCategory")
+    @CachePut(value = ["roomCategories"], key = "#newBedCategory")
     fun updateRoom(oldBedCategory: Long, oldRoomDescription: String, newBedCategory: Long, newRoomDescription: String) : Boolean {
         val query = """
             PREFIX : <$prefix>
@@ -104,6 +111,7 @@ class RoomCategoryService (
         }
     }
 
+    @CacheEvict("roomCategories", key = "#bedCategory")
     fun deleteRoom(bedCategory: Long, roomDescription: String) : Boolean {
         val query = """
             PREFIX : <$prefix>
