@@ -21,7 +21,17 @@ import java.nio.file.StandardCopyOption
 import java.util.logging.Logger
 import java.util.logging.Level
 import no.uio.bedreflyt.api.types.*
+import org.apache.http.impl.client.CloseableHttpClient
+import org.apache.http.impl.client.HttpClients
+import org.springframework.http.client.HttpComponentsClientHttpRequestFactory
 import org.springframework.stereotype.Service
+import java.io.OutputStreamWriter
+import java.net.HttpURLConnection
+import java.net.URI
+import java.net.URL
+import java.net.http.HttpClient
+import java.net.http.HttpRequest
+import java.net.http.HttpResponse
 
 @Service
 class Simulator (
@@ -112,22 +122,34 @@ class Simulator (
         solverRequest: SolverRequest,
         patientMap: Map<Int, Patient>, // Map of patient based on the order that is passed to the solver
     ) : SolverResponse {
-        val restTemplate = RestTemplate()
-        val headers = HttpHeaders()
-        headers.contentType = MediaType.APPLICATION_JSON
-        val request = HttpEntity(solverRequest, headers)
-
         val solverEndpoint = environmentConfig.getOrDefault("SOLVER_ENDPOINT", "localhost")
         val solverUrl = "http://$solverEndpoint:8000/api/solve"
-        log.info("Invoking solver with request")
-        val response = restTemplate.postForEntity(solverUrl, request, String::class.java)
+        val connection = URI(solverUrl).toURL().openConnection() as HttpURLConnection
 
-        if (response.body!!.contains("Model is unsat")) {
+        connection.requestMethod = "POST"
+        connection.setRequestProperty("Content-Type", "application/json")
+        connection.doOutput = true
+
+        val jsonBody = jacksonObjectMapper().writeValueAsString(solverRequest)
+
+        log.info("Invoking solver with request")
+        OutputStreamWriter(connection.outputStream).use {
+            it.write(jsonBody)
+        }
+
+        if (connection.responseCode != 200) {
+            log.warning("Solver returned status code ${connection.responseCode}")
+            return SolverResponse(listOf(mapOf("error" to null)), -1)
+        }
+
+        val response = connection.inputStream.bufferedReader().use { it.readText() }
+
+        if (response.contains("Model is unsat")) {
             return SolverResponse(listOf(mapOf("error" to null)), -1)
         }
 
         val mapper = jacksonObjectMapper()
-        val responseMap: Map<String, Any> = mapper.readValue(response.body!!)
+        val responseMap: Map<String, Any> = mapper.readValue(response)
 
         // Extract changes and allocations from the response map
         val changes = responseMap["changes"] as Int
