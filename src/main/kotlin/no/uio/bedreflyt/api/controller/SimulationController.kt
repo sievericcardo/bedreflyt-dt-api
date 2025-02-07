@@ -93,7 +93,7 @@ class SimulationController(
 
     @PostMapping("/simulate-many")
     fun simulateAll(@io.swagger.v3.oas.annotations.parameters.RequestBody(description = "Request to execute n simulations") @org.springframework.web.bind.annotation.RequestBody simulationRequest: MultiSimulationRequest): ResponseEntity<List<SimulationResponse>> {
-        log.info("Simulating ${simulationRequest.repetitions} scenarios with ${simulationRequest.scenario.size} requests")
+        log.info("Å: Simulating ${simulationRequest.repetitions} scenarios with ${simulationRequest.scenario.size} requests")
 
         // Create a temporary directory
         val uniqueID = UUID.randomUUID().toString()
@@ -104,12 +104,25 @@ class SimulationController(
         databaseService.createAndPopulateTreatmentTables(bedreflytDB)
         databaseService.createTreatmentView(bedreflytDB)
 
+        var worstCase : SimulationResponse? = null
         val runs = mutableListOf<SimulationResponse>()
-        // if the risk is 0 we only need to run one simulation – worst case is deterministic
-        for (i in 1.. (if (simulationRequest.risk == 0.0) 1 else simulationRequest.repetitions)) {
-            val mode = if (Random.nextDouble() <= simulationRequest.risk) "sample" else "worst"
-            val patients = databaseService.createAndPopulatePatientTables(bedreflytDB, simulationRequest.scenario, mode)
-            log.info("Run $i / ${simulationRequest.repetitions}:\n\tPatient table populated, invoking ABS with ${simulationRequest.scenario.size} requests")
+
+        for (i in 1..simulationRequest.repetitions) {
+            if (Random.nextDouble() > simulationRequest.risk) {
+                if (worstCase == null) {
+                    log.info("Å: Pre-computing worst-case scenario with ${simulationRequest.scenario.size} requests")
+                    val patientsWC = databaseService.createAndPopulatePatientTables(bedreflytDB, simulationRequest.scenario, "worst")
+                    worstCase = simulator.simulate(patientsWC, roomDistributions, tempDir, simulationRequest.smtMode)
+                    databaseService.clearTable(bedreflytDB, "scenario")
+                    runs.add(worstCase)
+                } else {
+                    log.info("Å: Run $i / ${simulationRequest.repetitions}:\tReusing worst case")
+                    runs.add(worstCase)
+                }
+                continue
+            }
+            val patients = databaseService.createAndPopulatePatientTables(bedreflytDB, simulationRequest.scenario, "sample")
+            log.info("Å: Run $i / ${simulationRequest.repetitions}:\tPatient table populated, invoking ABS with ${simulationRequest.scenario.size} requests")
             runs.add(simulator.simulate(patients, roomDistributions, tempDir, simulationRequest.smtMode))
             databaseService.clearTable(bedreflytDB, "scenario")
         }
@@ -121,6 +134,7 @@ class SimulationController(
             .sorted(Comparator.reverseOrder())
             .forEach(Files::delete)
 
+        log.info("Å: returning $runs")
         return ResponseEntity.ok(runs.toList())
     }
 }

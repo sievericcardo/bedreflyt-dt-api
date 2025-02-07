@@ -109,7 +109,7 @@ class RoomController (
     ])
     @PatchMapping("/update")
     fun updateRoom(@SwaggerRequestBody(description = "Request to update a room distribution") @RequestBody updateRoomRequest: UpdateRoomRequest) : ResponseEntity<String> {
-        log.info("Updating room ${updateRoomRequest.roomNumber}")
+        log.info("Updating room ${updateRoomRequest.roomNumber} with $updateRoomRequest")
 
         val room = roomService.getRoomByRoomNumber(updateRoomRequest.roomNumber) ?: return ResponseEntity.badRequest().body("Error: the room could not be updated.")
         val oldBath = if (room.bathroom) 1 else 0
