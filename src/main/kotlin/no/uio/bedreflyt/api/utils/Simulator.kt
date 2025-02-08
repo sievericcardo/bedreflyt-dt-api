@@ -5,33 +5,23 @@ import com.fasterxml.jackson.module.kotlin.readValue
 import no.uio.bedreflyt.api.config.EnvironmentConfig
 import no.uio.bedreflyt.api.model.live.Patient
 import no.uio.bedreflyt.api.model.simulation.Room
-import no.uio.bedreflyt.api.types.RoomInfo
-import no.uio.bedreflyt.api.types.SolverRequest
-import no.uio.bedreflyt.api.types.SolverResponse
+import no.uio.bedreflyt.api.types.*
 import org.springframework.http.HttpEntity
 import org.springframework.http.HttpHeaders
 import org.springframework.http.MediaType
+import org.springframework.stereotype.Service
 import org.springframework.web.client.RestTemplate
 import java.io.BufferedReader
 import java.io.InputStreamReader
+import java.io.OutputStreamWriter
+import java.net.HttpURLConnection
+import java.net.URI
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
 import java.nio.file.StandardCopyOption
-import java.util.logging.Logger
 import java.util.logging.Level
-import no.uio.bedreflyt.api.types.*
-import org.apache.http.impl.client.CloseableHttpClient
-import org.apache.http.impl.client.HttpClients
-import org.springframework.http.client.HttpComponentsClientHttpRequestFactory
-import org.springframework.stereotype.Service
-import java.io.OutputStreamWriter
-import java.net.HttpURLConnection
-import java.net.URI
-import java.net.URL
-import java.net.http.HttpClient
-import java.net.http.HttpRequest
-import java.net.http.HttpResponse
+import java.util.logging.Logger
 
 @Service
 class Simulator (
