@@ -21,6 +21,7 @@ import java.nio.file.StandardCopyOption
 import java.util.logging.Logger
 import java.util.logging.Level
 import no.uio.bedreflyt.api.types.*
+import org.springframework.http.HttpStatusCode
 import org.springframework.stereotype.Service
 
 @Service
