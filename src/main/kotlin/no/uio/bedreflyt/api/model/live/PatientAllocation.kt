@@ -12,7 +12,7 @@ class PatientAllocation (
     var id: Long? = null,
 
     @ManyToOne
-    @JoinColumn(name = "patient_id", referencedColumnName = "id")
+    @JoinColumn(name = "patient_id", referencedColumnName = "patient_id")
     var patientId : Patient,
 
     @Column(name = "acute")
