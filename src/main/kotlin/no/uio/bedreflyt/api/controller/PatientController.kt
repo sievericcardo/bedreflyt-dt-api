@@ -12,6 +12,7 @@ import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
 import org.springframework.web.bind.annotation.RequestBody
 import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
 import java.util.logging.Logger
 import io.swagger.v3.oas.annotations.parameters.RequestBody as SwaggerRequestBody
 
@@ -34,13 +35,14 @@ class PatientController (
     @PostMapping("/create")
     fun createPatient(@SwaggerRequestBody(description = "Request to add a new patient") @RequestBody patientRequest: PatientRequest) : ResponseEntity<String> {
         log.info("Creating patient $patientRequest")
+        val formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss")
 
         val patient = Patient(
             patientName = patientRequest.patientName,
             patientSurname = patientRequest.patientSurname,
             patientAddress = patientRequest.patientAddress,
             city = patientRequest.city,
-            patientBirthdate = patientRequest.patientBirthdate.let { LocalDateTime.parse(it) },
+            patientBirthdate = patientRequest.patientBirthdate.let { LocalDateTime.parse(it, formatter) },
             gender = patientRequest.gender
         )
 
