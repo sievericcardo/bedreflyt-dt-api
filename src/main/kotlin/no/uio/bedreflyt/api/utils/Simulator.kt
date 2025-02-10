@@ -6,11 +6,7 @@ import no.uio.bedreflyt.api.config.EnvironmentConfig
 import no.uio.bedreflyt.api.model.live.Patient
 import no.uio.bedreflyt.api.model.simulation.Room
 import no.uio.bedreflyt.api.types.*
-import org.springframework.http.HttpEntity
-import org.springframework.http.HttpHeaders
-import org.springframework.http.MediaType
 import org.springframework.stereotype.Service
-import org.springframework.web.client.RestTemplate
 import java.io.BufferedReader
 import java.io.InputStreamReader
 import java.io.OutputStreamWriter
