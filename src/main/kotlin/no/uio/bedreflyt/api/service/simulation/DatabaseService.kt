@@ -1,6 +1,7 @@
 package no.uio.bedreflyt.api.service.simulation
 
 import no.uio.bedreflyt.api.model.live.Patient
+import no.uio.bedreflyt.api.model.live.PatientAllocation
 import no.uio.bedreflyt.api.model.simulation.Room
 import no.uio.bedreflyt.api.model.triplestore.Task
 import no.uio.bedreflyt.api.service.live.PatientAllocationService
@@ -80,21 +81,21 @@ class DatabaseService (
         val patientsList = mutableMapOf<String, Patient>()
 
         scenario.forEach { scenarioRequest ->
-            scenarioRequest.patientId?.let { patientId ->
-                try {
-                    val patient = patientService.findByPatientId(patientId) ?: throw IllegalArgumentException("Patient not found")
-                    val patientAllocation = patientAllocationService.findByPatientId(patient)
-
-                    insertPatient(scenarioDbUrl, patient.patientId, patient.gender)
-                    insertPatientStatus(
-                        scenarioDbUrl,
-                        patient.patientId,
-                        patientAllocation?.contagious ?: false,
-                        patientAllocation?.roomNumber ?: -1
-                    )
+            scenarioRequest.patientId.let { patientId ->
+                val patient: Patient = patientService.findByPatientId(patientId) ?: throw IllegalArgumentException("Patient $patientId not found")
+                val patientAllocation: PatientAllocation? = try {
+                    patientAllocationService.findByPatientId(patient)
                 } catch (e: EmptyResultDataAccessException) {
-                    throw IllegalArgumentException("Patient not found")
+                    null
                 }
+
+                insertPatient(scenarioDbUrl, patient.patientId, patient.gender)
+                insertPatientStatus(
+                    scenarioDbUrl,
+                    patient.patientId,
+                    patientAllocation?.contagious ?: false,
+                    patientAllocation?.roomNumber ?: -1
+                )
 
                 scenarioRequest.diagnosis?.let { diagnosis ->
                     try {
