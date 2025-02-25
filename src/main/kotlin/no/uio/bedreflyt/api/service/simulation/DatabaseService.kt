@@ -78,11 +78,12 @@ class DatabaseService (
         mode: String
     ): Map<String, Patient> {
         createPatientTable(scenarioDbUrl)
-        val patientsList = mutableMapOf<String, Patient>()
+        val patients = mutableMapOf<String, Patient>()
 
         scenario.forEach { scenarioRequest ->
             scenarioRequest.patientId.let { patientId ->
                 val patient: Patient = patientService.findByPatientId(patientId) ?: throw IllegalArgumentException("Patient $patientId not found")
+                patients[patientId] = patient
                 val patientAllocation: PatientAllocation? = try {
                     patientAllocationService.findByPatientId(patient)
                 } catch (e: EmptyResultDataAccessException) {
@@ -112,7 +113,7 @@ class DatabaseService (
                 }
             }
         }
-        return patientsList
+        return patients
     }
 
     fun createRoomTables(dbPath: String) {
