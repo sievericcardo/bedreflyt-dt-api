@@ -37,7 +37,7 @@ data class SolverRequest(
     val room_distances: List<Long>,
     val no_patients: Int,
     val genders: List<Boolean>,
-    val contagious: List<Boolean>,
+    val infectious: List<Boolean>,
     val patient_distances: List<Int>,
     val previous: List<Int>,
     // options are c[hanges] to minimize number of room changes or
