@@ -61,7 +61,8 @@ class TreatmentService (
                     prog:Treatment_diagnosis ?diagnosis ;
                     prog:Treatment_frequency ?frequency ;
                     prog:Treatment_weight ?weight .
-            }"""
+            }
+            ORDER BY ?diagnosis ?treatmentId"""
 
         val resultSet : ResultSet = repl.interpreter!!.query(query) ?: return null
 
@@ -94,7 +95,8 @@ class TreatmentService (
                     prog:Treatment_frequency ?frequency ;
                     prog:Treatment_weight ?weight .
                 FILTER (?diagnosis = "$diagnosis")
-            }"""
+            }
+            ORDER BY ?diagnosis ?treatmentId"""
 
         val resultSet : ResultSet = repl.interpreter!!.query(query)!!
 
@@ -113,14 +115,15 @@ class TreatmentService (
     @Cacheable("treatments", key = "#treatment")
     fun getTreatmentById(treatment: String) : Treatment? {
         val query = """
-            SELECT DISTINCT ?diagnosis ?frequency ?weight WHERE {
+            SELECT DISTINCT ?treatment ?diagnosis ?frequency ?weight WHERE {
                 ?obj a prog:Treatment ;
                     prog:Treatment_treatmentId ?treatment ;
                     prog:Treatment_diagnosis ?diagnosis ;
                     prog:Treatment_frequency ?frequency ;
                     prog:Treatment_weight ?weight .
                 FILTER (?treatment = "$treatment")
-            }"""
+            }
+            ORDER BY ?diagnosis ?treatment"""
 
         val resultSet : ResultSet = repl.interpreter!!.query(query)!!
 
@@ -139,13 +142,14 @@ class TreatmentService (
     @Cacheable("treatments", key = "#diagnosis + '_' + #treatment")
     fun getTreatmentByTreamentDiagnosis (diagnosis: String, treatment: String) : Treatment? {
         val query = """
-            SELECT DISTINCT ?frequency ?weight WHERE {
+            SELECT DISTINCT ?treatmentId ?diagnosis ?frequency ?weight WHERE {
                 ?obj a prog:Treatment ;
                     prog:Treatment_treatmentId "$treatment" ;
                     prog:Treatment_diagnosis "$diagnosis" ;
                     prog:Treatment_frequency ?frequency ;
                     prog:Treatment_weight ?weight .
-            }"""
+            }
+            ORDER BY ?diagnosis ?treatmentId"""
 
         val resultSet : ResultSet = repl.interpreter!!.query(query)!!
 
