@@ -6,7 +6,7 @@ class TaskModel extends BaseModel ()
 
         SELECT DISTINCT ?taskName
         WHERE {
-            ?task a :Task ;
+            ?task a :Step ;
                 :taskName ?taskName .
         }");
 
@@ -29,11 +29,11 @@ class TaskModel extends BaseModel ()
         List<Task> wrongTasks = access("
         PREFIX : <http://www.smolang.org/bedreflyt/>
 
-        SELCT DISTINCT ?obj {
+        SELECT DISTINCT ?obj {
             ?obj a prog:Task ;
                 prog:Task_taskName ?taskName .
             FILTER NOT EXISTS {
-                ?task a :Task ;
+                ?task a :Step ;
                     :taskName ?taskName .
             }
         }");
@@ -52,6 +52,7 @@ class TaskModel extends BaseModel ()
 
             destroy(wrongTasks);
             print("RECONFIG> Wrong tasks removed");
+        end
     end
 
     override Unit adaptDefect()
