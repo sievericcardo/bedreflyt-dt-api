@@ -1,34 +1,109 @@
 abstract class Twin() end
 
-class Diagnosis extends Twin (String diagnosisName)
+class Diagnosis extends Twin (
+    String diagnosisCode,
+    String diagnosisName
+)
 end
 
-class Task extends Twin (String taskName, Int bed, Double durationAverage)
-end
-
-class TaskDependency extends Twin (
-    String treatmentName,
-    String diagnosisName,
+class Task extends Twin (
     String taskName,
-    String taskDependency)
+    Room physicalLocation
+)
+end
+
+class TreatmentStep extends Twin (
+    Treatment treatment,
+    Task taskName,
+    Task previousTask,
+    Task nextTask,
+    Int monitoringCategory,
+    Double staffLoad,
+    Double averageDuration
+)
 end
 
 class Treatment extends Twin (
-    String treatmentId,
-    String diagnosis,
+    String treatmentName,
+    String treatmentDescription,
+    Diagnosis diagnosis,
     Double frequency,
-    Double weight)
+    Double weight,
+    Task firstTask,
+    Task lastTask
+)
 end
 
-class RoomCategory extends Twin (String roomDescription, Int bedCategory)
+class MonitoringCategory extends Twin (
+    String description,
+    Int category
+)
+end
+
+class City extends Twin (String cityName)
+end
+
+class Hospital extends Twin (
+    String hospitalName,
+    String hospitalCode,
+    City hospitalCity
+)
+    City getHospitalCity()
+        City cityContent = access("
+        PREFIX : <http://www.smolang.org/bedreflyt/>
+
+        SELECT DISTINCT ?obj
+        WHERE {
+            ?hospital a :Hospital ;
+                :hosptialName %1 ;
+                :hospitalCode %2 .
+            ?hospital :hasCity ?city .
+            ?city :cityName ?name .
+
+            ?obj a prog:City ;
+                prog:City_cityName ?name .
+        ", this.hospitalName, this.hospitalCode);
+
+        City hospitalCity = cityContent.content;
+        return hospitalCity;
+    end
+end
+
+class Floor extends Twin (
+    Int floorNumber,
+    Hospital floorHospital
+)
+end
+
+class Ward extends Twin (
+    String wardName,
+    String wardCode,
+    Hospital wardHospital,
+    Floor wardFloor
+)
 end
 
 class Room extends Twin (
     Int roomNumber,
-    Int roomNumberModel,
-    Int roomCategory,
     Int capacity,
-    Int bathroom)
+)
+end
+
+class Bathroom extends Room ()
+end
+
+class TreatingRoom extends Room (
+    Ward treatingWard,
+    Bathroom bathroom,
+    MonitoringCategory monitoringCategory
+)
+end
+
+class Bed extends Twin (
+    Int bedNumber,
+    TreatingRoom bedTreatingRoom,
+    MonitoringCategory monitoringCategory
+)
 end
 
 // Task defects
