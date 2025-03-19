@@ -1,0 +1,64 @@
+class WardModel extends BaseModel ()
+    override Unit adaptAddition()
+        List<Ward> newWards = construct("
+        PREFIX : <http://www.smolang.org/bedreflyt/>
+
+        SELECT DISTINCT ?wardName ?wardCode
+        WHERE {
+            ?ward a :Ward ;
+                :wardName ?wardName ;
+                :wardCode ?wardCode .
+        }");
+
+        if newWards != null then
+            print("RECONFIG> Adding new wards...");
+
+            while newWards != null do
+                Ward newWard = newWards.content;
+                List<Ward> lx = newWards;
+                newWard.wardHospital = newWard.getWardHospital();
+                newWard.wardFloor = newWard.getWardFloor();
+                
+                print("RECONFIG> Adding ward " ++ newWard.wardName);
+                destroy(lx);
+            end
+
+            print("RECONFIG> New wards added");
+    end
+
+    override Unit adaptRemoval()
+        List<Ward> wrongWards = access("
+        PREFIX : <http://www.smolang.org/bedreflyt/>
+
+        SELCT DISTINCT ?obj {
+            ?obj a prog:Ward ;
+                prog:Ward_wardName ?wardName ;
+                prog:Ward_wardCode ?wardCode .
+            FILTER NOT EXISTS {
+                ?ward a :Ward ;
+                    :wardName ?wardName ;
+                    :wardCode ?wardCode .
+            }
+        }");
+
+        if wrongWards != null then
+            print("RECONFIG> Removing wrong wards...");
+
+            while wrongWards != null do
+                Ward wrongWard = wrongWards.content;
+                List<Ward> lx = wrongWards;
+                
+                print("RECONFIG> Removing ward " ++ wrongWard.wardName);
+                destroy(wrongWard);
+                destroy(lx);
+            end
+
+            destroy(wrongWards);
+            print("RECONFIG> Wrong wards removed");
+        end
+    end
+
+    override Unit adaptDefect()
+        skip;
+    end
+end
