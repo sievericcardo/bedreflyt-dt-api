@@ -2,12 +2,23 @@ class WardModel extends BaseModel ()
     override Unit adaptAddition()
         List<Ward> newWards = construct("
         PREFIX : <http://www.smolang.org/bedreflyt/>
+        PREFIX brick: <https://brickschema.org/schema/Brick#>
 
-        SELECT DISTINCT ?wardName ?wardCode
+        SELECT DISTINCT ?wardName ?wardHospital ?wardFloor
         WHERE {
             ?ward a :Ward ;
                 :wardName ?wardName ;
-                :wardCode ?wardCode .
+                brick:hasHospital ?hospital ;
+                brick:hasFloor ?floor .
+            ?hospital a brick:Hospital ;
+                :hospitalName ?hospitalName .
+            ?floor a brick:Floor ;
+                :floorNumber ?floorNumber .
+
+            ?wardHospital a prog:Hospital ;
+                prog:Hospital_hospitalName ?hospitalName .
+            ?wardFloor a prog:Floor ;
+                prog:Floor_floorNumber ?floorNumber .
         }");
 
         if newWards != null then
@@ -16,8 +27,6 @@ class WardModel extends BaseModel ()
             while newWards != null do
                 Ward newWard = newWards.content;
                 List<Ward> lx = newWards;
-                newWard.wardHospital = newWard.getWardHospital();
-                newWard.wardFloor = newWard.getWardFloor();
                 newWards = newWards.next;
                 
                 print("RECONFIG> Adding ward " ++ newWard.wardName);
@@ -31,15 +40,26 @@ class WardModel extends BaseModel ()
     override Unit adaptRemoval()
         List<Ward> wrongWards = access("
         PREFIX : <http://www.smolang.org/bedreflyt/>
+        PREFIX brick: <https://brickschema.org/schema/Brick#>
 
         SELECT DISTINCT ?obj {
             ?obj a prog:Ward ;
                 prog:Ward_wardName ?wardName ;
-                prog:Ward_wardCode ?wardCode .
+                prog:Ward_wardhospital ?hospital ;
+                prog:Ward_wardFloor ?floor .
+            ?hospital a prog:Hospital ;
+                prog:Hospital_hospitalName ?hospitalName .
+            ?floor a prog:Floor ;
+                prog:Floor_floorNumber ?floorNumber .
             FILTER NOT EXISTS {
                 ?ward a :Ward ;
                     :wardName ?wardName ;
-                    :wardCode ?wardCode .
+                    brick:hasHospital ?hospitalOntology ;
+                    brick:hasFloor ?floorOntology .
+                ?hospitalOntology a brick:Hospital ;
+                    :hospitalName ?hospitalName .
+                ?floorOntology a brick:Floor ;
+                    :floorNumber ?floorNumber .
             }
         }");
 
