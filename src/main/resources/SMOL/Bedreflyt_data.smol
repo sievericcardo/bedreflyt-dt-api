@@ -16,7 +16,7 @@ class Task extends Twin (
 
         SELECT DISTINCT ?obj
         WHERE {
-            ?task a :Task ;
+            ?task a :Step ;
                 :taskName %1 .
             ?task :isLocatedIn ?room .
             ?room :roomNumber ?number .
@@ -269,7 +269,7 @@ end
 
 class Room extends Twin (
     Int roomNumber,
-    Int capacity,
+    Int capacity
 )
 end
 
