@@ -2,10 +2,11 @@ class WardModel extends BaseModel ()
     override Unit adaptAddition()
         List<Ward> newWards = construct("
         PREFIX : <http://www.smolang.org/bedreflyt/>
+        PREFIX brick: <https://brickschema.org/schema/Brick#>
 
         SELECT DISTINCT ?wardName ?wardCode
         WHERE {
-            ?ward a :Ward ;
+            ?ward a brick:Ward ;
                 :wardName ?wardName ;
                 :wardCode ?wardCode .
         }");
@@ -31,13 +32,14 @@ class WardModel extends BaseModel ()
     override Unit adaptRemoval()
         List<Ward> wrongWards = access("
         PREFIX : <http://www.smolang.org/bedreflyt/>
+        PREFIX brick: <https://brickschema.org/schema/Brick#>
 
         SELECT DISTINCT ?obj {
             ?obj a prog:Ward ;
                 prog:Ward_wardName ?wardName ;
                 prog:Ward_wardCode ?wardCode .
             FILTER NOT EXISTS {
-                ?ward a :Ward ;
+                ?ward a brick:Ward ;
                     :wardName ?wardName ;
                     :wardCode ?wardCode .
             }
