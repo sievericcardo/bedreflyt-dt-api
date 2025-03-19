@@ -31,8 +31,8 @@ class Task extends Twin (
 end
 
 class TreatmentStep extends Twin (
-    Treatment treatment,
-    Task taskName,
+    String treatmentName,
+    Task task,
     TreatmentStep previousTask,
     TreatmentStep nextTask,
     MonitoringCategory monitoringCategory,
@@ -46,7 +46,7 @@ class TreatmentStep extends Twin (
         SELECT DISTINCT ?obj
         WHERE {
             ?treatment a :Procedure ;
-                :treatmentName %1 .
+                :procedureName %1 .
             ?treatment :hasTask ?task .
             ?task :taskName %2 .
 
@@ -65,7 +65,7 @@ class TreatmentStep extends Twin (
         SELECT DISTINCT ?obj
         WHERE {
             ?treatment a :Procedure ;
-                :treatmentName %1 .
+                :procedureName %1 .
             ?treatment :hasTask ?task .
             ?task :taskName %2 .
             ?task :hasPreviousTask ?previousTask .
@@ -89,7 +89,7 @@ class TreatmentStep extends Twin (
         SELECT DISTINCT ?obj
         WHERE {
             ?treatment a :Procedure ;
-                :treatmentName %1 .
+                :procedureName %1 .
             ?treatment :hasTask ?task .
             ?task :taskName %2 .
             ?task :hasNextTask ?nextTask .
@@ -123,7 +123,7 @@ class Treatment extends Twin (
         SELECT DISTINCT ?obj
         WHERE {
             ?treatment a :Procedure ;
-                :treatmentName %1 .
+                :procedureName %1 .
             ?treatment :isTreatmentProcOf ?diagnosis .
             ?diagnosis :diagnosisName ?name .
 
@@ -142,7 +142,7 @@ class Treatment extends Twin (
         SELECT DISTINCT ?obj
         WHERE {
             ?treatment a :Procedure ;
-                :treatmentName %1 .
+                :procedureName %1 .
             ?treatment :hasFirstStep ?firstTask .
             ?firstTask :hasTask ?task .
             ?task :taskName ?name .
@@ -164,7 +164,7 @@ class Treatment extends Twin (
         SELECT DISTINCT ?obj
         WHERE {
             ?treatment a :Procedure ;
-                :treatmentName %1 .
+                :procedureName %1 .
             ?treatment :hasLastStep ?lastTask .
             ?lastTask :hasTask ?task .
             ?task :taskName ?name .
