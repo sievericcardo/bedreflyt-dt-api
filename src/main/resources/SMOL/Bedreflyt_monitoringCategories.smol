@@ -1,0 +1,73 @@
+class MonitoringCategoryModel extends BaseModel()
+    
+    override Unit adaptAddition()
+        List<MonitoringCategory> newCategories = construct("
+            PREFIX : <http://www.smolang.org/bedreflyt/>
+            SELECT DISTINCT ?category ?description {
+                ?x a :MonitoringCategory ;
+                    :monitoringName ?description ;
+                    :hasMonitoringCode ?category .
+                FILTER NOT EXISTS {
+                    ?y a prog:MonitoringCategory ;
+                        prog:MonitoringCategory_description ?description ;
+                        prog:MonitoringCategory_category ?category .
+                }
+            }");
+
+        if newCategories != null then
+            print("RECONFIG> New Monitoring Category(ies) detected: repairing the model");
+
+            while newCategories != null do
+                MonitoringCategory newCategory = newCategories.content;
+                List<MonitoringCategory> lx = newCategories;
+                newCategories = newCategories.next;
+                print("RECONFIG> New monitoring category detected: ");
+                print("          Name: " ++ newCategory.category);
+                print("          Category: " ++ intToString(newCategory.category));
+
+                destroy(lx);
+            end
+
+            print("RECONFIG> Monitoring Category(ies) added");
+        end
+    end
+    
+    override Unit adaptRemoval()
+        List<MonitoringCategory> wrongCategories = access("
+        PREFIX : <http://www.smolang.org/bedreflyt/>
+
+        SELECT DISTINCT ?obj {
+            ?obj a prog:MonitoringCategory ;
+                prog:MonitoringCategory_description ?description ;
+                prog:MonitoringCategory_category ?category .
+            FILTER NOT EXISTS {
+                ?x a :MonitoringCategory ;
+                    :monitoringName ?description ;
+                    :hasMonitoringCode ?category .
+            }
+        }");
+        
+        if wrongCategories != null then
+            print("RECONFIG> Removing wrong monitoring categories...");
+
+            while wrongCategories != null do
+                MonitoringCategory wrongCategory = wrongCategories.content;
+                List<MonitoringCategory> lx = wrongCategories;
+                wrongCategories = wrongCategories.next;
+                print("RECONFIG> Removing monitoring category: ");
+                print("          Name: " ++ wrongCategory.category);
+                print("          Category: " ++ intToString(wrongCategory.category));
+
+                destroy(wrongCategory);
+                destroy(lx);
+            end
+
+            destroy(wrongCategories);
+            print("RECONFIG> Wrong monitoring categories removed");
+        end
+    end
+
+    override Unit adaptDefect()
+        skip;
+    end
+end
