@@ -22,9 +22,7 @@ class TreatmentModel extends BaseModel()
             while newTreatments != null do
                 Treatment newTreatment = newTreatments.content;
                 List<Treatment> lx = newTreatments;
-                newTreatment.treatmentDiagnosis = newTreatment.getTreatmentDiagnosis();
-                newTreatment.treatmentFrequency = newTreatment.getTreatmentFrequency();
-                newTreatment.treatmentWeight = newTreatment.getTreatmentWeight();
+                newTreatments = newTreatments.next;
 
                 print("RECONFIG> Adding treatment " ++ newTreatment.treatmentName);
                 destroy(lx);
@@ -63,6 +61,7 @@ class TreatmentModel extends BaseModel()
             while wrongTreatments != null do
                 Treatment wrongTreatment = wrongTreatments.content;
                 List<Treatment> lx = wrongTreatments;
+                wrongTreatments = wrongTreatments.next;
 
                 print("RECONFIG> Removing treatment " ++ wrongTreatment.treatmentName);
                 destroy(wrongTreatment);

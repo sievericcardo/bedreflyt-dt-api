@@ -19,6 +19,7 @@ class DiagnosisModel extends BaseModel()
                 Diagnosis newDiagnosis = newDiagnoses.content;
                 List<Diagnosis> lx = newDiagnoses;
                 newDiagnoses = newDiagnoses.next;
+                
                 print("RECONFIG> New diagnosis detected: ");
                 print("          Diagnosis Code: " ++ newDiagnosis.diagnosisCode);
 

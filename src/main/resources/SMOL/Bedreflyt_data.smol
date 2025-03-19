@@ -16,7 +16,7 @@ class Task extends Twin (
 
         SELECT DISTINCT ?obj
         WHERE {
-            ?task a :Step ;
+            ?task rdf:type <http://purl.org/net/p-plan#Step>
                 :taskName %1 .
             ?task :isLocatedIn ?room .
             ?room :roomNumber ?number .
@@ -197,10 +197,11 @@ class Hospital extends Twin (
     City getHospitalCity()
         City cityContent = access("
         PREFIX : <http://www.smolang.org/bedreflyt/>
+        PREFIX brick: <https://brickschema.org/schema/Brick#>
 
         SELECT DISTINCT ?obj
         WHERE {
-            ?hospital a :Hospital ;
+            ?hospital a brick:Hospital ;
                 :hosptialName %1 ;
                 :hospitalCode %2 .
             ?hospital :hasCity ?city .
@@ -229,13 +230,14 @@ class Ward extends Twin (
     Hospital getWardHospital()
         Hospital hospitalContent = access("
         PREFIX : <http://www.smolang.org/bedreflyt/>
+        PREFIX brick: <https://brickschema.org/schema/Brick#>
 
         SELECT DISTINCT ?obj
         WHERE {
             ?ward a :Ward ;
                 :wardName %1 ;
                 :wardCode %2 .
-            ?ward :hasHospital ?hospital .
+            ?ward brick:hasHospital ?hospital .
             ?hospital :hospitalName ?name .
 
             ?obj a prog:Hospital ;
@@ -249,13 +251,14 @@ class Ward extends Twin (
     Floor getWardFloor()
         Floor floorContent = access("
         PREFIX : <http://www.smolang.org/bedreflyt/>
+        PREFIX brick: <https://brickschema.org/schema/Brick#>
 
         SELECT DISTINCT ?obj
         WHERE {
             ?ward a :Ward ;
                 :wardName %1 ;
                 :wardCode %2 .
-            ?ward :hasFloor ?floor .
+            ?ward brick:hasFloor ?floor .
             ?floor :floorNumber ?number .
 
             ?obj a prog:Floor ;
@@ -350,44 +353,44 @@ class Bed extends Twin (
 end
 
 // Task defects
-class TaskDefectBed extends Twin (Task obj, Int bedNew) end
-class TaskDefectName extends Twin (Task obj, String taskNameNew) end
-class TaskDefectDuration extends Twin (Task obj, Double durationAverageNew) end
+// class TaskDefectBed extends Twin (Task obj, Int bedNew) end
+// class TaskDefectName extends Twin (Task obj, String taskNameNew) end
+// class TaskDefectDuration extends Twin (Task obj, Double durationAverageNew) end
 
-// Task dependency defects
-class TaskDependencyDefectDependency extends Twin (
-    TaskDependency obj,
-    String taskDependencyNew) 
-end
+// // Task dependency defects
+// class TaskDependencyDefectDependency extends Twin (
+//     TaskDependency obj,
+//     String taskDependencyNew) 
+// end
 
-// Treatments defects
-class TreatmentDefectFrequency extends Twin (
-    Treatment obj,
-    Double frequencyNew)
-end
-class TreatmentDefectWeight extends Twin (
-    Treatment obj,
-    Double weightNew)
-end
+// // Treatments defects
+// class TreatmentDefectFrequency extends Twin (
+//     Treatment obj,
+//     Double frequencyNew)
+// end
+// class TreatmentDefectWeight extends Twin (
+//     Treatment obj,
+//     Double weightNew)
+// end
 
-// Room category defects
-class RoomDefectBedCategory extends Twin (RoomCategory obj, Int bedCategoryNew) end
-class RoomDefectDescription extends Twin (RoomCategory obj, String roomDescriptionNew) end
+// // Room category defects
+// class RoomDefectBedCategory extends Twin (RoomCategory obj, Int bedCategoryNew) end
+// class RoomDefectDescription extends Twin (RoomCategory obj, String roomDescriptionNew) end
 
-// Room defects
-class RoomDefectRoomNumberModel extends Twin (
-    Room obj,
-    Int roomNumberModelNew)
-end
-class RoomDefectRoomCategory extends Twin (
-    Room obj,
-    Int roomNew)
-end
-class RoomDefectCapacity extends Twin (
-    Room obj,
-    Int capacityNew)
-end
-class RoomDefectBathroom extends Twin (
-    Room obj,
-    Int bathroomNew)
-end
+// // Room defects
+// class RoomDefectRoomNumberModel extends Twin (
+//     Room obj,
+//     Int roomNumberModelNew)
+// end
+// class RoomDefectRoomCategory extends Twin (
+//     Room obj,
+//     Int roomNew)
+// end
+// class RoomDefectCapacity extends Twin (
+//     Room obj,
+//     Int capacityNew)
+// end
+// class RoomDefectBathroom extends Twin (
+//     Room obj,
+//     Int bathroomNew)
+// end

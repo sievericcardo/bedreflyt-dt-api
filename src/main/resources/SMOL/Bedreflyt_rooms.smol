@@ -3,6 +3,7 @@ class RoomModel extends BaseModel()
     override Unit adaptAddition()
         List<TreatingRoom> newRooms = construct("
         PREFIX : <http://www.smolang.org/bedreflyt/>
+        PREFIX brick: <https://brickschema.org/schema/Brick#>
 
         SELECT DISTINCT ?roomNumber ?capacity ?treatingWard ?hospital ?monitoringCategory
         WHERE {
@@ -14,7 +15,7 @@ class RoomModel extends BaseModel()
             ?ward a :Ward ;
                 :wardName ?wardName ;
                 :hasHospital ?hospitalWard .
-            ?hospitalWard a :Hospital ;
+            ?hospitalWard a brick:Hospital ;
                 :hospitalName ?hospitalName .
             ?monitoringStatus a :MonitoringCategory ;
                 :hasMonitoringCode ?monitoringCode.
@@ -33,12 +34,11 @@ class RoomModel extends BaseModel()
             while newRooms != null do
                 TreatingRoom newRoom = newRooms.content;
                 List<TreatingRoom> lx = newRooms;
-                newRoom.roomWard = newRoom.getRoomWard();
-                newRoom.roomHospital = newRoom.getRoomHospital();
+                newRooms = newRooms.next;
                 
-                print("RECONFIG> Adding Room " ++ newRoom.roomNumber);
-                print("          Room Ward: " ++ newRoom.roomWard.wardName);
-                print("          Room Hospital: " ++ newRoom.roomHospital.hospitalName);
+                print("RECONFIG> Adding Room " ++ intToString(newRoom.roomNumber));
+                print("          Room Ward: " ++ newRoom.treatingWard.wardName);
+                print("          Room Hospital: " ++ newRoom.hospital.hospitalName);
                 destroy(lx);
             end
 
@@ -49,8 +49,9 @@ class RoomModel extends BaseModel()
     override Unit adaptRemoval()
         List<TreatingRoom> wrongRooms = access("
         PREFIX : <http://www.smolang.org/bedreflyt/>
+        PREFIX brick: <https://brickschema.org/schema/Brick#>
 
-        SELCT DISTINCT ?obj {
+        SELECT DISTINCT ?obj {
             ?obj a prog:TreatingRoom ;
                 prog:TreatingRoom_roomNumber ?roomNumber ;
                 prog:TreatingRoom_capacity ?capacity ;
@@ -73,7 +74,7 @@ class RoomModel extends BaseModel()
                 ?ward a :Ward ;
                     :wardName ?wardName ;
                     :hasHospital ?hospitalWard .
-                ?hospitalWard a :Hospital ;
+                ?hospitalWard a brick:Hospital ;
                     :hospitalName ?hospitalName .
                 ?monitoringStatus a :MonitoringCategory ;
                     :hasMonitoringCode ?monitoringCode.
@@ -86,8 +87,9 @@ class RoomModel extends BaseModel()
             while wrongRooms != null do
                 TreatingRoom wrongRoom = wrongRooms.content;
                 List<TreatingRoom> lx = wrongRooms;
+                wrongRooms = wrongRooms.next;
                 
-                print("RECONFIG> Removing Room " ++ wrongRoom.roomNumber);
+                print("RECONFIG> Removing Room " ++ intToString(wrongRoom.roomNumber));
                 destroy(wrongRoom);
                 destroy(lx);
             end

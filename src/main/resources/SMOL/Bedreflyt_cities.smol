@@ -1,21 +1,23 @@
 class CityModel extends BaseModel ()
     override Unit adaptAddition()
         List<City> newCities = construct("
-            PREFIX : <http://www.smolang.org/bedreflyt/>
+        PREFIX : <http://www.smolang.org/bedreflyt/>
 
-            SELECT DISTINCT ?cityName
-            WHERE {
-                ?city a :City ;
-                    :cityName ?cityName .
-            }
+        SELECT DISTINCT ?cityName
+        WHERE {
+            ?city a :City ;
+                :cityName ?cityName .
+        }
         ");
 
         if newCities != null then
             print("RECONFIG> Adding new cities...");
 
+            Int i = 0;
             while newCities != null do
                 City newCity = newCities.content;
                 List<City> lx = newCities;
+                newCities = newCities.next;
                 
                 print("RECONFIG> Adding city " ++ newCity.cityName);
                 destroy(lx);
@@ -29,7 +31,7 @@ class CityModel extends BaseModel ()
         List<City> wrongCities = access("
             PREFIX : <http://www.smolang.org/bedreflyt/>
 
-            SELCT DISTINCT ?obj {
+            SELECT DISTINCT ?obj {
                 ?obj a prog:City ;
                     prog:City_cityName ?cityName .
                 FILTER NOT EXISTS {
@@ -45,6 +47,7 @@ class CityModel extends BaseModel ()
             while wrongCities != null do
                 City wrongCity = wrongCities.content;
                 List<City> lx = wrongCities;
+                wrongCities = wrongCities.next;
                 
                 print("RECONFIG> Removing city " ++ wrongCity.cityName);
                 destroy(wrongCity);

@@ -26,6 +26,7 @@ class TreatmentStepModel extends BaseModel ()
                 List<TreatmentStep> lx = newTaskDeps;
                 newTaskDep.nextTask = newTaskDep.getNextTask();
                 newTaskDep.previousTask = newTaskDep.getPreviousTask();
+                newTaskDeps = newTaskDeps.next;
                 
                 print("RECONFIG> Adding task dependency " ++ newTaskDep.task.taskName ++ " for treatment " ++ newTaskDep.treatmentName);
                 print("          Staff load: " ++ doubleToString(newTaskDep.staffLoad));
@@ -72,6 +73,7 @@ class TreatmentStepModel extends BaseModel ()
             while wrongTaskDeps != null do
                 TreatmentStep wrongTaskDep = wrongTaskDeps.content;
                 List<TreatmentStep> lx = wrongTaskDeps;
+                wrongTaskDeps = wrongTaskDeps.next;
                 
                 print("RECONFIG> Removing task dependency " ++ wrongTaskDep.task.taskName ++ " for treatment " ++ wrongTaskDep.treatmentName);
                 destroy(wrongTaskDep);

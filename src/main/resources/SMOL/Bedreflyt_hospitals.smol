@@ -16,6 +16,7 @@ class HospitalModel extends BaseModel ()
             while newHospitals != null do
                 Hospital newHospital = newHospitals.content;
                 List<Hospital> lx = newHospitals;
+                newHospitals = newHospitals.next;
 
                 newHospital.hospitalCity = newHospital.getHospitalCity();
                 print("RECONFIG> Adding hospital " ++ newHospital.hospitalName);
@@ -30,13 +31,14 @@ class HospitalModel extends BaseModel ()
     override Unit adaptRemoval()
         List<Hospital> wrongHospitals = access("
         PREFIX : <http://www.smolang.org/bedreflyt/>
+        PREFIX brick: <https://brickschema.org/schema/Brick#>
 
-        SELCT DISTINCT ?obj {
+        SELECT DISTINCT ?obj {
             ?obj a prog:Hospital ;
                 prog:Hospital_hospitalName ?hospitalName ;
                 prog:Hospital_hospitalCode ?hospitalCode .
             FILTER NOT EXISTS {
-                ?hospital a :Hospital ;
+                ?hospital a brick:Hospital ;
                     :hospitalName ?hospitalName ;
                     :hospitalCode ?hospitalCode .
             }
@@ -48,6 +50,7 @@ class HospitalModel extends BaseModel ()
             while wrongHospitals != null do
                 Hospital wrongHospital = wrongHospitals.content;
                 List<Hospital> lx = wrongHospitals;
+                wrongHospitals = wrongHospitals.next;
 
                 print("RECONFIG> Removing hospital " ++ wrongHospital.hospitalName);
                 destroy(wrongHospital);

@@ -18,6 +18,7 @@ class WardModel extends BaseModel ()
                 List<Ward> lx = newWards;
                 newWard.wardHospital = newWard.getWardHospital();
                 newWard.wardFloor = newWard.getWardFloor();
+                newWards = newWards.next;
                 
                 print("RECONFIG> Adding ward " ++ newWard.wardName);
                 destroy(lx);
@@ -31,7 +32,7 @@ class WardModel extends BaseModel ()
         List<Ward> wrongWards = access("
         PREFIX : <http://www.smolang.org/bedreflyt/>
 
-        SELCT DISTINCT ?obj {
+        SELECT DISTINCT ?obj {
             ?obj a prog:Ward ;
                 prog:Ward_wardName ?wardName ;
                 prog:Ward_wardCode ?wardCode .
@@ -48,6 +49,7 @@ class WardModel extends BaseModel ()
             while wrongWards != null do
                 Ward wrongWard = wrongWards.content;
                 List<Ward> lx = wrongWards;
+                wrongWards = wrongWards.next;
                 
                 print("RECONFIG> Removing ward " ++ wrongWard.wardName);
                 destroy(wrongWard);

@@ -21,8 +21,9 @@ class MonitoringCategoryModel extends BaseModel()
                 MonitoringCategory newCategory = newCategories.content;
                 List<MonitoringCategory> lx = newCategories;
                 newCategories = newCategories.next;
+
                 print("RECONFIG> New monitoring category detected: ");
-                print("          Name: " ++ newCategory.category);
+                print("          Name: " ++ newCategory.description);
                 print("          Category: " ++ intToString(newCategory.category));
 
                 destroy(lx);
@@ -54,8 +55,9 @@ class MonitoringCategoryModel extends BaseModel()
                 MonitoringCategory wrongCategory = wrongCategories.content;
                 List<MonitoringCategory> lx = wrongCategories;
                 wrongCategories = wrongCategories.next;
+                
                 print("RECONFIG> Removing monitoring category: ");
-                print("          Name: " ++ wrongCategory.category);
+                print("          Name: " ++ wrongCategory.description);
                 print("          Category: " ++ intToString(wrongCategory.category));
 
                 destroy(wrongCategory);

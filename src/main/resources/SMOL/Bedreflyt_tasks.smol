@@ -6,7 +6,7 @@ class TaskModel extends BaseModel ()
 
         SELECT DISTINCT ?taskName
         WHERE {
-            ?task a :Step ;
+            ?step rdf:type <http://purl.org/net/p-plan#Step> ;
                 :taskName ?taskName .
         }");
 
@@ -16,6 +16,7 @@ class TaskModel extends BaseModel ()
             while newTasks != null do
                 Task newTask = newTasks.content;
                 List<Task> lx = newTasks;
+                newTasks = newTasks.next;
                 
                 print("RECONFIG> Adding task " ++ newTask.taskName);
                 destroy(lx);
@@ -33,7 +34,7 @@ class TaskModel extends BaseModel ()
             ?obj a prog:Task ;
                 prog:Task_taskName ?taskName .
             FILTER NOT EXISTS {
-                ?task a :Step ;
+                ?task rdf:type <http://purl.org/net/p-plan#Step> ;
                     :taskName ?taskName .
             }
         }");
@@ -44,6 +45,7 @@ class TaskModel extends BaseModel ()
             while wrongTasks != null do
                 Task wrongTask = wrongTasks.content;
                 List<Task> lx = wrongTasks;
+                wrongTasks = wrongTasks.next;
                 
                 print("RECONFIG> Removing task " ++ wrongTask.taskName);
                 destroy(wrongTask);
