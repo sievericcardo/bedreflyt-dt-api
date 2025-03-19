@@ -9,8 +9,8 @@ class TreatmentModel extends BaseModel()
         WHERE {
             ?treatment a pko:Procedure ;
                 :procedureName ?treatmentName ;
-                :frequency ?frequency ;
-                :weight ?weight ;
+                :hasFrequency ?frequency ;
+                :hasWeight ?weight ;
                 :isTreatmentProcOf ?diagnosisContent .
             ?diagnosisContent a :Diagnosis ;
                 :diagnosisCode ?diagnosisCode .
@@ -50,8 +50,8 @@ class TreatmentModel extends BaseModel()
             FILTER NOT EXISTS {
                 ?treatment a pko:Procedure ;
                     :procedureName ?treatmentName ;
-                    :frequency ?frequency ;
-                    :weight ?weight ;
+                    :hasFrequency ?frequency ;
+                    :hasWeight ?weight ;
                     :isTreatmentProcOf ?diagnosisContent .
                 ?diagnosisContent a :Diagnosis ;
                     :diagnosisCode ?diagnosisCode .
