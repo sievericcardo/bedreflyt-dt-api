@@ -1,0 +1,88 @@
+class TreatmentStepModel extends BaseModel ()
+    override Unit adaptAddition()
+        List<TreatmentStep> newTaskDeps = construct("
+        PREFIX : <http://www.smolang.org/bedreflyt/>
+        PREFIX time: <http://www.w3.org/2006/time#>
+
+        SELECT DISTINCT ?treatmentName ?task ?staffLoad ?averageDuration
+        WHERE {
+            ?taskDep a :TreatmentStep ;
+                :hasNurseBurden ?staffLoad ;
+                time:hours ?averageDuration ;
+                :stepOfTreatment ?treatment ;
+                :hasTask ?taskObj .
+            ?treatment a :Procedure ;
+                :procedureName ?treatmentName .
+            ?taskObj :taskName ?taskName .
+            ?task a prog:Task ;
+                prog:Task_taskName ?taskName .
+        }");
+        
+        if newTaskDeps != null then
+            print("RECONFIG> Adding new task dependencies...");
+            
+            while newTaskDeps != null do
+                TreatmentStep newTaskDep = newTaskDeps.content;
+                List<TreatmentStep> lx = newTaskDeps;
+                newTaskDep.nextTask = newTaskDep.getNextTask();
+                newTaskDep.previousTask = newTaskDep.getPreviousTask();
+                
+                print("RECONFIG> Adding task dependency " ++ newTaskDep.task.taskName ++ " for treatment " ++ newTaskDep.treatmentName);
+                print("          Staff load: " ++ doubleToString(newTaskDep.staffLoad));
+                print("          Average duration: " ++ doubleToString(newTaskDep.averageDuration));
+
+                destroy(lx);
+            end
+            
+            print("RECONFIG> New task dependencies added");
+        end
+    end
+
+    override Unit adaptRemoval()
+        List<TreatmentStep> wrongTaskDeps = access("
+        PREFIX : <http://www.smolang.org/bedreflyt/>
+        PREFIX time: <http://www.w3.org/2006/time#>
+
+        SELECT DISTINCT ?obj {
+            ?obj a prog:TreatmentStep ;
+                prog:TreatmentStep_treatmentName ?treatmentName ;
+                prog:TreatmentStep_task ?task ;
+                prog:TreatmentStep_previousTask ?previousTask ;
+                prog:TreatmentStep_nextTask ?nextTask ;
+                prog:TreatmentStep_monitoringCategory ?monitoringCategory ;
+                prog:TreatmentStep_staffLoad ?staffLoad ;
+                prog:TreatmentStep_averageDuration ?averageDuration .
+            FILTER NOT EXISTS {
+                ?taskDep a :TreatmentStep ;
+                    :hasNurseBurden ?staffLoad ;
+                    time:hours ?averageDuration ;
+                    :stepOfTreatment ?treatment ;
+                    :hasTask ?taskObj .
+                ?treatment a :Procedure ;
+                    :procedureName ?treatmentName .
+                ?taskObj :taskName ?taskName .
+                ?task a prog:Task ;
+                    prog:Task_taskName ?taskName .
+            }
+        }");
+
+        if wrongTaskDeps != null then
+            print("RECONFIG> Removing wrong task dependencies...");
+            
+            while wrongTaskDeps != null do
+                TreatmentStep wrongTaskDep = wrongTaskDeps.content;
+                List<TreatmentStep> lx = wrongTaskDeps;
+                
+                print("RECONFIG> Removing task dependency " ++ wrongTaskDep.task.taskName ++ " for treatment " ++ wrongTaskDep.treatmentName);
+                destroy(wrongTaskDep);
+                destroy(lx);
+            end
+            
+            destroy(wrongTaskDeps);
+            print("RECONFIG> Wrong task dependencies removed");
+    end
+
+    override Unit adaptDefect()
+        skip;
+    end
+end
