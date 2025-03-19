@@ -2,10 +2,11 @@ class HospitalModel extends BaseModel ()
     override Unit adaptAddition()
         List<Hospital> newHospitals = construct("
         PREFIX : <http://www.smolang.org/bedreflyt/>
+        PREFIX brick: <https://brickschema.org/schema/Brick#>
 
-        SELECT DISTINCT ?hospitalName ?hosptialCode ?cityName
+        SELECT DISTINCT ?hospitalName ?hospitalCode ?cityName
         WHERE {
-            ?hospital a :Hospital ;
+            ?hospital a brick:Hospital ;
                 :hospitalName ?hospitalName ;
                 :hospitalCode ?hospitalCode .
         }");
