@@ -10,17 +10,101 @@ class Task extends Twin (
     String taskName,
     Room physicalLocation
 )
+    Room getPhysicalLocation()
+        Room roomContent = access("
+        PREFIX : <http://www.smolang.org/bedreflyt/>
+
+        SELECT DISTINCT ?obj
+        WHERE {
+            ?task a :Task ;
+                :taskName %1 .
+            ?task :isLocatedIn ?room .
+            ?room :roomNumber ?number .
+
+            ?obj a prog:Room ;
+                prog:Room_roomNumber ?number .
+        ", this.taskName);
+
+        Room room = roomContent.content;
+        return room;
+    end
 end
 
 class TreatmentStep extends Twin (
     Treatment treatment,
     Task taskName,
-    Task previousTask,
-    Task nextTask,
-    Int monitoringCategory,
+    TreatmentStep previousTask,
+    TreatmentStep nextTask,
+    MonitoringCategory monitoringCategory,
     Double staffLoad,
     Double averageDuration
 )
+    Task getTask()
+        Task taskContent = access("
+        PREFIX : <http://www.smolang.org/bedreflyt/>
+
+        SELECT DISTINCT ?obj
+        WHERE {
+            ?treatment a :Procedure ;
+                :treatmentName %1 .
+            ?treatment :hasTask ?task .
+            ?task :taskName %2 .
+
+            ?obj a prog:Task ;
+                prog:Task_taskName ?name .
+        ", this.treatment.treatmentName, this.taskName);
+
+        Task task = taskContent.content;
+        return task;
+    end
+
+    TreatmentStep getPreviousTask()
+        TreatmentStep previousTaskContent = access("
+        PREFIX : <http://www.smolang.org/bedreflyt/>
+
+        SELECT DISTINCT ?obj
+        WHERE {
+            ?treatment a :Procedure ;
+                :treatmentName %1 .
+            ?treatment :hasTask ?task .
+            ?task :taskName %2 .
+            ?task :hasPreviousTask ?previousTask .
+            ?previousTask :hasTask ?prevTask .
+            ?prevTask :taskName ?name .
+
+            ?obj a prog:Task ;
+                prog:Task_taskName ?treatTask .
+            ?treatTask a prog:Task ;
+                prog:Task_taskName ?name .
+        ", this.treatment.treatmentName, this.taskName);
+
+        Task previousTask = previousTaskContent.content;
+        return previousTask;
+    end
+
+    TreatmentStep getNextTask()
+        TreatmentStep nextTaskContent = access("
+        PREFIX : <http://www.smolang.org/bedreflyt/>
+
+        SELECT DISTINCT ?obj
+        WHERE {
+            ?treatment a :Procedure ;
+                :treatmentName %1 .
+            ?treatment :hasTask ?task .
+            ?task :taskName %2 .
+            ?task :hasNextTask ?nextTask .
+            ?nextTask :hasTask ?nextTsk .
+            ?nextTsk :taskName ?name .
+
+            ?obj a prog:Task ;
+                prog:Task_taskName ?treatTask .
+            ?treatTask a prog:Task ;
+                prog:Task_taskName ?name .
+        ", this.treatment.treatmentName, this.taskName);
+
+        Task nextTask = nextTaskContent.content;
+        return nextTask;
+    end
 end
 
 class Treatment extends Twin (
@@ -29,9 +113,71 @@ class Treatment extends Twin (
     Diagnosis diagnosis,
     Double frequency,
     Double weight,
-    Task firstTask,
-    Task lastTask
+    TreatmentStep firstTask,
+    TreatmentStep lastTask
 )
+    Diagnosis getDiagnosis()
+        Diagnosis diagnosisContent = access("
+        PREFIX : <http://www.smolang.org/bedreflyt/>
+
+        SELECT DISTINCT ?obj
+        WHERE {
+            ?treatment a :Procedure ;
+                :treatmentName %1 .
+            ?treatment :isTreatmentProcOf ?diagnosis .
+            ?diagnosis :diagnosisName ?name .
+
+            ?obj a prog:Diagnosis ;
+                prog:Diagnosis_diagnosisName ?name .
+        ", this.treatmentName, this.diagnosis.diagnosisCode);
+
+        Diagnosis diagnosis = diagnosisContent.content;
+        return diagnosis;
+    end
+
+    TreatmentStep getFirstTask()
+        TreatmentStep firstTaskContent = access("
+        PREFIX : <http://www.smolang.org/bedreflyt/>
+
+        SELECT DISTINCT ?obj
+        WHERE {
+            ?treatment a :Procedure ;
+                :treatmentName %1 .
+            ?treatment :hasFirstStep ?firstTask .
+            ?firstTask :hasTask ?task .
+            ?task :taskName ?name .
+
+            ?obj a prog:Task ;
+                prog:Task_taskName ?treatTask .
+            ?treatTask a prog:Task ;
+                prog:Task_taskName ?name .
+        ", this.treatmentName);
+
+        Task firstTask = firstTaskContent.content;
+        return firstTask;
+    end
+
+    TreatmentStep getLastTask()
+        TreatmentStep lastTaskContent = access("
+        PREFIX : <http://www.smolang.org/bedreflyt/>
+
+        SELECT DISTINCT ?obj
+        WHERE {
+            ?treatment a :Procedure ;
+                :treatmentName %1 .
+            ?treatment :hasLastStep ?lastTask .
+            ?lastTask :hasTask ?task .
+            ?task :taskName ?name .
+
+            ?obj a prog:Task ;
+                prog:Task_taskName ?treatTask .
+            ?treatTask a prog:Task ;
+                prog:Task_taskName ?name .
+        ", this.treatmentName);
+
+        Task lastTask = lastTaskContent.content;
+        return lastTask;
+    end
 end
 
 class MonitoringCategory extends Twin (
@@ -70,8 +216,7 @@ class Hospital extends Twin (
 end
 
 class Floor extends Twin (
-    Int floorNumber,
-    Hospital floorHospital
+    Int floorNumber
 )
 end
 
@@ -81,6 +226,45 @@ class Ward extends Twin (
     Hospital wardHospital,
     Floor wardFloor
 )
+    Hospital getWardHospital()
+        Hospital hospitalContent = access("
+        PREFIX : <http://www.smolang.org/bedreflyt/>
+
+        SELECT DISTINCT ?obj
+        WHERE {
+            ?ward a :Ward ;
+                :wardName %1 ;
+                :wardCode %2 .
+            ?ward :hasHospital ?hospital .
+            ?hospital :hospitalName ?name .
+
+            ?obj a prog:Hospital ;
+                prog:Hospital_hospitalName ?name .
+        ", this.wardName, this.wardCode);
+
+        Hospital wardHospital = hospitalContent.content;
+        return wardHospital;
+    end
+
+    Floor getWardFloor()
+        Floor floorContent = access("
+        PREFIX : <http://www.smolang.org/bedreflyt/>
+
+        SELECT DISTINCT ?obj
+        WHERE {
+            ?ward a :Ward ;
+                :wardName %1 ;
+                :wardCode %2 .
+            ?ward :hasFloor ?floor .
+            ?floor :floorNumber ?number .
+
+            ?obj a prog:Floor ;
+                prog:Floor_floorNumber ?number .
+        ", this.wardName, this.wardCode);
+
+        Floor wardFloor = floorContent.content;
+        return wardFloor;
+    end
 end
 
 class Room extends Twin (
@@ -94,9 +278,100 @@ end
 
 class TreatingRoom extends Room (
     Ward treatingWard,
+    Hospital hospital,
     Bathroom bathroom,
     MonitoringCategory monitoringCategory
 )
+    Ward getTreatingWard()
+        Ward wardContent = access("
+        PREFIX : <http://www.smolang.org/bedreflyt/>
+
+        SELECT DISTINCT ?obj
+        WHERE {
+            ?treatingRoom a :TreatingRoom ;
+                :roomNumber %1 ;
+                :roomCapacity %2 .
+            ?treatingRoom :isAssignWard ?ward .
+            ?ward :wardName ?name .
+            ?treatingRoom :isAssignHospital ?hospital .
+            ?hospital :hospitalName ?hosName .
+
+            ?obj a prog:Ward ;
+                prog:Ward_wardName ?name ;
+                prog:Ward_wardHospital ?progHospital .
+            ?progHospital a prog:Hospital ;
+                prog:Hospital_hospitalName ?hosName .
+        ", this.roomNumber, this.capacity);
+
+        Ward treatingWard = wardContent.content;
+        return treatingWard;
+    end
+
+    Hospital getHospital()
+        Hospital hospitalContent = access("
+        PREFIX : <http://www.smolang.org/bedreflyt/>
+
+        SELECT DISTINCT ?obj
+        WHERE {
+            ?treatingRoom a :TreatingRoom ;
+                :roomNumber %1 ;
+                :roomCapacity %2 .
+            ?treatingRoom :isAssignWard ?ward .
+            ?ward :wardName ?name .
+            ?treatingRoom :isAssignHospital ?hospital .
+            ?hospital :hospitalName ?hosName .
+
+            ?w a prog:Ward ;
+                prog:Ward_wardName ?name ;
+                prog:Ward_wardHospital ?obj .
+
+            ?obj a prog:Hospital ;
+                prog:Hospital_hospitalName ?hosName .
+        ", this.roomNumber, this.capacity);
+
+        Hospital hospital = hospitalContent.content;
+        return hospital;
+    end
+
+    Bathroom getBathroom()
+        Bathroom bathroomContent = access("
+        PREFIX : <http://www.smolang.org/bedreflyt/>
+
+        SELECT DISTINCT ?obj
+        WHERE {
+            ?treatingRoom a :TreatingRoom ;
+                :roomNumber %1 ;
+                :roomCapacity %2 .
+            ?treatingRoom :hasBathroom ?bathroom .
+            ?bathroom :roomNumber ?number .
+
+            ?obj a prog:Bathroom ;
+                prog:Bathroom_roomNumber ?number .
+        ", this.roomNumber, this.capacity);
+
+        Bathroom bathroom = bathroomContent.content;
+        return bathroom;
+    end
+
+    MonitoringCategory getMonitoringCategory()
+        MonitoringCategory monitoringCategoryContent = access("
+        PREFIX : <http://www.smolang.org/bedreflyt/>
+
+        SELECT DISTINCT ?obj
+        WHERE {
+            ?treatingRoom a :TreatingRoom ;
+                :roomNumber %1 ;
+                :roomCapacity %2 .
+            ?treatingRoom :hasMonitoringStatus ?monitoringCategory .
+            ?monitoringCategory :hasMonitoringCode ?code .
+
+            ?obj a prog:MonitoringCategory ;
+                prog:MonitoringCategory_category ?code .
+        ", this.roomNumber, this.capacity);
+
+        MonitoringCategory monitoringCategory = monitoringCategoryContent.content;
+        return monitoringCategory;
+    end
 end
 
 class Bed extends Twin (
@@ -104,6 +379,45 @@ class Bed extends Twin (
     TreatingRoom bedTreatingRoom,
     MonitoringCategory monitoringCategory
 )
+    TreatingRoom getBedTreatingRoom()
+        TreatingRoom treatingRoomContent = access("
+        PREFIX : <http://www.smolang.org/bedreflyt/>
+
+        SELECT DISTINCT ?obj
+        WHERE {
+            ?bed a :Bed ;
+                :bedNumber %1 .
+            ?bed :isAssignRoom ?room .
+            ?room :roomNumber %2 .
+            ?room :roomCapacity %3 .
+
+            ?obj a prog:TreatingRoom ;
+                prog:TreatingRoom_roomNumber %2 ;
+                prog:TreatingRoom_roomCapacity %3 .
+        ", this.bedNumber, this.bedTreatingRoom.roomNumber, this.bedTreatingRoom.capacity);
+
+        TreatingRoom treatingRoom = treatingRoomContent.content;
+        return treatingRoom;
+    end
+
+    MonitoringCategory getMonitoringCategory()
+        MonitoringCategory monitoringCategoryContent = access("
+        PREFIX : <http://www.smolang.org/bedreflyt/>
+
+        SELECT DISTINCT ?obj
+        WHERE {
+            ?bed a :Bed ;
+                :bedNumber %1 .
+            ?bed :hasMonitoringStatus ?monitoringCategory .
+            ?monitoringCategory :hasMonitoringCode ?code .
+
+            ?obj a prog:MonitoringCategory ;
+                prog:MonitoringCategory_category ?code .
+        ", this.bedNumber);
+
+        MonitoringCategory monitoringCategory = monitoringCategoryContent.content;
+        return monitoringCategory;
+    end
 end
 
 // Task defects
