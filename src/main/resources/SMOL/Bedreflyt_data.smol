@@ -23,7 +23,7 @@ class Task extends Twin (
 
             ?obj a prog:Room ;
                 prog:Room_roomNumber ?number .
-        ", this.taskName);
+        }", this.taskName);
 
         Room room = roomContent.content;
         return room;
@@ -52,7 +52,7 @@ class TreatmentStep extends Twin (
 
             ?obj a prog:Task ;
                 prog:Task_taskName ?name .
-        ", this.treatment.treatmentName, this.taskName);
+        }", this.treatment.treatmentName, this.taskName);
 
         Task task = taskContent.content;
         return task;
@@ -76,7 +76,7 @@ class TreatmentStep extends Twin (
                 prog:Task_taskName ?treatTask .
             ?treatTask a prog:Task ;
                 prog:Task_taskName ?name .
-        ", this.treatment.treatmentName, this.taskName);
+        }", this.treatment.treatmentName, this.taskName);
 
         Task previousTask = previousTaskContent.content;
         return previousTask;
@@ -100,7 +100,7 @@ class TreatmentStep extends Twin (
                 prog:Task_taskName ?treatTask .
             ?treatTask a prog:Task ;
                 prog:Task_taskName ?name .
-        ", this.treatment.treatmentName, this.taskName);
+        }", this.treatment.treatmentName, this.taskName);
 
         Task nextTask = nextTaskContent.content;
         return nextTask;
@@ -151,7 +151,7 @@ class Treatment extends Twin (
                 prog:Task_taskName ?treatTask .
             ?treatTask a prog:Task ;
                 prog:Task_taskName ?name .
-        ", this.treatmentName);
+        }", this.treatmentName);
 
         Task firstTask = firstTaskContent.content;
         return firstTask;
@@ -173,7 +173,7 @@ class Treatment extends Twin (
                 prog:Task_taskName ?treatTask .
             ?treatTask a prog:Task ;
                 prog:Task_taskName ?name .
-        ", this.treatmentName);
+        }", this.treatmentName);
 
         Task lastTask = lastTaskContent.content;
         return lastTask;
@@ -202,14 +202,14 @@ class Hospital extends Twin (
         SELECT DISTINCT ?obj
         WHERE {
             ?hospital a brick:Hospital ;
-                :hosptialName %1 ;
+                :hospitalName %1 ;
                 :hospitalCode %2 .
             ?hospital :hasCity ?city .
             ?city :cityName ?name .
 
             ?obj a prog:City ;
                 prog:City_cityName ?name .
-        ", this.hospitalName, this.hospitalCode);
+        }", this.hospitalName, this.hospitalCode);
 
         City hospitalCity = cityContent.content;
         return hospitalCity;
@@ -242,7 +242,7 @@ class Ward extends Twin (
 
             ?obj a prog:Hospital ;
                 prog:Hospital_hospitalName ?name .
-        ", this.wardName, this.wardCode);
+        }", this.wardName, this.wardCode);
 
         Hospital wardHospital = hospitalContent.content;
         return wardHospital;
@@ -263,7 +263,7 @@ class Ward extends Twin (
 
             ?obj a prog:Floor ;
                 prog:Floor_floorNumber ?number .
-        ", this.wardName, this.wardCode);
+        }", this.wardName, this.wardCode);
 
         Floor wardFloor = floorContent.content;
         return wardFloor;
@@ -291,7 +291,7 @@ class TreatingRoom extends Room (
 
         SELECT DISTINCT ?obj
         WHERE {
-            ?treatingRoom a :TreatingRoom ;
+            ?treatingRoom rdf:type <https://w3id.org/rec/building/TreatmentRoom> ;
                 :roomNumber %1 ;
                 :roomCapacity %2 .
             ?treatingRoom :hasBathroom ?bathroom .
@@ -299,7 +299,7 @@ class TreatingRoom extends Room (
 
             ?obj a prog:Bathroom ;
                 prog:Bathroom_roomNumber ?number .
-        ", this.roomNumber, this.capacity);
+        }", this.roomNumber, this.capacity);
 
         Bathroom bathroom = bathroomContent.content;
         return bathroom;
@@ -326,7 +326,7 @@ class Bed extends Twin (
             ?obj a prog:TreatingRoom ;
                 prog:TreatingRoom_roomNumber %2 ;
                 prog:TreatingRoom_roomCapacity %3 .
-        ", this.bedNumber, this.bedTreatingRoom.roomNumber, this.bedTreatingRoom.capacity);
+        }", this.bedNumber, this.bedTreatingRoom.roomNumber, this.bedTreatingRoom.capacity);
 
         TreatingRoom treatingRoom = treatingRoomContent.content;
         return treatingRoom;
@@ -345,7 +345,7 @@ class Bed extends Twin (
 
             ?obj a prog:MonitoringCategory ;
                 prog:MonitoringCategory_category ?code .
-        ", this.bedNumber);
+        }", this.bedNumber);
 
         MonitoringCategory monitoringCategory = monitoringCategoryContent.content;
         return monitoringCategory;
