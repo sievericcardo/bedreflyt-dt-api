@@ -62,4 +62,8 @@ class TaskModel extends BaseModel ()
         skip;
         print("RECONFIG> Defects checked for the Task(s)");
     end
+
+    override Unit adaptRepair()
+        skip;
+    end
 end

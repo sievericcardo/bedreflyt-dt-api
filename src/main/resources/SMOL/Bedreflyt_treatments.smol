@@ -3,10 +3,12 @@ class TreatmentModel extends BaseModel()
     override Unit adaptAddition()
         List<Treatment> newTreatments = construct("
         PREFIX : <http://example.org/bedreflyt/>
+        PREFIX pko: <https://w3id.org/pko#>
+
         SELECT ?treatmentName ?diagnosis ?frequency ?weight
         WHERE {
-            ?treatment a :Treatment ;
-                :treatmentName ?treatmentName ;
+            ?treatment a pko:Procedure ;
+                :procedureName ?treatmentName ;
                 :frequency ?frequency ;
                 :weight ?weight ;
                 :isTreatmentProcOf ?diagnosisContent .
@@ -34,6 +36,7 @@ class TreatmentModel extends BaseModel()
     override Unit adaptRemoval()
         List<Treatment> wrongTreatments = access("
         PREFIX : <http://example.org/bedreflyt/>
+        PREFIX pko: <https://w3id.org/pko#>
 
         SELECT ?treatmentName ?diagnosis ?frequency ?weight
         WHERE {
@@ -45,8 +48,8 @@ class TreatmentModel extends BaseModel()
             ?diagnosisObj a prog:Diagnosis ;
                 prog:Diagnosis_diagnosisCode ?diagnosisCode .
             FILTER NOT EXISTS {
-                ?treatment a :Treatment ;
-                    :treatmentName ?treatmentName ;
+                ?treatment a pko:Procedure ;
+                    :procedureName ?treatmentName ;
                     :frequency ?frequency ;
                     :weight ?weight ;
                     :isTreatmentProcOf ?diagnosisContent .
@@ -76,6 +79,10 @@ class TreatmentModel extends BaseModel()
     override Unit adaptDefect()
         // this.adaptDefectFrequency();
         // this.adaptDefectWeight();
+        skip;
+    end
+
+    override Unit adaptRepair()
         skip;
     end
 end

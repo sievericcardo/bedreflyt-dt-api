@@ -84,4 +84,8 @@ class WardModel extends BaseModel ()
     override Unit adaptDefect()
         skip;
     end
+
+    override Unit adaptRepair()
+        skip;
+    end
 end

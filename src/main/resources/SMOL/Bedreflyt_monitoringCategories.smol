@@ -55,7 +55,7 @@ class MonitoringCategoryModel extends BaseModel()
                 MonitoringCategory wrongCategory = wrongCategories.content;
                 List<MonitoringCategory> lx = wrongCategories;
                 wrongCategories = wrongCategories.next;
-                
+
                 print("RECONFIG> Removing monitoring category: ");
                 print("          Name: " ++ wrongCategory.description);
                 print("          Category: " ++ intToString(wrongCategory.category));
@@ -70,6 +70,10 @@ class MonitoringCategoryModel extends BaseModel()
     end
 
     override Unit adaptDefect()
+        skip;
+    end
+
+    override Unit adaptRepair()
         skip;
     end
 end

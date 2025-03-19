@@ -8,13 +8,13 @@ class RoomModel extends BaseModel()
         SELECT DISTINCT ?roomNumber ?capacity ?treatingWard ?hospital ?monitoringCategory
         WHERE {
             ?room rdf:type <https://w3id.org/rec/building/TreatmentRoom> ;
-                :roomNumber ?roomNumber ;
-                :capacity ?capacity ;
+                :hasRoomNr ?roomNumber ;
+                :hasCapacityNrBeds ?capacity ;
                 :isAssignWard ?ward ;
                 :hasMonitoringStatus ?monitoringStatus .
             ?ward a :Ward ;
                 :wardName ?wardName ;
-                :hasHospital ?hospitalWard .
+                brick:hasHospital ?hospitalWard .
             ?hospitalWard a brick:Hospital ;
                 :hospitalName ?hospitalName .
             ?monitoringStatus a :MonitoringCategory ;
@@ -24,7 +24,7 @@ class RoomModel extends BaseModel()
                 prog:Hospital_hospitalName ?hospitalName .
             ?treatingWard a prog:Ward ;
                 prog:Ward_wardName ?wardName .
-            ?monitorincCategory a prog:MonitoringCategory ;
+            ?monitoringCategory a prog:MonitoringCategory ;
                 prog:MonitoringCategory_category ?monitoringCode .
         }");
 
@@ -56,7 +56,7 @@ class RoomModel extends BaseModel()
                 prog:TreatingRoom_roomNumber ?roomNumber ;
                 prog:TreatingRoom_capacity ?capacity ;
                 prog:TreatingRoom_isAssignWard ?ward ;
-                prog:TreatingRoom_hasMonitoringStatus ?monitoringStatus .
+                prog:TreatingRoom_monitoringCategory ?monitoringStatus .
             ?ward a prog:Ward ;
                 prog:Ward_wardName ?wardName ;
                 prog:Ward_hasHospital ?hospitalWard .
@@ -67,13 +67,13 @@ class RoomModel extends BaseModel()
 
             FILTER NOT EXISTS {
                 ?room rdf:type <https://w3id.org/rec/building/TreatmentRoom> ;
-                    :roomNumber ?roomNumber ;
-                    :capacity ?capacity ;
+                    :hasRoomNr ?roomNumber ;
+                    :hasCapacityNrBeds ?capacity ;
                     :isAssignWard ?ward ;
                     :hasMonitoringStatus ?monitoringStatus .
                 ?ward a :Ward ;
                     :wardName ?wardName ;
-                    :hasHospital ?hospitalWard .
+                    brick:hasHospital ?hospitalWard .
                 ?hospitalWard a brick:Hospital ;
                     :hospitalName ?hospitalName .
                 ?monitoringStatus a :MonitoringCategory ;
@@ -102,5 +102,9 @@ class RoomModel extends BaseModel()
     override Unit adaptDefect()
         print("RECONFIG> Checking for defects in the Room(s)");
         print("RECONFIG> Defects checked for the Room(s)");
+    end
+
+    override Unit adaptRepair()
+        skip;
     end
 end

@@ -2,7 +2,7 @@ class DiagnosisModel extends BaseModel()
 
     override Unit adaptAddition()
         List<Diagnosis> newDiagnoses = construct("
-            PREFIX ast: <http://www.smolang.org/bedreflyt#>
+            PREFIX ast: <http://www.smolang.org/bedreflyt/>
             SELECT DISTINCT ?diagnosisCode {
                 ?x a ast:Diagnosis ;
                     ast:diagnosisCode ?diagnosisCode .
@@ -19,7 +19,7 @@ class DiagnosisModel extends BaseModel()
                 Diagnosis newDiagnosis = newDiagnoses.content;
                 List<Diagnosis> lx = newDiagnoses;
                 newDiagnoses = newDiagnoses.next;
-                
+
                 print("RECONFIG> New diagnosis detected: ");
                 print("          Diagnosis Code: " ++ newDiagnosis.diagnosisCode);
 
@@ -32,7 +32,7 @@ class DiagnosisModel extends BaseModel()
 
     override Unit adaptRemoval()
         List<Diagnosis> wrongDiagnoses = access("
-            PREFIX ast: <http://www.smolang.org/bedreflyt#>
+            PREFIX ast: <http://www.smolang.org/bedreflyt/>
             SELECT DISTINCT ?obj {
                 ?obj a prog:Diagnosis ;
                      prog:Diagnosis_diagnosisCode ?diagnosisCode.
@@ -63,4 +63,6 @@ class DiagnosisModel extends BaseModel()
     end
 
     override Unit adaptDefect() skip; end
+
+    override Unit adaptRepair() skip; end
 end

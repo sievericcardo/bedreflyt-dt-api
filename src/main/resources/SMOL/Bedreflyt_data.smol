@@ -39,44 +39,44 @@ class TreatmentStep extends Twin (
     Double staffLoad,
     Double averageDuration
 )
-    Task getTask()
-        Task taskContent = access("
-        PREFIX : <http://www.smolang.org/bedreflyt/>
-
-        SELECT DISTINCT ?obj
-        WHERE {
-            ?treatment a :Procedure ;
-                :procedureName %1 .
-            ?treatment :hasTask ?task .
-            ?task :taskName %2 .
-
-            ?obj a prog:Task ;
-                prog:Task_taskName ?name .
-        }", this.treatment.treatmentName, this.taskName);
-
-        Task task = taskContent.content;
-        return task;
-    end
-
     TreatmentStep getPreviousTask()
         TreatmentStep previousTaskContent = access("
         PREFIX : <http://www.smolang.org/bedreflyt/>
+        PREFIX time: <http://www.w3.org/2006/time#>
+        PREFIX pko: <https://w3id.org/pko#>
 
         SELECT DISTINCT ?obj
         WHERE {
-            ?treatment a :Procedure ;
+            ?taskDep a :TreatmentStep ;
+                :hasNurseBurden ?staffLoad ;
+                time:hours ?averageDuration ;
+                :stepOfTreatment ?treatment ;
+                :hasTask ?taskObj .
+            ?treatment a pko:Procedure ;
                 :procedureName %1 .
-            ?treatment :hasTask ?task .
-            ?task :taskName %2 .
-            ?task :hasPreviousTask ?previousTask .
-            ?previousTask :hasTask ?prevTask .
-            ?prevTask :taskName ?name .
+            ?taskObj rdf:type <http://purl.org/net/p-plan#Step> ;
+                :taskName %2 .
+            ?taskObj :hasPreviousTask ?previousTask .
+            ?previousTask a :TreatmentStep ;
+                :hasTask ?prevTask .
+            ?prevTask rdf:type <http://purl.org/net/p-plan#Step> ;
+                :taskName ?name .
+            ?task a prog:Task ;
+                prog:Task_taskName ?taskName .
 
-            ?obj a prog:Task ;
-                prog:Task_taskName ?treatTask .
-            ?treatTask a prog:Task ;
+
+            ?taskObj a prog:Task ;
                 prog:Task_taskName ?name .
-        }", this.treatment.treatmentName, this.taskName);
+            ?obj a prog:TreatmentStep ;
+                prog:TreatmentStep_treatmentName ?treatName ;
+                prog:TreatmentStep_task ?taskObj .
+        }", this.treatmentName, this.task.taskName);
+
+        print(previousTaskContent);
+
+        if previousTaskContent == null then
+            return null;
+        end
 
         Task previousTask = previousTaskContent.content;
         return previousTask;
@@ -85,22 +85,32 @@ class TreatmentStep extends Twin (
     TreatmentStep getNextTask()
         TreatmentStep nextTaskContent = access("
         PREFIX : <http://www.smolang.org/bedreflyt/>
+        PREFIX time: <http://www.w3.org/2006/time#>
+        PREFIX pko: <https://w3id.org/pko#>
 
         SELECT DISTINCT ?obj
         WHERE {
-            ?treatment a :Procedure ;
+            ?treatment a pko:Procedure ;
                 :procedureName %1 .
             ?treatment :hasTask ?task .
-            ?task :taskName %2 .
+            ?task rdf:type <http://purl.org/net/p-plan#Step> ;
+                :taskName %2 .
             ?task :hasNextTask ?nextTask .
-            ?nextTask :hasTask ?nextTsk .
-            ?nextTsk :taskName ?name .
+            ?nextTask a :TreatmentStep ;
+                :hasTask ?nextTask .
+            ?nextTsk rdf:type <http://purl.org/net/p-plan#Step> ;
+                :taskName ?name .
 
-            ?obj a prog:Task ;
-                prog:Task_taskName ?treatTask .
-            ?treatTask a prog:Task ;
+            ?taskObj a prog:Task ;
                 prog:Task_taskName ?name .
-        }", this.treatment.treatmentName, this.taskName);
+            ?obj a prog:TreatmentStep ;
+                prog:TreatmentStep_treatmentName ?treatName ;
+                prog:TreatmentStep_task ?taskObj .
+        }", this.treatmentName, this.task.taskName);
+
+        if nextTaskContent == null then
+            return null;
+        end
 
         Task nextTask = nextTaskContent.content;
         return nextTask;

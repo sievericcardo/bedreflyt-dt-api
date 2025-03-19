@@ -2,13 +2,15 @@ abstract class BaseModel (String name)
     Unit adaptModel()
         print("RECONFIG> Reconfiguring " ++ this.name);
         this.adaptDefect();
-        this.adaptAddition();
         this.adaptRemoval();
+        this.adaptAddition();
+        // this.adaptRepair();
     end
 
     abstract Unit adaptAddition()
     abstract Unit adaptRemoval()
     abstract Unit adaptDefect()
+    abstract Unit adaptRepair()
 end
 
 class AssetModel extends Twin (List<BaseModel> mods)
@@ -22,6 +24,7 @@ class AssetModel extends Twin (List<BaseModel> mods)
         List<BaseModel> ms = this.mods;
         while ms != null do
             ms.content.adaptModel();
+            ms.content.adaptRepair();
             ms = ms.next;
         end
 
@@ -36,6 +39,7 @@ class AssetModel extends Twin (List<BaseModel> mods)
             if ms.content.name == mod then
                 print("RECONFIG> Reconfiguring " ++ ms.content.name);
                 ms.content.adaptModel();
+                ms.content.adaptRepair();
             end
             ms = ms.next;
         end

@@ -3,6 +3,7 @@ class TreatmentStepModel extends BaseModel ()
         List<TreatmentStep> newTaskDeps = construct("
         PREFIX : <http://www.smolang.org/bedreflyt/>
         PREFIX time: <http://www.w3.org/2006/time#>
+        PREFIX pko: <https://w3id.org/pko#>
 
         SELECT DISTINCT ?treatmentName ?task ?staffLoad ?averageDuration
         WHERE {
@@ -11,9 +12,10 @@ class TreatmentStepModel extends BaseModel ()
                 time:hours ?averageDuration ;
                 :stepOfTreatment ?treatment ;
                 :hasTask ?taskObj .
-            ?treatment a :Procedure ;
+            ?treatment a pko:Procedure ;
                 :procedureName ?treatmentName .
-            ?taskObj :taskName ?taskName .
+            ?taskObj rdf:type <http://purl.org/net/p-plan#Step> ;
+                :taskName ?taskName .
             ?task a prog:Task ;
                 prog:Task_taskName ?taskName .
         }");
@@ -24,8 +26,16 @@ class TreatmentStepModel extends BaseModel ()
             while newTaskDeps != null do
                 TreatmentStep newTaskDep = newTaskDeps.content;
                 List<TreatmentStep> lx = newTaskDeps;
-                newTaskDep.nextTask = newTaskDep.getNextTask();
-                newTaskDep.previousTask = newTaskDep.getPreviousTask();
+
+                TreatmentStep previousTask = newTaskDep.getPreviousTask();
+                if previousTask != null then
+                    newTaskDep.previousTask = previousTask;
+                end
+                TreatmentStep nextTask = newTaskDep.getNextTask();
+                if nextTask != null then
+                    newTaskDep.nextTask = nextTask;
+                end
+
                 newTaskDeps = newTaskDeps.next;
                 
                 print("RECONFIG> Adding task dependency " ++ newTaskDep.task.taskName ++ " for treatment " ++ newTaskDep.treatmentName);
@@ -43,6 +53,7 @@ class TreatmentStepModel extends BaseModel ()
         List<TreatmentStep> wrongTaskDeps = access("
         PREFIX : <http://www.smolang.org/bedreflyt/>
         PREFIX time: <http://www.w3.org/2006/time#>
+        PREFIX pko: <https://w3id.org/pko#>
 
         SELECT DISTINCT ?obj {
             ?obj a prog:TreatmentStep ;
@@ -59,9 +70,10 @@ class TreatmentStepModel extends BaseModel ()
                     time:hours ?averageDuration ;
                     :stepOfTreatment ?treatment ;
                     :hasTask ?taskObj .
-                ?treatment a :Procedure ;
+                ?treatment a pko:Procedure ;
                     :procedureName ?treatmentName .
-                ?taskObj :taskName ?taskName .
+                ?taskObj rdf:type <http://purl.org/net/p-plan#Step> ;
+                    :taskName ?taskName .
                 ?task a prog:Task ;
                     prog:Task_taskName ?taskName .
             }
@@ -88,4 +100,37 @@ class TreatmentStepModel extends BaseModel ()
     override Unit adaptDefect()
         skip;
     end
+
+    override Unit adaptRepair()
+        skip;
+    end
+    //     List<TreatmentStep> taskDeps = access("
+    //      SELECT DISTINCT ?obj {
+    //         ?obj a prog:TreatmentStep .
+    //     }");
+
+    //     if taskDeps != null then
+    //         print("RECONFIG> Repairing task dependencies...");
+            
+    //         while taskDeps != null do
+    //             TreatmentStep taskDep = taskDeps.content;
+    //             List<TreatmentStep> lx = taskDeps;
+
+    //             TreatmentStep previousTask = taskDep.getPreviousTask();
+    //             if previousTask != null then
+    //                 taskDep.previousTask = previousTask;
+    //             end
+    //             TreatmentStep nextTask = taskDep.getNextTask();
+    //             if nextTask != null then
+    //                 taskDep.nextTask = nextTask;
+    //             end
+
+    //             taskDeps = taskDeps.next;
+                
+    //             print("RECONFIG> Repairing task dependency " ++ taskDep.task.taskName ++ " for treatment " ++ taskDep.treatmentName);
+    //             destroy(lx);
+    //         end
+    //         print("RECONFIG> Task dependencies repaired");
+    //     end
+    // end
 end

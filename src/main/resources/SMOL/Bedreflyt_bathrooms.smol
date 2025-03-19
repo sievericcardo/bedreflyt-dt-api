@@ -61,4 +61,8 @@ class BathroomModel extends BaseModel ()
         print("RECONFIG> Checking for defects in the Bathroom(s)");
         print("RECONFIG> Defects checked for the Bathroom(s)");
     end
+
+    override Unit adaptRepair()
+        skip;
+    end
 end
