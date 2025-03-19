@@ -5,7 +5,7 @@ class BathroomModel extends BaseModel ()
 
         SELECT DISTINCT ?bathroomName ?bathroomCode
         WHERE {
-            ?bathroom a :Bathroom ;
+            ?bathroom rdf:type <https://w3id.org/rec/building/Bathroom> ;
                 :bathroomName ?bathroomName ;
                 :bathroomCode ?bathroomCode .
         }");
@@ -34,7 +34,7 @@ class BathroomModel extends BaseModel ()
                 prog:Bathroom_bathroomName ?bathroomName ;
                 prog:Bathroom_bathroomCode ?bathroomCode .
             FILTER NOT EXISTS {
-                ?bathroom a :Bathroom ;
+                ?bathroom rdf:type <https://w3id.org/rec/building/Bathroom> ;
                     :bathroomName ?bathroomName ;
                     :bathroomCode ?bathroomCode .
             }

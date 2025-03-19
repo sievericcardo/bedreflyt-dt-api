@@ -7,7 +7,7 @@ class RoomModel extends BaseModel()
 
         SELECT DISTINCT ?roomNumber ?capacity ?treatingWard ?hospital ?monitoringCategory
         WHERE {
-            ?room a :TreatingRoom ;
+            ?room rdf:type <https://w3id.org/rec/building/TreatmentRoom> ;
                 :roomNumber ?roomNumber ;
                 :capacity ?capacity ;
                 :isAssignWard ?ward ;
@@ -66,7 +66,7 @@ class RoomModel extends BaseModel()
                 prog:MonitoringCategory_category ?monitoringCode .
 
             FILTER NOT EXISTS {
-                ?room a :TreatingRoom ;
+                ?room rdf:type <https://w3id.org/rec/building/TreatmentRoom> ;
                     :roomNumber ?roomNumber ;
                     :capacity ?capacity ;
                     :isAssignWard ?ward ;
