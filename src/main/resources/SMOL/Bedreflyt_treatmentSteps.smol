@@ -80,6 +80,7 @@ class TreatmentStepModel extends BaseModel ()
             
             destroy(wrongTaskDeps);
             print("RECONFIG> Wrong task dependencies removed");
+        end
     end
 
     override Unit adaptDefect()

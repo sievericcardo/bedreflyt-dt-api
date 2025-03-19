@@ -8,8 +8,7 @@ class HospitalModel extends BaseModel ()
             ?hospital a :Hospital ;
                 :hospitalName ?hospitalName ;
                 :hospitalCode ?hospitalCode .
-        }
-        ");
+        }");
 
         if newHospitals != null then
             print("RECONFIG> Adding new hospitals...");
@@ -41,8 +40,7 @@ class HospitalModel extends BaseModel ()
                     :hospitalName ?hospitalName ;
                     :hospitalCode ?hospitalCode .
             }
-        }
-        ");
+        }");
 
         if wrongHospitals != null then
             print("RECONFIG> Removing wrong hospitals...");

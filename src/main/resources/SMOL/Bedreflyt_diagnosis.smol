@@ -3,12 +3,12 @@ class DiagnosisModel extends BaseModel()
     override Unit adaptAddition()
         List<Diagnosis> newDiagnoses = construct("
             PREFIX ast: <http://www.smolang.org/bedreflyt#>
-            SELECT DISTINCT ?diagnosisName {
+            SELECT DISTINCT ?diagnosisCode {
                 ?x a ast:Diagnosis ;
-                    ast:diagnosisName ?diagnosisName .
+                    ast:diagnosisCode ?diagnosisCode .
                 FILTER NOT EXISTS {
                     ?y a prog:Diagnosis ;
-                        prog:Diagnosis_diagnosisName ?diagnosisName .
+                        prog:Diagnosis_diagnosisCode ?diagnosisCode .
                 }
             }");
 
@@ -20,7 +20,7 @@ class DiagnosisModel extends BaseModel()
                 List<Diagnosis> lx = newDiagnoses;
                 newDiagnoses = newDiagnoses.next;
                 print("RECONFIG> New diagnosis detected: ");
-                print("          Diagnosis Name: " ++ newDiagnosis.diagnosisName);
+                print("          Diagnosis Code: " ++ newDiagnosis.diagnosisCode);
 
                 destroy(lx);
             end
@@ -34,10 +34,10 @@ class DiagnosisModel extends BaseModel()
             PREFIX ast: <http://www.smolang.org/bedreflyt#>
             SELECT DISTINCT ?obj {
                 ?obj a prog:Diagnosis ;
-                     prog:Diagnosis_diagnosisName ?diagnosisName.
+                     prog:Diagnosis_diagnosisCode ?diagnosisCode.
                 FILTER NOT EXISTS {
                     ?y a ast:Diagnosis ;
-                       ast:diagnosisName ?diagnosisName.
+                       ast:diagnosisCode ?diagnosisCode.
                 }
             }");
 
@@ -49,7 +49,7 @@ class DiagnosisModel extends BaseModel()
                 wrongDiagnoses = wrongDiagnoses.next;
 
                 print("RECONFIG> Misconfigured diagnosis to remove: ");
-                print("          Diagnosis Name: " ++ wrongDiagnosis.diagnosisName);
+                print("          Diagnosis Code: " ++ wrongDiagnosis.diagnosisCode);
 
                 destroy(wrongDiagnosis);
                 destroy(lx);

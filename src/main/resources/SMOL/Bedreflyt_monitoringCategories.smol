@@ -2,17 +2,17 @@ class MonitoringCategoryModel extends BaseModel()
     
     override Unit adaptAddition()
         List<MonitoringCategory> newCategories = construct("
-            PREFIX : <http://www.smolang.org/bedreflyt/>
-            SELECT DISTINCT ?category ?description {
-                ?x a :MonitoringCategory ;
-                    :monitoringName ?description ;
-                    :hasMonitoringCode ?category .
-                FILTER NOT EXISTS {
-                    ?y a prog:MonitoringCategory ;
-                        prog:MonitoringCategory_description ?description ;
-                        prog:MonitoringCategory_category ?category .
-                }
-            }");
+        PREFIX : <http://www.smolang.org/bedreflyt/>
+        SELECT DISTINCT ?category ?description {
+            ?x a :MonitoringCategory ;
+                :monitoringName ?description ;
+                :hasMonitoringCode ?category .
+            FILTER NOT EXISTS {
+                ?y a prog:MonitoringCategory ;
+                    prog:MonitoringCategory_description ?description ;
+                    prog:MonitoringCategory_category ?category .
+            }
+        }");
 
         if newCategories != null then
             print("RECONFIG> New Monitoring Category(ies) detected: repairing the model");
