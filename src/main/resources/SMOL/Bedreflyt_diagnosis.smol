@@ -1,4 +1,4 @@
-class DiagnosisModel extends KindModel()
+class DiagnosisModel extends BaseModel()
 
     override Unit adaptAddition()
         List<Diagnosis> newDiagnoses = construct("

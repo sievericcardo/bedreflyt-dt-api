@@ -1,4 +1,4 @@
-class RoomModel extends KindModel()
+class RoomModel extends BaseModel()
 
     override Unit adaptAddition()
         List<Room> newRooms = construct("

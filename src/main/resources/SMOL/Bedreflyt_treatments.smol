@@ -1,4 +1,4 @@
-class TreatmentModel extends KindModel()
+class TreatmentModel extends BaseModel()
 
     override Unit adaptAddition()
         List<Treatment> newTreatments = construct("

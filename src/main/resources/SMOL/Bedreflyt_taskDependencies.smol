@@ -1,4 +1,4 @@
-class TaskDependencyModel extends KindModel ()
+class TaskDependencyModel extends BaseModel ()
     override Unit adaptAddition()
         List<TaskDependency> newTaskDeps = construct("
             PREFIX ast: <http://www.smolang.org/bedreflyt#>

@@ -1,4 +1,4 @@
-abstract class KindModel (String name)
+abstract class BaseModel (String name)
     Unit adaptModel()
         print("RECONFIG> Reconfiguring " ++ this.name);
         this.adaptDefect();
@@ -11,15 +11,15 @@ abstract class KindModel (String name)
     abstract Unit adaptDefect()
 end
 
-class AssetModel extends Twin (List<KindModel> mods)
-    Unit register (KindModel m)
-        this.mods = new List<KindModel>(m, this.mods);
+class AssetModel extends Twin (List<BaseModel> mods)
+    Unit register (BaseModel m)
+        this.mods = new List<BaseModel>(m, this.mods);
     end
 
     Unit reconfigure()
         print("RECONFIG> Reconfiguring the asset model...");
 
-        List<KindModel> ms = this.mods;
+        List<BaseModel> ms = this.mods;
         while ms != null do
             ms.content.adaptModel();
             ms = ms.next;
@@ -31,7 +31,7 @@ class AssetModel extends Twin (List<KindModel> mods)
     Unit reconfigureSingleModel(String mod)
         print("RECONFIG> Reconfiguring the asset model...");
 
-        List<KindModel> ms = this.mods;
+        List<BaseModel> ms = this.mods;
         while ms != null do
             if ms.content.name == mod then
                 print("RECONFIG> Reconfiguring " ++ ms.content.name);

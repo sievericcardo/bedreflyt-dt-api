@@ -1,4 +1,4 @@
-class TaskModel extends KindModel ()
+class TaskModel extends BaseModel ()
 
     override Unit adaptAddition()
         List<Task> newTasks = construct("
