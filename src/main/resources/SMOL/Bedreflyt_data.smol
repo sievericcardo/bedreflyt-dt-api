@@ -282,57 +282,6 @@ class TreatingRoom extends Room (
     Bathroom bathroom,
     MonitoringCategory monitoringCategory
 )
-    Ward getTreatingWard()
-        Ward wardContent = access("
-        PREFIX : <http://www.smolang.org/bedreflyt/>
-
-        SELECT DISTINCT ?obj
-        WHERE {
-            ?treatingRoom a :TreatingRoom ;
-                :roomNumber %1 ;
-                :roomCapacity %2 .
-            ?treatingRoom :isAssignWard ?ward .
-            ?ward :wardName ?name .
-            ?treatingRoom :isAssignHospital ?hospital .
-            ?hospital :hospitalName ?hosName .
-
-            ?obj a prog:Ward ;
-                prog:Ward_wardName ?name ;
-                prog:Ward_wardHospital ?progHospital .
-            ?progHospital a prog:Hospital ;
-                prog:Hospital_hospitalName ?hosName .
-        ", this.roomNumber, this.capacity);
-
-        Ward treatingWard = wardContent.content;
-        return treatingWard;
-    end
-
-    Hospital getHospital()
-        Hospital hospitalContent = access("
-        PREFIX : <http://www.smolang.org/bedreflyt/>
-
-        SELECT DISTINCT ?obj
-        WHERE {
-            ?treatingRoom a :TreatingRoom ;
-                :roomNumber %1 ;
-                :roomCapacity %2 .
-            ?treatingRoom :isAssignWard ?ward .
-            ?ward :wardName ?name .
-            ?treatingRoom :isAssignHospital ?hospital .
-            ?hospital :hospitalName ?hosName .
-
-            ?w a prog:Ward ;
-                prog:Ward_wardName ?name ;
-                prog:Ward_wardHospital ?obj .
-
-            ?obj a prog:Hospital ;
-                prog:Hospital_hospitalName ?hosName .
-        ", this.roomNumber, this.capacity);
-
-        Hospital hospital = hospitalContent.content;
-        return hospital;
-    end
-
     Bathroom getBathroom()
         Bathroom bathroomContent = access("
         PREFIX : <http://www.smolang.org/bedreflyt/>
