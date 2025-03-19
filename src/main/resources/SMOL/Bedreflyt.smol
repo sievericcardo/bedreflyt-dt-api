@@ -47,19 +47,32 @@ end
 main
     AssetModel assetModel = new AssetModel(null);
 
-    DiagnosisModel m1 = new DiagnosisModel("diagnosis");
-    RoomCategoryModel m2 = new RoomCategoryModel("rooms");
-    RoomModel m3 = new RoomModel("room distributions");
-    TaskModel m4 = new TaskModel("tasks");
-    TaskDependencyModel m5 = new TaskDependencyModel("task dependencies");
-    TreatmentModel m6 = new TreatmentModel("treatments");
+
+    TreatmentModel m1 = new TreatmentModel("treatments");
+    TreatmentStepModel m2 = new TreatmentStepModel("treatment steps");
+    BedModel m3 = new BedModel("beds");
+    RoomModel m4 = new RoomModel("rooms");
+    // BathroomModel m5 = new BathroomModel("bathrooms");
+    WardModel m6 = new WardModel("wards");
+    FloorModel m7 = new FloorModel("floors");
+    HospitalModel m8 = new HospitalModel("hospitals");
+    CityModel m9 = new CityModel("cities");
+    MonitoringCategoryModel m10 = new MonitoringCategoryModel("monitoring categories");
+    DiagnosisModel m11 = new DiagnosisModel("diagnoses"); 
+    TaskModel m12 = new TaskModel("tasks");
 
     assetModel.register(m1);
     assetModel.register(m2);
     assetModel.register(m3);
     assetModel.register(m4);
-    assetModel.register(m5);
+    // assetModel.register(m5);
     assetModel.register(m6);
+    assetModel.register(m7);
+    assetModel.register(m8);
+    assetModel.register(m9);
+    assetModel.register(m10);
+    assetModel.register(m11);
+    assetModel.register(m12);
 
     assetModel.reconfigure();
 
