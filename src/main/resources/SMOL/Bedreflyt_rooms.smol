@@ -4,22 +4,27 @@ class RoomModel extends BaseModel()
         List<TreatingRoom> newRooms = construct("
         PREFIX : <http://www.smolang.org/bedreflyt/>
 
-        SELECT DISTINCT ?roomNumber ?capacity ?treatingWard ?hospital
+        SELECT DISTINCT ?roomNumber ?capacity ?treatingWard ?hospital ?monitoringCategory
         WHERE {
             ?room a :TreatingRoom ;
                 :roomNumber ?roomNumber ;
                 :capacity ?capacity ;
-                :isAssignWard ?ward .
+                :isAssignWard ?ward ;
+                :hasMonitoringStatus ?monitoringStatus .
             ?ward a :Ward ;
                 :wardName ?wardName ;
                 :hasHospital ?hospitalWard .
             ?hospitalWard a :Hospital ;
                 :hospitalName ?hospitalName .
+            ?monitoringStatus a :MonitoringCategory ;
+                :hasMonitoringCode ?monitoringCode.
 
             ?hospital a prog:Hospital ;
                 prog:Hospital_hospitalName ?hospitalName .
             ?treatingWard a prog:Ward ;
                 prog:Ward_wardName ?wardName .
+            ?monitorincCategory a prog:MonitoringCategory ;
+                prog:MonitoringCategory_category ?monitoringCode .
         }");
 
         if newRooms != null then
@@ -49,23 +54,29 @@ class RoomModel extends BaseModel()
             ?obj a prog:TreatingRoom ;
                 prog:TreatingRoom_roomNumber ?roomNumber ;
                 prog:TreatingRoom_capacity ?capacity ;
-                prog:TreatingRoom_isAssignWard ?ward .
+                prog:TreatingRoom_isAssignWard ?ward ;
+                prog:TreatingRoom_hasMonitoringStatus ?monitoringStatus .
             ?ward a prog:Ward ;
                 prog:Ward_wardName ?wardName ;
                 prog:Ward_hasHospital ?hospitalWard .
             ?hospitalWard a prog:Hospital ;
                 prog:Hospital_hospitalName ?hospitalName .
+            ?monitoringStatus a prog:MonitoringCategory ;
+                prog:MonitoringCategory_category ?monitoringCode .
 
             FILTER NOT EXISTS {
                 ?room a :TreatingRoom ;
                     :roomNumber ?roomNumber ;
                     :capacity ?capacity ;
-                    :isAssignWard ?ward .
+                    :isAssignWard ?ward ;
+                    :hasMonitoringStatus ?monitoringStatus .
                 ?ward a :Ward ;
                     :wardName ?wardName ;
                     :hasHospital ?hospitalWard .
                 ?hospitalWard a :Hospital ;
                     :hospitalName ?hospitalName .
+                ?monitoringStatus a :MonitoringCategory ;
+                    :hasMonitoringCode ?monitoringCode.
             }
         }");
 
