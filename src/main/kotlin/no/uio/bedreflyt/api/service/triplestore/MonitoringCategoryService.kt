@@ -3,7 +3,6 @@ package no.uio.bedreflyt.api.service.triplestore
 import no.uio.bedreflyt.api.config.REPLConfig
 import no.uio.bedreflyt.api.config.TriplestoreProperties
 import no.uio.bedreflyt.api.model.triplestore.MonitoringCategory
-import no.uio.bedreflyt.api.model.triplestore.RoomCategory
 import no.uio.bedreflyt.api.types.MonitoringCategoryRequest
 import org.apache.jena.query.QuerySolution
 import org.apache.jena.query.ResultSet
@@ -15,8 +14,8 @@ import org.springframework.stereotype.Service
 
 @Service
 class MonitoringCategoryService (
-    private val replConfig: REPLConfig,
-    private val triplestoreProperties: TriplestoreProperties
+    replConfig: REPLConfig,
+    triplestoreProperties: TriplestoreProperties
 ) {
 
     private val tripleStore = triplestoreProperties.tripleStore
