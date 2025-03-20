@@ -20,7 +20,7 @@ import java.io.File
 import java.util.logging.Logger
 import no.uio.bedreflyt.api.types.TreatmentRequest
 import no.uio.bedreflyt.api.types.UpdateTreatmentRequest
-import no.uio.bedreflyt.api.types.DeteleTreatmentRequest
+import no.uio.bedreflyt.api.types.DeleteTreatmentRequest
 
 @RestController
 @RequestMapping("/api/fuseki/treatment")
@@ -161,7 +161,7 @@ class TreatmentController (
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
     @DeleteMapping("/delete")
-    fun deleteTreatment(@SwaggerRequestBody(description = "Request to delete a treatment") @RequestBody deleteTreatmentRequest: DeteleTreatmentRequest) : ResponseEntity<String> {
+    fun deleteTreatment(@SwaggerRequestBody(description = "Request to delete a treatment") @RequestBody deleteTreatmentRequest: DeleteTreatmentRequest) : ResponseEntity<String> {
         // Check if treatment exists
         if (treatmentService.getTreatmentById(deleteTreatmentRequest.treatmentId) == null) {
             log.warning("Treatment ${deleteTreatmentRequest.treatmentId} does not exist")

@@ -12,7 +12,7 @@ import org.apache.jena.update.UpdateRequest
 import org.springframework.stereotype.Service
 
 @Service
-class RoomCategoryService (
+class MonitoringCategoryService (
     private val replConfig: REPLConfig,
     private val triplestoreProperties: TriplestoreProperties
 ) {
@@ -22,14 +22,12 @@ class RoomCategoryService (
     private val ttlPrefix = triplestoreProperties.ttlPrefix
     private val repl = replConfig.repl()
 
-    fun createRoom(bedCategory: Long, roomDescription: String): Boolean {
+    fun createRoom(monitoringCategoryRequest: MonitoringCategoryRequest): Boolean {
         val query = """
             PREFIX : <$prefix>
             
             INSERT DATA {
-                :room$bedCategory a :RoomCategory ;
-                    :bedCategory $bedCategory ;
-                    :roomDescription "$roomDescription" .
+                :${}
             }
         """.trimIndent()
 
