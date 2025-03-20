@@ -1,8 +1,9 @@
 class TreatmentModel extends BaseModel()
 
     override Unit adaptAddition()
+
         List<Treatment> newTreatments = construct("
-        PREFIX : <http://example.org/bedreflyt/>
+        PREFIX : <http://www.smolang.org/bedreflyt/>
         PREFIX pko: <https://w3id.org/pko#>
 
         SELECT ?treatmentName ?diagnosis ?frequency ?weight
@@ -35,7 +36,7 @@ class TreatmentModel extends BaseModel()
 
     override Unit adaptRemoval()
         List<Treatment> wrongTreatments = access("
-        PREFIX : <http://example.org/bedreflyt/>
+        PREFIX : <http://www.smolang.org/bedreflyt/>
         PREFIX pko: <https://w3id.org/pko#>
 
         SELECT ?treatmentName ?diagnosis ?frequency ?weight
