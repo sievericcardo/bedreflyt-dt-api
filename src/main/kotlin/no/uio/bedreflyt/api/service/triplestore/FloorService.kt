@@ -30,7 +30,7 @@ class FloorService (
             
             INSERT DATA {
                 bedreflyt:Floor${request.floorNumber} a brick:Floor ;
-                    bedreflyt:floorNumber "${request.floorNumber}" .
+                    bedreflyt:floorNumber ${request.floorNumber} .
             }
         """.trimIndent()
 
@@ -101,15 +101,15 @@ class FloorService (
             
             DELETE {
                 bedreflyt:Floor${request.floorNumber} a brick:Floor ; 
-                    bedreflyt:floorNumber ?floorNumber .
+                    bedreflyt:floorNumber ${request.floorNumber} .
             }
             INSERT {
                 bedreflyt:Floor${request.floorNumber} a brick:Floor ;
-                    bedreflyt:floorNumber "${request.floorNumber}" .
+                    bedreflyt:floorNumber ${request.floorNumber} .
             }
             WHERE {
                 bedreflyt:Floor${request.floorNumber} a brick:Floor ;
-                    bedreflyt:floorNumber ?floorNumber .
+                    bedreflyt:floorNumber ${request.floorNumber} .
             }
         """.trimIndent()
 
@@ -132,7 +132,7 @@ class FloorService (
             
             DELETE WHERE {
                 bedreflyt:Floor${request.floorNumber} a brick:Floor ;
-                    bedreflyt:floorNumber "${request.floorNumber}" .
+                    bedreflyt:floorNumber ${request.floorNumber} .
             }
         """.trimIndent()
 

@@ -32,8 +32,8 @@ class HospitalService (
             INSERT DATA {
                 bedreflyt:${request.hospitalName} a brick:Hospital ;
                     bedreflyt:hasCity bedreflyt:${request.city} ;
-                    bedreflyt:hospitalCode ${request.hospitalCode} ;
-                    bedreflyt:hospitalName ${request.hospitalName} .
+                    bedreflyt:hospitalCode "${request.hospitalCode}" ;
+                    bedreflyt:hospitalName "${request.hospitalName}" .
             }
         """.trimIndent()
 

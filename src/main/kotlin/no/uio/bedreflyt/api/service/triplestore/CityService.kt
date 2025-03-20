@@ -94,15 +94,15 @@ class CityService (
             
             DELETE {
                 bedreflyt:$cityName a City ;
-                    bedreflyt:cityName $cityName .
+                    bedreflyt:cityName "$cityName" .
             }
             INSERT {
                 bedreflyt:$newCityName a :City ;
-                    bedreflyt:cityName $newCityName .
+                    bedreflyt:cityName "$newCityName" .
             }
             WHERE {
                 bedreflyt:$cityName a City ;
-                    bedreflyt:cityName $cityName .
+                    bedreflyt:cityName "$cityName" .
             }
         """.trimIndent()
 
@@ -124,7 +124,7 @@ class CityService (
             
             DELETE WHERE {
                 bedreflyt:$cityName a City ;
-                    bedreflyt:cityName $cityName .
+                    bedreflyt:cityName "$cityName" .
             }
         """.trimIndent()
 
