@@ -2,7 +2,9 @@ package no.uio.bedreflyt.api.service.triplestore
 
 import no.uio.bedreflyt.api.config.REPLConfig
 import no.uio.bedreflyt.api.config.TriplestoreProperties
+import no.uio.bedreflyt.api.model.triplestore.MonitoringCategory
 import no.uio.bedreflyt.api.model.triplestore.RoomCategory
+import no.uio.bedreflyt.api.types.MonitoringCategoryRequest
 import org.apache.jena.query.QuerySolution
 import org.apache.jena.query.ResultSet
 import org.apache.jena.update.UpdateExecutionFactory
@@ -22,12 +24,16 @@ class MonitoringCategoryService (
     private val ttlPrefix = triplestoreProperties.ttlPrefix
     private val repl = replConfig.repl()
 
-    fun createRoom(monitoringCategoryRequest: MonitoringCategoryRequest): Boolean {
+    fun createCategory(monitoringCategoryRequest: MonitoringCategoryRequest): Boolean {
+        val name = monitoringCategoryRequest.description.split(" ").joinToString(" ")
+
         val query = """
-            PREFIX : <$prefix>
+            PREFIX bedreflyt: <$prefix>
             
             INSERT DATA {
-                :${}
+                bedreflyt:$name a :MonitoringCategory ;
+                    bedreflyt:hasMonitoringCode ${monitoringCategoryRequest.category} ;
+                    bedreflyt:monitoringName "${monitoringCategoryRequest.description}" .
             }
         """.trimIndent()
 
@@ -43,15 +49,15 @@ class MonitoringCategoryService (
         }
     }
 
-    fun getAllRooms() : List<RoomCategory>? {
-        val roomCategories = mutableListOf<RoomCategory>()
+    fun getAllCategoories() : List<MonitoringCategory>? {
+        val categories = mutableListOf<MonitoringCategory>()
 
         val query =
             """
-               SELECT DISTINCT ?bedCategory ?roomDescription WHERE {
-                ?obj a prog:RoomCategory ;
-                    prog:RoomCategory_bedCategory ?bedCategory ;
-                    prog:RoomCategory_roomDescription ?roomDescription .
+               SELECT DISTINCT ?description ?category WHERE {
+                ?obj a prog:MonitoringCategory ;
+                    prog:MonitoringCategory_description ?description ;
+                    prog:MonitoringCategory_category ?category .
             }"""
 
         val resultRooms: ResultSet = repl.interpreter!!.query(query)!!
@@ -61,32 +67,56 @@ class MonitoringCategoryService (
 
         while (resultRooms.hasNext()) {
             val solution: QuerySolution = resultRooms.next()
-            val roomId = solution.get("?bedCategory").asLiteral().toString().split("^^")[0].toLong()
-            val roomDescription = solution.get("?roomDescription").asLiteral().toString()
-            roomCategories.add(RoomCategory(roomId, roomDescription))
+            val description = solution.get("description").toString()
+            val category = solution.get("category").asLiteral().toString().split("^^")[0].toInt()
+
+            categories.add(MonitoringCategory(category, description))
         }
 
-        return roomCategories
+        return categories
     }
 
-    fun updateRoom(oldBedCategory: Long, oldRoomDescription: String, newBedCategory: Long, newRoomDescription: String) : Boolean {
+    fun getCategoryByCategory(category: Int) : MonitoringCategory? {
+        val query =
+            """
+               SELECT DISTINCT ?description WHERE {
+                ?obj a prog:MonitoringCategory ;
+                    prog:MonitoringCategory_description ?description ;
+                    prog:MonitoringCategory_category $category .
+            }"""
+
+        val resultRooms: ResultSet = repl.interpreter!!.query(query)!!
+        if (!resultRooms.hasNext()) {
+            return null
+        }
+
+        val solution: QuerySolution = resultRooms.next()
+        val description = solution.get("description").toString()
+
+        return MonitoringCategory(category, description)
+    }
+
+    fun updateCategory(monitoringCategory: MonitoringCategory, newCategory: Int, newDescription: String) : Boolean {
+        val oldName = monitoringCategory.description.split(" ").joinToString(" ")
+        val newName = newDescription.split(" ").joinToString(" ")
+
         val query = """
-            PREFIX : <$prefix>
+            PREFIX bedreflyt: <$prefix>
             
             DELETE {
-                :room$oldBedCategory a :RoomCategory ;
-                    :bedCategory $oldBedCategory ;
-                    :roomDescription "$oldRoomDescription" .
+                bedreflyt:$oldName a :MonitoringCategory ;
+                    bedreflyt:hasMonitoringCode ${monitoringCategory.category} ;
+                    bedreflyt:monitoringName "${monitoringCategory.description}" .
             }
             INSERT {
-                :room$newBedCategory a :RoomCategory ;
-                    :bedCategory $newBedCategory ;
-                    :roomDescription "$newRoomDescription" .
+                bedreflyt:$newName a :MonitoringCategory ;
+                    bedreflyt:hasMonitoringCode $newCategory ;
+                    bedreflyt:monitoringName "$newDescription" .
             }
             WHERE {
-                :room$oldBedCategory a :RoomCategory ;
-                    :bedCategory $oldBedCategory ;
-                    :roomDescription "$oldRoomDescription" .
+                bedreflyt:$oldName a :MonitoringCategory ;
+                    bedreflyt:hasMonitoringCode ${monitoringCategory.category} ;
+                    bedreflyt:monitoringName "${monitoringCategory.description}" .
             }
         """.trimIndent()
 
@@ -102,19 +132,21 @@ class MonitoringCategoryService (
         }
     }
 
-    fun deleteRoom(bedCategory: Long, roomDescription: String) : Boolean {
+    fun deleteCategory(monitoringCategory: MonitoringCategory) : Boolean {
+        val name = monitoringCategory.description.split(" ").joinToString(" ")
+
         val query = """
-            PREFIX : <$prefix>
+            PREFIX bedreflyt: <$prefix>
             
             DELETE {
-                :room$bedCategory a :RoomCategory ;
-                    :bedCategory $bedCategory ;
-                    :roomDescription "$roomDescription" .
+                bedreflyt:$name a :MonitoringCategory ;
+                    bedreflyt:hasMonitoringCode ${monitoringCategory.category} ;
+                    bedreflyt:monitoringName "${monitoringCategory.description}" .
             }
             WHERE {
-                :room$bedCategory a :RoomCategory ;
-                    :bedCategory $bedCategory ;
-                    :roomDescription "$roomDescription" .
+                bedreflyt:$name a :MonitoringCategory ;
+                    bedreflyt:hasMonitoringCode ${monitoringCategory.category} ;
+                    bedreflyt:monitoringName "${monitoringCategory.description}" .
             }
         """.trimIndent()
 
