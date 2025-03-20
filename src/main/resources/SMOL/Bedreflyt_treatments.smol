@@ -25,6 +25,9 @@ class TreatmentModel extends BaseModel()
             while newTreatments != null do
                 Treatment newTreatment = newTreatments.content;
                 List<Treatment> lx = newTreatments;
+
+                newTreatment.firstTask = newTreatment.getFirstTask();
+                newTreatment.lastTask = newTreatment.getLastTask();
                 newTreatments = newTreatments.next;
 
                 print("RECONFIG> Adding treatment " ++ newTreatment.treatmentName);

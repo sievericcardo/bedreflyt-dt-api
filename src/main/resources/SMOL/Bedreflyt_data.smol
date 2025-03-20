@@ -25,6 +25,7 @@ class Task extends Twin (
         }", this.taskName);
 
         Room room = roomContent.content;
+        destroy(roomContent);
         return room;
     end
 end
@@ -47,27 +48,23 @@ class TreatmentStep extends Twin (
         SELECT DISTINCT ?obj
         WHERE {
             ?taskDep a :TreatmentStep ;
-                :hasNurseBurden ?staffLoad ;
-                time:hours ?averageDuration ;
                 :stepOfTreatment ?treatment ;
-                :hasTask ?taskObj .
+                :hasTask ?taskObj ;
+                pko:previousStep ?prevStep .
+
             ?treatment a pko:Procedure ;
                 :procedureName %1 .
             ?taskObj rdf:type <http://purl.org/net/p-plan#Step> ;
                 :taskName %2 .
-            ?taskObj :hasPreviousTask ?previousTask .
-            ?previousTask a :TreatmentStep ;
+            ?prevStep a :TreatmentStep ;
                 :hasTask ?prevTask .
             ?prevTask rdf:type <http://purl.org/net/p-plan#Step> ;
                 :taskName ?name .
-            ?task a prog:Task ;
-                prog:Task_taskName ?taskName .
-
-
+            
             ?taskObj a prog:Task ;
                 prog:Task_taskName ?name .
             ?obj a prog:TreatmentStep ;
-                prog:TreatmentStep_treatmentName ?treatName ;
+                prog:TreatmentStep_treatmentName %1 ;
                 prog:TreatmentStep_task ?taskObj .
         }", this.treatmentName, this.task.taskName);
 
@@ -78,6 +75,7 @@ class TreatmentStep extends Twin (
         end
 
         Task previousTask = previousTaskContent.content;
+        destroy(previousTaskContent);
         return previousTask;
     end
 
@@ -89,21 +87,24 @@ class TreatmentStep extends Twin (
 
         SELECT DISTINCT ?obj
         WHERE {
+            ?taskDep a :TreatmentStep ;
+                :stepOfTreatment ?treatment ;
+                :hasTask ?taskObj ;
+                pko:nextStep ?nextStep .
+
             ?treatment a pko:Procedure ;
                 :procedureName %1 .
-            ?treatment :hasTask ?task .
-            ?task rdf:type <http://purl.org/net/p-plan#Step> ;
+            ?taskObj rdf:type <http://purl.org/net/p-plan#Step> ;
                 :taskName %2 .
-            ?task :hasNextTask ?nextTask .
-            ?nextTask a :TreatmentStep ;
+            ?nextStep a :TreatmentStep ;
                 :hasTask ?nextTask .
-            ?nextTsk rdf:type <http://purl.org/net/p-plan#Step> ;
+            ?nextTask rdf:type <http://purl.org/net/p-plan#Step> ;
                 :taskName ?name .
-
+            
             ?taskObj a prog:Task ;
                 prog:Task_taskName ?name .
             ?obj a prog:TreatmentStep ;
-                prog:TreatmentStep_treatmentName ?treatName ;
+                prog:TreatmentStep_treatmentName %1 ;
                 prog:TreatmentStep_task ?taskObj .
         }", this.treatmentName, this.task.taskName);
 
@@ -112,6 +113,7 @@ class TreatmentStep extends Twin (
         end
 
         Task nextTask = nextTaskContent.content;
+        destroy(nextTaskContent);
         return nextTask;
     end
 end
@@ -128,44 +130,54 @@ class Treatment extends Twin (
     TreatmentStep getFirstTask()
         TreatmentStep firstTaskContent = access("
         PREFIX : <http://www.smolang.org/bedreflyt/>
+        PREFIX pko: <https://w3id.org/pko#>
 
         SELECT DISTINCT ?obj
         WHERE {
-            ?treatment a :Procedure ;
+            ?treatment a pko:Procedure ;
                 :procedureName %1 .
-            ?treatment :hasFirstStep ?firstTask .
-            ?firstTask :hasTask ?task .
-            ?task :taskName ?name .
+            ?treatment pko:hasFirstStep ?firstTask .
+            ?firstTask a :TreatmentStep ;
+                :hasTask ?task .
+            ?task rdf:type <http://purl.org/net/p-plan#Step> ;
+                :taskName ?name .
 
-            ?obj a prog:Task ;
-                prog:Task_taskName ?treatTask .
-            ?treatTask a prog:Task ;
+            ?objTask a prog:Task ;
                 prog:Task_taskName ?name .
+            ?obj a prog:TreatmentStep ;
+                prog:TreatmentStep_treatmentName %1 ;
+                prog:TreatmentStep_task ?objTask .
         }", this.treatmentName);
 
         Task firstTask = firstTaskContent.content;
+        destroy(firstTaskContent);
         return firstTask;
     end
 
     TreatmentStep getLastTask()
         TreatmentStep lastTaskContent = access("
         PREFIX : <http://www.smolang.org/bedreflyt/>
+        PREFIX pko: <https://w3id.org/pko#>
 
         SELECT DISTINCT ?obj
         WHERE {
-            ?treatment a :Procedure ;
+            ?treatment a pko:Procedure ;
                 :procedureName %1 .
-            ?treatment :hasLastStep ?lastTask .
-            ?lastTask :hasTask ?task .
-            ?task :taskName ?name .
+            ?treatment :hasFinalStep ?lastTask .
+            ?lastTask a :TreatmentStep ;
+                :hasTask ?task .
+            ?task rdf:type <http://purl.org/net/p-plan#Step> ;
+                :taskName ?name .
 
-            ?obj a prog:Task ;
-                prog:Task_taskName ?treatTask .
-            ?treatTask a prog:Task ;
+            ?objTask a prog:Task ;
                 prog:Task_taskName ?name .
+            ?obj a prog:TreatmentStep ;
+                prog:TreatmentStep_treatmentName %1 ;
+                prog:TreatmentStep_task ?objTask .
         }", this.treatmentName);
 
         Task lastTask = lastTaskContent.content;
+        destroy(lastTaskContent);
         return lastTask;
     end
 end
@@ -202,6 +214,7 @@ class Hospital extends Twin (
         }", this.hospitalName, this.hospitalCode);
 
         City hospitalCity = cityContent.content;
+        destroy(cityContent);
         return hospitalCity;
     end
 end
@@ -251,6 +264,7 @@ class TreatingRoom extends Room (
         }", this.roomNumber, this.capacity);
 
         Bathroom bathroom = bathroomContent.content;
+        destroy(bathroomContent);
         return bathroom;
     end
 end
@@ -278,6 +292,7 @@ class Bed extends Twin (
         }", this.bedNumber, this.bedTreatingRoom.roomNumber, this.bedTreatingRoom.capacity);
 
         TreatingRoom treatingRoom = treatingRoomContent.content;
+        destroy(treatingRoomContent);
         return treatingRoom;
     end
 
@@ -297,6 +312,7 @@ class Bed extends Twin (
         }", this.bedNumber);
 
         MonitoringCategory monitoringCategory = monitoringCategoryContent.content;
+        destroy(monitoringCategoryContent);
         return monitoringCategory;
     end
 end
