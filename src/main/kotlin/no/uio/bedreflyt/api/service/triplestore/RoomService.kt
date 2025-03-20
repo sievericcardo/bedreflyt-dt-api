@@ -22,7 +22,7 @@ class RoomService (
     private val hospitalService: HospitalService,
     private val monitoringCategoryService: MonitoringCategoryService
 ) {
-    
+
     private val tripleStore = triplestoreProperties.tripleStore
     private val prefix = triplestoreProperties.prefix
     private val ttlPrefix = triplestoreProperties.ttlPrefix
