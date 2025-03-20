@@ -55,21 +55,6 @@ class MonitoringCategoryController (
         }
         replConfig.regenerateSingleModel().invoke("monitoring categories")
 
-//        // Append to the file bedreflyt.ttl
-//        val path = "bedreflyt.ttl"
-//        val fileContent = File(path).readText(Charsets.UTF_8)
-//        val newContent = """
-//            $fileContent
-//
-//            ###  $ttlPrefix/roomCategory${roomRequest.bedCategory}
-//            :roomCategory${roomRequest.bedCategory} rdf:type owl:NamedIndividual ,
-//                            :RoomCategory ;
-//                :bedCategory ${roomRequest.bedCategory} ;
-//                :roomDescription "${roomRequest.roomDescription}" .
-//        """.trimIndent()
-
-//        File(path).writeText(newContent)
-
         return ResponseEntity.ok(MonitoringCategory(request.category, request.description))
     }
 
@@ -109,26 +94,6 @@ class MonitoringCategoryController (
         }
         replConfig.regenerateSingleModel().invoke("monitoring categories")
 
-//        val oldContent = """
-//            ###  $ttlPrefix/roomCategory${updateRoomRequest.oldBedCategory}
-//            :roomCategory${updateRoomRequest.oldBedCategory} rdf:type owl:NamedIndividual ,
-//                            :RoomCategory ;
-//                :bedCategory ${updateRoomRequest.oldBedCategory} ;
-//                :roomDescription "${updateRoomRequest.oldRoomDescription}" .
-//            """.trimIndent()
-//        val newContent = """
-//            ###  $ttlPrefix/roomCategory${updateRoomRequest.newBedCategory}
-//            :roomCategory${updateRoomRequest.newBedCategory} rdf:type owl:NamedIndividual ,
-//                            :RoomCategory ;
-//                :bedCategory ${updateRoomRequest.newBedCategory} ;
-//                :roomDescription "${updateRoomRequest.newRoomDescription}" .
-//        """.trimIndent()
-//
-//        // Append to the file bedreflyt.ttl
-//        val path = "bedreflyt.ttl"
-//
-//        triplestoreService.replaceContentIgnoringSpaces(path, oldContent, newContent)
-
         return ResponseEntity.ok(MonitoringCategory(cat, desc))
     }
 
@@ -149,18 +114,6 @@ class MonitoringCategoryController (
             return ResponseEntity.badRequest().body("Error: the category could not be deleted.")
         }
         replConfig.regenerateSingleModel().invoke("monitoring categories")
-
-//        // Append to the file bedreflyt.ttl
-//        val path = "bedreflyt.ttl"
-//        val oldContent = """
-//            ###  $ttlPrefix/roomCategory${roomRequest.bedCategory}
-//            :roomCategory${roomRequest.bedCategory} rdf:type owl:NamedIndividual ,
-//                            :RoomCategory ;
-//                :bedCategory ${roomRequest.bedCategory} ;
-//                :roomDescription "${roomRequest.roomDescription}" .
-//        """.trimIndent()
-//
-//        triplestoreService.replaceContentIgnoringSpaces(path, oldContent, "")
 
         return ResponseEntity.ok("Category deleted")
     }
