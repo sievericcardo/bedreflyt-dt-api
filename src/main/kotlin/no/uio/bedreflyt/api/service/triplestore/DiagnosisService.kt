@@ -13,8 +13,8 @@ import org.springframework.stereotype.Service
 
 @Service
 class DiagnosisService (
-    private val replConfig: REPLConfig,
-    private val triplestoreProperties: TriplestoreProperties
+    replConfig: REPLConfig,
+    triplestoreProperties: TriplestoreProperties
 ) {
 
     private val tripleStore = triplestoreProperties.tripleStore
@@ -24,11 +24,11 @@ class DiagnosisService (
 
     fun createDiagnosis(diagnosisName: String) : Boolean {
         val query = """
-            PREFIX : <$prefix>
+            PREFIX bedreflyt: <$prefix>
             
             INSERT DATA {
-                :diagnosis_$diagnosisName a :Diagnosis ;
-                    :diagnosisName "$diagnosisName" .
+                bedreflyt:$diagnosisName a :Diagnosis ;
+                    bedreflyt:diagnosisCode "$diagnosisName" .
             }"""
 
         val updateRequest: UpdateRequest = UpdateFactory.create(query)
@@ -49,7 +49,7 @@ class DiagnosisService (
         val query = """
             SELECT DISTINCT ?name WHERE {
                 ?obj a prog:Diagnosis ;
-                    prog:Diagnosis_diagnosisName ?name .
+                    prog:Diagnosis_diagnosisCode ?name .
             }"""
 
         val resultDiagnosis: ResultSet = repl.interpreter!!.query(query)!!
@@ -71,7 +71,7 @@ class DiagnosisService (
         val query = """
             SELECT DISTINCT ?name WHERE {
                 ?obj a prog:Diagnosis ;
-                    prog:Diagnosis_diagnosisName ?diagnosis .
+                    prog:Diagnosis_diagnosisCode ?diagnosis .
                 FILTER (?diagnosis = "$diagnosis")
             }"""
 
@@ -88,21 +88,21 @@ class DiagnosisService (
 
     fun updateDiagnosis(oldDiagnosisName: String, newDiagnosisName: String) : Boolean {
         val query = """
-            PREFIX : <$prefix>
+            PREFIX bedreflyt: <$prefix>
             
             DELETE {
-                :diagnosis_$oldDiagnosisName a :Diagnosis ;
-                 :diagnosisName "$oldDiagnosisName" .
+                bedreflyt:$oldDiagnosisName a :Diagnosis ;
+                 bedreflyt:diagnosisCode "$oldDiagnosisName" .
             }
             
             INSERT {
-                :diagnosis_$newDiagnosisName a :Diagnosis ;
-                 :diagnosisName "$newDiagnosisName" .
+                bedreflyt:$newDiagnosisName a :Diagnosis ;
+                 bedreflyt:diagnosisCode "$newDiagnosisName" .
             }
             
             WHERE {
-                :diagnosis_$oldDiagnosisName a :Diagnosis ;
-                 :diagnosisName "$oldDiagnosisName" .
+                bedreflyt:$oldDiagnosisName a :Diagnosis ;
+                 bedreflyt:diagnosisCode "$oldDiagnosisName" .
             }
         """.trimIndent()
 
@@ -120,16 +120,16 @@ class DiagnosisService (
 
     fun deleteDiagnosis(diagnosisName: String) : Boolean {
         val query = """
-            PREFIX : <$prefix>
+            PREFIX bedreflyt: <$prefix>
             
             DELETE {
-                :diagnosis_$diagnosisName a :Diagnosis ;
-                 :diagnosisName "$diagnosisName" .
+                bedreflyt:$diagnosisName a :Diagnosis ;
+                 bedreflyt:diagnosisCode "$diagnosisName" .
             }
             
             WHERE {
-                :diagnosis_$diagnosisName a :Diagnosis ;
-                 :diagnosisName "$diagnosisName" .
+                bedreflyt:$diagnosisName a :Diagnosis ;
+                 bedreflyt:diagnosisCode "$diagnosisName" .
             }
         """.trimIndent()
 
