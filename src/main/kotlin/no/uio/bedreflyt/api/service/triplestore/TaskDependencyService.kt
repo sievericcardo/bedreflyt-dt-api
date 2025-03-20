@@ -2,7 +2,6 @@ package no.uio.bedreflyt.api.service.triplestore
 
 import no.uio.bedreflyt.api.config.REPLConfig
 import no.uio.bedreflyt.api.config.TriplestoreProperties
-import no.uio.bedreflyt.api.model.triplestore.TaskDependency
 import org.apache.jena.query.QuerySolution
 import org.apache.jena.query.ResultSet
 import org.apache.jena.update.UpdateExecutionFactory
