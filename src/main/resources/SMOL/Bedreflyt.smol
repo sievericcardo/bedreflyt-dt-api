@@ -4,7 +4,6 @@ abstract class BaseModel (String name)
         this.adaptDefect();
         this.adaptRemoval();
         this.adaptAddition();
-        // this.adaptRepair();
     end
 
     abstract Unit adaptAddition()
