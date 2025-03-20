@@ -95,6 +95,28 @@ class MonitoringCategoryService (
         return MonitoringCategory(category, description)
     }
 
+    fun getCategoryByDescription(description: String) : MonitoringCategory? {
+        val name = description.split(" ").joinToString(" ")
+
+        val query =
+            """
+               SELECT DISTINCT ?category WHERE {
+                ?obj a prog:MonitoringCategory ;
+                    prog:MonitoringCategory_description "$description" ;
+                    prog:MonitoringCategory_category ?category .
+            }"""
+
+        val resultRooms: ResultSet = repl.interpreter!!.query(query)!!
+        if (!resultRooms.hasNext()) {
+            return null
+        }
+
+        val solution: QuerySolution = resultRooms.next()
+        val category = solution.get("category").asLiteral().toString().split("^^")[0].toInt()
+
+        return MonitoringCategory(category, description)
+    }
+
     fun updateCategory(monitoringCategory: MonitoringCategory, newCategory: Int, newDescription: String) : Boolean {
         val oldName = monitoringCategory.description.split(" ").joinToString(" ")
         val newName = newDescription.split(" ").joinToString(" ")
