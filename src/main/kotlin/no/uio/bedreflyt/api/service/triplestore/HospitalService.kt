@@ -12,6 +12,7 @@ import org.apache.jena.update.UpdateProcessor
 import org.apache.jena.update.UpdateRequest
 import org.springframework.stereotype.Service
 
+@Service
 class HospitalService (
     replConfig: REPLConfig,
     triplestoreProperties: TriplestoreProperties,
