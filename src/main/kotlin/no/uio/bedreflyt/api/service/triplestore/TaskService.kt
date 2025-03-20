@@ -13,8 +13,8 @@ import org.springframework.stereotype.Service
 
 @Service
 class TaskService (
-    private val replConfig: REPLConfig,
-    private val triplestoreProperties: TriplestoreProperties
+    replConfig: REPLConfig,
+    triplestoreProperties: TriplestoreProperties
 ) {
 
     private val tripleStore = triplestoreProperties.tripleStore
@@ -24,13 +24,12 @@ class TaskService (
 
     fun createTask(taskName: String, averageDuration: Double, bed: Int) : Boolean {
         val query = """
-            PREFIX : <$prefix>
+            PREFIX bedreflyt: <$prefix>
             
             INSERT DATA {
-                :task_$taskName a :Task ;
-                    :taskName "$taskName" ;
-                    :averageDuration $averageDuration ;
-                    :bed $bed .
+                bedreflyt:task_$taskName rdf:type owl:NamedIndividual , 
+                        <http://purl.org/net/p-plan#Step> ;
+                    :taskName "$taskName" .
             }
         """
 
@@ -53,9 +52,7 @@ class TaskService (
             """
            SELECT DISTINCT ?taskName ?averageDuration ?bedCategory WHERE {
             ?obj a prog:Task ;
-                prog:Task_taskName ?taskName ;
-                prog:Task_durationAverage ?averageDuration ;
-                prog:Task_bed ?bedCategory .
+                prog:Task_taskName ?taskName .
         }"""
 
         val resultTasks: ResultSet = repl.interpreter!!.query(query)!!
@@ -67,9 +64,7 @@ class TaskService (
         while (resultTasks.hasNext()) {
             val solution: QuerySolution = resultTasks.next()
             val taskName = solution.get("?taskName").asLiteral().toString()
-            val averageDuration = solution.get("?averageDuration").asLiteral().toString().split("^^")[0].toDouble()
-            val bedCategory = solution.get("?bedCategory").asLiteral().toString().split("^^")[0].toInt()
-            tasks.add(Task(taskName, averageDuration, bedCategory))
+            tasks.add(Task(taskName))
         }
 
         return tasks
@@ -77,13 +72,9 @@ class TaskService (
 
     fun getTaskByTaskName(taskName: String) : Task? {
         val query = """
-            PREFIX : <$prefix>
-            
-            SELECT DISTINCT ?taskName ?averageDuration ?bed WHERE {
+            SELECT DISTINCT ?taskName WHERE {
                 ?obj a prog:Task ;
-                    prog:Task_taskName ?taskName ;
-                    prog:Task_durationAverage ?averageDuration ;
-                    prog:Task_bed ?bed .
+                    prog:Task_taskName ?taskName .
                 FILTER (?taskName = "$taskName")
             }
         """
@@ -95,33 +86,28 @@ class TaskService (
         }
 
         val solution: QuerySolution = resultTask.next()
-        val averageDuration = solution.get("?averageDuration").asLiteral().toString().split("^^")[0].toDouble()
-        val bed = solution.get("?bed").asLiteral().toString().split("^^")[0].toInt()
 
-        return Task(taskName, averageDuration, bed)
+        return Task(taskName)
     }
 
-    fun updateTask(task: Task, newAverageDuration: Double, newBed: Int) : Boolean {
+    fun updateTask(task: Task, newTaskName: String) : Boolean {
         val query = """
             PREFIX : <$prefix>
             
             DELETE {
-                :task_${task.taskName} a :Task ;
-                    :taskName "${task.taskName}" ;
-                    :averageDuration ${task.averageDuration} ;
-                    :bed ${task.bed} .
+                :task_${task.taskName} rdf:type owl:NamedIndividual , 
+                        <http://purl.org/net/p-plan#Step> ;
+                    :taskName "${task.taskName}" .
             }
             INSERT {
-                :task_${task.taskName} a :Task ;
-                    :taskName "${task.taskName}" ;
-                    :averageDuration $newAverageDuration ;
-                    :bed $newBed .
+                :task_${task.taskName} rdf:type owl:NamedIndividual , 
+                        <http://purl.org/net/p-plan#Step> ;
+                    :bed $newTaskName .
             }
             WHERE {
-               :task_${task.taskName} a :Task ;
-                    :taskName "${task.taskName}" ;
-                    :averageDuration ${task.averageDuration} ;
-                    :bed ${task.bed} .
+               :task_${task.taskName} rdf:type owl:NamedIndividual , 
+                        <http://purl.org/net/p-plan#Step> ;
+                    :taskName "${task.taskName}" .
             }
         """
 
@@ -142,16 +128,14 @@ class TaskService (
             PREFIX : <$prefix>
             
             DELETE {
-                :task_${task.taskName} a :Task ;
-                    :taskName "${task.taskName}" ;
-                    :averageDuration ${task.averageDuration} ;
-                    :bed ${task.bed} .
+                :task_${task.taskName} rdf:type owl:NamedIndividual , 
+                        <http://purl.org/net/p-plan#Step> ;
+                    :taskName "${task.taskName}" .
             }
             WHERE {
-                :task_${task.taskName} a :Task ;
-                    :taskName "${task.taskName}" ;
-                    :averageDuration ${task.averageDuration} ;
-                    :bed ${task.bed} .
+                :task_${task.taskName} rdf:type owl:NamedIndividual , 
+                        <http://purl.org/net/p-plan#Step> ;
+                    :taskName "${task.taskName}" .
             }
         """
 
