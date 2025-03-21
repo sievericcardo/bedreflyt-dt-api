@@ -9,11 +9,11 @@ data class WardRequest (
 
 data class UpdateWardRequest (
     val wardName: String,
-    val hospitalHospitalName: String,
+    val hospitalName: String,
     val newWardFloorNumber: Int,
 )
 
 data class DeleteWardRequest (
     val wardName: String,
-    val hospitalHospitalName: String
+    val hospitalName: String
 )
