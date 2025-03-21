@@ -10,6 +10,8 @@ data class RoomRequest (
 
 data class UpdateRoomRequest (
     val roomNumber: Int,
+    val ward: String,
+    val hospital: String,
     val newCapacity: Int?,
     val newWard: String?,
     val newCategoryDescription: String?
@@ -17,5 +19,6 @@ data class UpdateRoomRequest (
 
 data class DeleteRoomRequest (
     val roomNumber: Int,
+    val ward: String,
     val hospital: String
 )
