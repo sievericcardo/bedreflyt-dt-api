@@ -22,7 +22,7 @@ class TaskService (
     private val ttlPrefix = triplestoreProperties.ttlPrefix
     private val repl = replConfig.repl()
 
-    fun createTask(taskName: String, averageDuration: Double, bed: Int) : Boolean {
+    fun createTask(taskName: String) : Boolean {
         val query = """
             PREFIX bedreflyt: <$prefix>
             
