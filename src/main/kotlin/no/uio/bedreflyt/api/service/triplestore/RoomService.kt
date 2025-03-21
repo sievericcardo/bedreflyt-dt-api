@@ -133,6 +133,40 @@ class RoomService (
         return TreatmentRoom(roomNumber, capacity, ward, hospital, monitoringCategory)
     }
 
+    fun getRoomByRoomNumberWardHospital(roomNumber: Int, wardName: String, hospitalCode: String) : TreatmentRoom? {
+        val query = """
+            SELECT DISTINCT ?capacity ?category WHERE {
+                ?obj a prog:TreatingRoom ;
+                    prog:TreatingRoom_roomNumber $roomNumber ;
+                    prog:TreatingRoom_capacity ?capacity ;
+                    prog:TreatingRoom_treatingWard ?ward ;
+                    prog:TreatingRoom_hospital ?hospital ;
+                    prog:TreatingRoom_monitoringCategory ?monitoringCategory .
+                ?ward a prog:Ward ;
+                    prog:Ward_wardName "$wardName" .
+                ?hospital a prog:Hospital ;
+                    prog:Hospital_hospitalCode "$hospitalCode" .
+                ?monitoringCategory a prog:MonitoringCategory ;
+                    prog:MonitoringCategory_description ?category .
+            }
+        """.trimIndent()
+
+        val resultRooms: ResultSet = repl.interpreter!!.query(query)!!
+        if (!resultRooms.hasNext()) {
+            return null
+        }
+
+        val solution: QuerySolution = resultRooms.next()
+        val capacity = solution.get("?capacity").asLiteral().toString().split("^^")[0].toInt()
+        val category = solution.get("?category").asLiteral().toString()
+
+        val ward = wardService.getWardByNameAndHospital(wardName, hospitalCode) ?: return null
+        val hospital = hospitalService.getHospitalByCode(hospitalCode) ?: return null
+        val monitoringCategory = monitoringCategoryService.getCategoryByDescription(category) ?: return null
+
+        return TreatmentRoom(roomNumber, capacity, ward, hospital, monitoringCategory)
+    }
+
     fun updateRoom(room: TreatmentRoom, newCapacity: Int?, newWard: String?, newCategory: String?) : Boolean {
         val capacity = newCapacity ?: room.capacity
         val ward = newWard ?: room.treatmentWard.wardName
@@ -182,8 +216,7 @@ class RoomService (
         }
     }
 
-    fun deleteRoom(request: DeleteRoomRequest) : Boolean {
-        val room = getRoomByRoomNumber(request.roomNumber) ?: return false
+    fun deleteRoom(room: TreatmentRoom) : Boolean {
 
         val query = """
             PREFIX bedreflyt: <$prefix>
