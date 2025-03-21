@@ -4,6 +4,7 @@ import no.uio.bedreflyt.api.config.REPLConfig
 import no.uio.bedreflyt.api.config.TriplestoreProperties
 import no.uio.bedreflyt.api.model.triplestore.Floor
 import no.uio.bedreflyt.api.types.FloorRequest
+import no.uio.bedreflyt.api.types.UpdateFloorRequest
 import org.apache.jena.query.QuerySolution
 import org.apache.jena.query.ResultSet
 import org.apache.jena.update.UpdateExecutionFactory
@@ -94,7 +95,7 @@ class FloorService (
         return null
     }
 
-    fun updateFloor(request: FloorRequest) : Boolean {
+    fun updateFloor(request: UpdateFloorRequest) : Boolean {
         val query = """
             PREFIX bedreflyt: <$prefix>
             PREFIX brick: <https://brickschema.org/schema/Brick#>
@@ -104,8 +105,8 @@ class FloorService (
                     bedreflyt:floorNumber ${request.floorNumber} .
             }
             INSERT {
-                bedreflyt:Floor${request.floorNumber} a brick:Floor ;
-                    bedreflyt:floorNumber ${request.floorNumber} .
+                bedreflyt:Floor${request.newFloorNumber} a brick:Floor ;
+                    bedreflyt:floorNumber ${request.newFloorNumber} .
             }
             WHERE {
                 bedreflyt:Floor${request.floorNumber} a brick:Floor ;
