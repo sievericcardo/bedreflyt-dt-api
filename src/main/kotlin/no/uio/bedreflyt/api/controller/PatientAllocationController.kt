@@ -103,7 +103,7 @@ class PatientAllocationController (
         ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
-    @PutMapping("/update")
+    @PatchMapping("/update")
     fun updatePatientAllocation(@SwaggerRequestBody(description = "Request to update a patient allocation") @RequestBody updatedPatientAllocation: UpdatePatientAllocationRequest) : ResponseEntity<String> {
         log.info("Updating patient allocation")
 
