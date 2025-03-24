@@ -8,8 +8,8 @@ data class TreatmentRequest (
     val diagnosis: String,
     val frequency: Double,
     val weight: Double,
-    val firstStep: TreatmentStep,
-    val lastStep: TreatmentStep,
+    val firstStep: String,
+    val lastStep: String,
     val steps: List<TreatmentStep>
 )
 
@@ -19,8 +19,8 @@ data class UpdateTreatmentRequest (
     val newDiagnosis: String?,
     val newFrequency: Double?,
     val newWeight: Double?,
-    val newFirstStep: TreatmentStep?,
-    val newLastStep: TreatmentStep?,
+    val newFirstStep: String?,
+    val newLastStep: String?,
 )
 
 data class DeleteTreatmentRequest (
