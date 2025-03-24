@@ -264,7 +264,7 @@ class TreatmentService (
         return Pair(treatment, steps)
     }
 
-    fun deleteTreatment(treamentName: String) {
+    fun deleteTreatment(treamentName: String) : Boolean {
         val name = treamentName.split(" ").joinToString("")
         val query = """
             PREFIX bedreflyt: <http://www.smolang.org/bedreflyt/>
@@ -287,8 +287,9 @@ class TreatmentService (
 
         try {
             updateProcessor.execute()
+            return true
         } catch (e: Exception) {
-            return
+            return false
         }
     }
 }
