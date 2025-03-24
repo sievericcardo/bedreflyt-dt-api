@@ -19,7 +19,6 @@ class DatabaseService (
     private val treatmentService: TreatmentService,
     private val patientService: PatientService,
     private val patientAllocationService: PatientAllocationService,
-    private val taskDependencyService: TaskDependencyService,
     private val taskService: TaskService,
     private val monitoringCategoryService: MonitoringCategoryService,
     private val roomService: RoomService
@@ -139,11 +138,11 @@ class DatabaseService (
     }
 
     fun createAndPopulateRooms(roomDbUrl: String): List<Room> {
-        val roomList = roomCategoryService.getAllRooms()
+        val categories = monitoringCategoryService.getAllCategoories()
 
-        roomList?.let {
-            it.forEach { room ->
-                insertRoom(roomDbUrl, room.bedCategory, room.roomDescription)
+        categories?.let {
+            it.forEach { category ->
+                insertRoom(roomDbUrl, category.category.toLong(), category.description)
             }
         } ?: throw IllegalArgumentException("No rooms found")
 
@@ -151,15 +150,16 @@ class DatabaseService (
             ?: throw IllegalArgumentException("No room distributions found")
         val simulationRoom = mutableListOf<Room>()
 
-        rooms.forEach { singleRoom ->
+        rooms.forEachIndexed { index, singleRoom ->
             insertRoomDistribution(
-                roomDbUrl, singleRoom.roomNumber.toLong(), singleRoom.roomNumberModel.toLong(),
-                singleRoom.roomCategory, singleRoom.capacity, singleRoom.bathroom
+                roomDbUrl, singleRoom.roomNumber.toLong(), index.toLong(),
+                singleRoom.monitoringCategory.category.toLong(), singleRoom.capacity, true
             )
             simulationRoom.add(
                 Room(
-                    singleRoom.roomNumber, singleRoom.roomNumberModel, singleRoom.roomCategory,
-                    singleRoom.capacity, singleRoom.bathroom
+                    singleRoom.roomNumber, index,
+                    singleRoom.monitoringCategory.category.toLong(),
+                    singleRoom.capacity, true
                 )
             )
         }
@@ -217,35 +217,34 @@ class DatabaseService (
 
         val treatments = treatmentService.getAllTreatments() ?: throw IllegalArgumentException("No treatments found")
         treatments.forEach { treatment ->
-            val taskDependencies = taskDependencyService.getTaskDependenciesByTreatment(treatment.treatmentId)
-                ?: throw IllegalArgumentException("No task dependencies found")
+            val taskDependencies = treatment.second
 
             // Insert the arrivals
-            val arrival: Task = taskService.getTaskByTaskName("arrival")!!
-            val appendName = treatment.diagnosis + "_" + treatment.treatmentId
-            insertTask(
-                treatmentDbUrl,
-                arrival.taskName + "_" + appendName,
-                arrival.bed,
-                arrival.averageDuration.toInt()
-            )
+//            val arrival: Task = taskService.getTaskByTaskName("arrival")!!
+//            val appendName = treatment.diagnosis + "_" + treatment.treatmentId
+//            insertTask(
+//                treatmentDbUrl,
+//                arrival.taskName + "_" + appendName,
+//                arrival.bed,
+//                arrival.averageDuration.toInt()
+//            )
 
             taskDependencies.forEach { taskDependency ->
-                val treatmentName = taskDependency.diagnosis + "_" + treatment.treatmentId
-                val task = taskService.getTaskByTaskName(taskDependency.task)
+                val treatmentName = taskDependency.treatmentName
+                val task = taskService.getTaskByTaskName(taskDependency.task.taskName)
                     ?: throw IllegalArgumentException("No task ${taskDependency.task} found")
                 insertTask(
                     treatmentDbUrl,
                     task.taskName + "_" + treatmentName,
-                    task.bed,
-                    task.averageDuration.toInt()
+                    taskDependency.monitoringCategory.category,
+                    taskDependency.averageDuration.toInt()
                 )
-                insertTaskDependency(
+                taskDependency.previousTask?.let { insertTaskDependency(
                     treatmentDbUrl,
                     treatmentName,
-                    taskDependency.task + "_" + treatmentName,
-                    taskDependency.dependsOn + "_" + treatmentName
-                )
+                    task.taskName + "_" + treatmentName,
+                    taskDependency.previousTask.task.taskName + "_" + treatmentName
+                ) }
             }
         }
 
