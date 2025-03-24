@@ -8,6 +8,9 @@ import org.apache.jena.query.QuerySolution
 import org.apache.jena.query.ResultSet
 import org.apache.jena.update.UpdateExecutionFactory
 import org.apache.jena.update.UpdateFactory
+import org.springframework.cache.annotation.CacheEvict
+import org.springframework.cache.annotation.CachePut
+import org.springframework.cache.annotation.Cacheable
 import org.springframework.stereotype.Service
 
 @Service
@@ -23,6 +26,7 @@ class WardService (
     private val ttlPrefix = triplestoreProperties.ttlPrefix
     private val repl = replConfig.repl()
 
+    @CachePut("wards", key = "#request.wardName + _ + #request.wardHospitalName")
     fun createWard (request: WardRequest) : Boolean {
         val wardCodeLine = request.wardCode?.let { "bedreflyt:wardCode $it ;" } ?: ""
 
@@ -51,6 +55,7 @@ class WardService (
         }
     }
 
+    @Cacheable("wards")
     fun getAllWards() : List<Ward>? {
         val wards = mutableListOf<Ward>()
 
@@ -89,6 +94,7 @@ class WardService (
         return wards
     }
 
+    @Cacheable("wards", key = "#wardName + _ + #wardHospital")
     fun getWardByNameAndHospital (wardName: String, wardHospital: String) : Ward? {
         val query = """
             SELECT DISTINCT ?wardName ?wardCode ?hospitalCode ?floorNumber WHERE {
@@ -119,6 +125,8 @@ class WardService (
         return Ward(wardName, wardCode, hospital, floor)
     }
 
+    @CacheEvict("wards", key = "#ward.wardName + _ + #ward.wardHospital.hospitalCode")
+    @CachePut("wards", key = "#ward.wardName + _ + #ward.wardHospital.hospitalCode")
     fun updateWard (ward: Ward,  newFloorNumber: Int) : Boolean {
         val oldName = ward.wardName.split(" ").joinToString(" ")
 
@@ -158,6 +166,7 @@ class WardService (
         }
     }
 
+    @CacheEvict("wards", key = "#ward.wardName + _ + #ward.wardHospital.hospitalCode")
     fun deleteWard (ward: Ward) : Boolean {
         val name = ward.wardName.split(" ").joinToString(" ")
 

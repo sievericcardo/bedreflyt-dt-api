@@ -9,6 +9,9 @@ import org.apache.jena.update.UpdateExecutionFactory
 import org.apache.jena.update.UpdateFactory
 import org.apache.jena.update.UpdateProcessor
 import org.apache.jena.update.UpdateRequest
+import org.springframework.cache.annotation.CacheEvict
+import org.springframework.cache.annotation.CachePut
+import org.springframework.cache.annotation.Cacheable
 import org.springframework.stereotype.Service
 
 @Service
@@ -22,6 +25,7 @@ class TaskService (
     private val ttlPrefix = triplestoreProperties.ttlPrefix
     private val repl = replConfig.repl()
 
+    @CachePut("tasks", key = "#taskName")
     fun createTask(taskName: String) : Boolean {
         val query = """
             PREFIX bedreflyt: <$prefix>
@@ -45,6 +49,7 @@ class TaskService (
         }
     }
 
+    @Cacheable("tasks")
     fun getAllTasks() : List<Task>? {
         val tasks: MutableList<Task> = mutableListOf()
 
@@ -70,6 +75,7 @@ class TaskService (
         return tasks
     }
 
+    @Cacheable("tasks", key = "#taskName")
     fun getTaskByTaskName(taskName: String) : Task? {
         val query = """
             SELECT DISTINCT ?taskName WHERE {
@@ -90,6 +96,8 @@ class TaskService (
         return Task(taskName)
     }
 
+    @CacheEvict("tasks", key = "#task.taskName")
+    @CachePut("tasks", key = "#newTaskName")
     fun updateTask(task: Task, newTaskName: String) : Boolean {
         val query = """
             PREFIX : <$prefix>
@@ -123,6 +131,7 @@ class TaskService (
         }
     }
 
+    @CacheEvict("tasks", key = "#task.taskName")
     fun deleteTask(task: Task) : Boolean {
         val query = """
             PREFIX : <$prefix>

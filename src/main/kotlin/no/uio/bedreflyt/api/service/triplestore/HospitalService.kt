@@ -10,6 +10,9 @@ import org.apache.jena.update.UpdateExecutionFactory
 import org.apache.jena.update.UpdateFactory
 import org.apache.jena.update.UpdateProcessor
 import org.apache.jena.update.UpdateRequest
+import org.springframework.cache.annotation.CacheEvict
+import org.springframework.cache.annotation.CachePut
+import org.springframework.cache.annotation.Cacheable
 import org.springframework.stereotype.Service
 
 @Service
@@ -24,6 +27,7 @@ class HospitalService (
     private val ttlPrefix = triplestoreProperties.ttlPrefix
     private val repl = replConfig.repl()
 
+    @CachePut("hospitals", key = "#request.hospitalCode")
     fun createHospital(request: HospitalRequest) : Boolean {
         val query = """
             PREFIX bedreflyt: <$prefix>
@@ -49,6 +53,7 @@ class HospitalService (
         }
     }
 
+    @Cacheable("hospitals")
     fun getAllHospitals() : List<Hospital>? {
         val hospitals = mutableListOf<Hospital>()
 
@@ -82,6 +87,7 @@ class HospitalService (
         return hospitals
     }
 
+    @Cacheable("hospitals", key = "#hospitalCode")
     fun getHospitalByCode (hospitalCode: String) : Hospital? {
         val query = """
             SELECT DISTINCT ?hospitalName ?cityName WHERE {
@@ -107,6 +113,8 @@ class HospitalService (
         return Hospital(hospitalName, hospitalCode, city)
     }
 
+    @CacheEvict("hospitals", key = "#hospitalCode")
+    @CachePut("hospitals", key = "#newHospitalName")
     fun updateHospital (hospital: Hospital, newHospitalName: String) : Boolean {
         val oldName = hospital.hospitalName.split(" ").joinToString(" ")
         val newName = newHospitalName.split(" ").joinToString(" ")
@@ -137,6 +145,7 @@ class HospitalService (
         }
     }
 
+    @CacheEvict("hospitals", key = "#hospitalCode")
     fun deleteHospital (hospitalCode: String) : Boolean {
         val query = """
             PREFIX bedreflyt: <$prefix>

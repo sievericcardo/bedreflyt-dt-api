@@ -10,6 +10,9 @@ import org.apache.jena.update.UpdateExecutionFactory
 import org.apache.jena.update.UpdateFactory
 import org.apache.jena.update.UpdateProcessor
 import org.apache.jena.update.UpdateRequest
+import org.springframework.cache.annotation.CacheEvict
+import org.springframework.cache.annotation.CachePut
+import org.springframework.cache.annotation.Cacheable
 import org.springframework.stereotype.Service
 
 @Service
@@ -23,6 +26,7 @@ class MonitoringCategoryService (
     private val ttlPrefix = triplestoreProperties.ttlPrefix
     private val repl = replConfig.repl()
 
+    @CachePut("monitoringCategories", key = "#monitoringCategoryRequest.description")
     fun createCategory(monitoringCategoryRequest: MonitoringCategoryRequest): Boolean {
         val name = monitoringCategoryRequest.description.split(" ").joinToString(" ")
 
@@ -48,6 +52,7 @@ class MonitoringCategoryService (
         }
     }
 
+    @Cacheable("monitoringCategories")
     fun getAllCategoories() : List<MonitoringCategory>? {
         val categories = mutableListOf<MonitoringCategory>()
 
@@ -75,6 +80,7 @@ class MonitoringCategoryService (
         return categories
     }
 
+    @Cacheable("monitoringCategories", key = "#category")
     fun getCategoryByCategory(category: Int) : MonitoringCategory? {
         val query =
             """
@@ -95,6 +101,7 @@ class MonitoringCategoryService (
         return MonitoringCategory(category, description)
     }
 
+    @Cacheable("monitoringCategories", key = "#description")
     fun getCategoryByDescription(description: String) : MonitoringCategory? {
         val name = description.split(" ").joinToString(" ")
 
@@ -117,6 +124,8 @@ class MonitoringCategoryService (
         return MonitoringCategory(category, description)
     }
 
+    @CacheEvict("monitoringCategories", key = "#monitoringCategory.description")
+    @CachePut("monitoringCategories", key = "#newDescription")
     fun updateCategory(monitoringCategory: MonitoringCategory, newCategory: Int, newDescription: String) : Boolean {
         val oldName = monitoringCategory.description.split(" ").joinToString(" ")
         val newName = newDescription.split(" ").joinToString(" ")
@@ -153,6 +162,7 @@ class MonitoringCategoryService (
         }
     }
 
+    @CacheEvict("monitoringCategories", key = "#monitoringCategory.description")
     fun deleteCategory(monitoringCategory: MonitoringCategory) : Boolean {
         val name = monitoringCategory.description.split(" ").joinToString(" ")
 

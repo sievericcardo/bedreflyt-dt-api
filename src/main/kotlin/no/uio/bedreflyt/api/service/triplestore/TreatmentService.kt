@@ -9,6 +9,9 @@ import org.apache.jena.query.ResultSet
 import org.apache.jena.update.UpdateExecutionFactory
 import org.apache.jena.update.UpdateFactory
 import org.springframework.stereotype.Service
+import org.springframework.cache.annotation.CacheEvict
+import org.springframework.cache.annotation.CachePut
+import org.springframework.cache.annotation.Cacheable
 import kotlin.random.Random
 
 @Service
@@ -25,6 +28,7 @@ class TreatmentService (
     private val ttlPrefix = triplestoreProperties.ttlPrefix
     private val repl = replConfig.repl()
 
+    @CachePut("treatments", key = "#request.treatmentName")
     fun createTreatment (request: TreatmentRequest) : Boolean {
         val treatmentName = request.treatmentName.split(" ").joinToString("")
         val steps = mutableListOf<String>()
@@ -95,6 +99,7 @@ class TreatmentService (
         }
     }
 
+    @Cacheable("treatment-steps")
     fun getTreatmentStep(stepName: String, treatmentName: String): TreatmentStep? {
         val query = """
         SELECT ?previousTask ?nextTask ?monitoringCategory ?task ?staffLoad ?averageDuration WHERE {
@@ -158,6 +163,7 @@ class TreatmentService (
         )
     }
 
+    @Cacheable("treatments")
     fun getAllTreatments(): List<Pair<Treatment, List<TreatmentStep>>>? {
         val treatments = mutableListOf<Pair<Treatment, List<TreatmentStep>>>()
 
@@ -264,6 +270,95 @@ class TreatmentService (
         return Pair(treatment, steps)
     }
 
+    fun getTreatmentByDiagnosisName(diagnosisName: String) : List<Treatment>? {
+        val treatments = mutableListOf<Treatment>()
+        val query = """
+        SELECT DISTINCT ?treatmentName ?frequency ?weight ?firstTask ?lastTask WHERE {
+            ?treatment a prog:Treatment ;
+                prog:Treatment_firstTask ?firstTask ;
+                prog:Treatment_lastTask ?lastTask ;
+                prog:Treatment_treatmentName ?treatmentName ;
+                prog:Treatment_diagnosis ?diagnosis ;
+                prog:Treatment_frequency ?frequency ;
+                prog:Treatment_weight ?weight .
+           ?diagnosis a prog:Diagnosis;
+                prog:Diagnosis_diagnosisCode "$diagnosisName" .
+        }
+    """.trimIndent()
+
+        val resultSet: ResultSet = repl.interpreter!!.query(query)!!
+        if (!resultSet.hasNext()) {
+            return null
+        }
+
+        while (resultSet.hasNext()) {
+            val result = resultSet.next()
+            val treatmentName = result.get("treatmentName").toString()
+            val frequency = result.get("frequency").toString().toDouble()
+            val weight = result.get("weight").toString().toDouble()
+            val firstTaskName = result.get("firstTask").toString()
+            val lastTaskName = result.get("lastTask").toString()
+
+            val firstTask = getTreatmentStep(firstTaskName, treatmentName) ?: continue
+            val lastTask = getTreatmentStep(lastTaskName, treatmentName) ?: continue
+
+            val treatment = Treatment(
+                treatmentName = treatmentName,
+                treatmentDescription = null,
+                diagnosis = diagnosisService.getDiagnosisByName(diagnosisName) ?: continue,
+                frequency = frequency,
+                weight = weight,
+                firstTask = firstTask,
+                lastTask = lastTask
+            )
+
+            treatments.add(treatment)
+        }
+
+        return treatments
+    }
+
+    private fun <T> List<T>.weightedChoice(weight: (T) -> Double): T {
+        val totalWeights = this.sumOf(weight)
+        val threshold: Double = Random.nextDouble(totalWeights)
+        var seen: Double = 0.toDouble()
+        for (elem in this) {
+            seen += weight(elem)
+            if (seen >= threshold) {
+                return elem
+            }
+        }
+        return this.last()
+    }
+
+    fun getTreatmentByDiagnosisAndMode(diagnosisName: String, mode: String) : Treatment {
+        val treatments : List<Treatment> = getTreatmentByDiagnosisName(diagnosisName)
+            ?: throw IllegalArgumentException("No treatments found for diagnosis $diagnosisName")
+
+        return when (mode) {
+            "worst" -> {
+                treatments.maxByOrNull { it.weight }!!
+            }
+
+            "common" -> {
+                treatments.maxByOrNull { it.frequency }!!
+            }
+
+            "random" -> {
+                treatments.random()
+            }
+
+            "sample" -> {
+                treatments.weightedChoice { it.frequency }
+            }
+
+            else -> {
+                throw IllegalArgumentException("Unrecognized mode: should be one of \"worst\", \"common\", \"random\" or \"sample\"")
+            }
+        }
+    }
+
+    @CacheEvict(value = ["treatments"], key = "#tratmentName")
     fun deleteTreatment(treamentName: String) : Boolean {
         val name = treamentName.split(" ").joinToString("")
         val query = """

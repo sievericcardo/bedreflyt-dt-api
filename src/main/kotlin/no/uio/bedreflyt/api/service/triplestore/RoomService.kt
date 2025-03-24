@@ -12,6 +12,9 @@ import org.apache.jena.update.UpdateExecutionFactory
 import org.apache.jena.update.UpdateFactory
 import org.apache.jena.update.UpdateProcessor
 import org.apache.jena.update.UpdateRequest
+import org.springframework.cache.annotation.CacheEvict
+import org.springframework.cache.annotation.CachePut
+import org.springframework.cache.annotation.Cacheable
 import org.springframework.stereotype.Service
 
 @Service
@@ -28,6 +31,7 @@ class RoomService (
     private val ttlPrefix = triplestoreProperties.ttlPrefix
     private val repl = replConfig.repl()
 
+    @CachePut("rooms", key = "#request.roomNumber + '_' + #request.ward + '_' + #request.hospital")
     fun createRoom(request: RoomRequest) : Boolean {
         val query = """
             PREFIX bedreflyt: <$prefix>
@@ -55,6 +59,7 @@ class RoomService (
         }
     }
 
+    @Cacheable("rooms")
     fun getAllRooms() : List<TreatmentRoom>? {
         val rooms: MutableList<TreatmentRoom> = mutableListOf()
 
@@ -97,6 +102,7 @@ class RoomService (
         return rooms
     }
 
+    @Cacheable("rooms")
     fun getRoomByRoomNumber(roomNumber: Int): TreatmentRoom? {
         val query = """
             SELECT DISTINCT ?capacity ?wardName ?hospitalName ?category WHERE {
@@ -133,6 +139,7 @@ class RoomService (
         return TreatmentRoom(roomNumber, capacity, ward, hospital, monitoringCategory)
     }
 
+    @Cacheable("rooms", key = "#roomNumber + '_' + #wardName + '_' + #hospitalCode")
     fun getRoomByRoomNumberWardHospital(roomNumber: Int, wardName: String, hospitalCode: String) : TreatmentRoom? {
         val query = """
             SELECT DISTINCT ?capacity ?category WHERE {
@@ -167,6 +174,8 @@ class RoomService (
         return TreatmentRoom(roomNumber, capacity, ward, hospital, monitoringCategory)
     }
 
+    @CacheEvict("rooms", key = "#room.roomNumber + '_' + #room.ward.wardName + '_' + #room.hospital.hospitalCode")
+    @CachePut("rooms", key = "#room.roomNumber + '_' + #newWard + '_' + #room.hospital.hospitalCode")
     fun updateRoom(room: TreatmentRoom, newCapacity: Int?, newWard: String?, newCategory: String?) : Boolean {
         val capacity = newCapacity ?: room.capacity
         val ward = newWard ?: room.treatmentWard.wardName
@@ -216,6 +225,7 @@ class RoomService (
         }
     }
 
+    @CacheEvict("rooms", key = "#room.roomNumber + '_' + #room.ward.wardName + '_' + #room.hospital.hospitalCode")
     fun deleteRoom(room: TreatmentRoom) : Boolean {
 
         val query = """

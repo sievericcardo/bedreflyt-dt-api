@@ -11,6 +11,9 @@ import org.apache.jena.update.UpdateExecutionFactory
 import org.apache.jena.update.UpdateFactory
 import org.apache.jena.update.UpdateProcessor
 import org.apache.jena.update.UpdateRequest
+import org.springframework.cache.annotation.CacheEvict
+import org.springframework.cache.annotation.CachePut
+import org.springframework.cache.annotation.Cacheable
 import org.springframework.stereotype.Service
 
 @Service
@@ -24,6 +27,7 @@ class FloorService (
     private val ttlPrefix = triplestoreProperties.ttlPrefix
     private val repl = replConfig.repl()
 
+    @CachePut("floors", key = "#request.floorNumber")
     fun createFloor(request: FloorRequest) : Boolean {
         val query = """
             PREFIX bedreflyt: <$prefix>
@@ -47,6 +51,7 @@ class FloorService (
         }
     }
 
+    @Cacheable("floors")
     fun getAllFloors() : List<Floor>? {
         val floors = mutableListOf<Floor>()
 
@@ -71,6 +76,7 @@ class FloorService (
         return floors
     }
 
+    @Cacheable("floors", key = "#number")
     fun getFloorByNumber (number: Int) : Floor? {
         val query = """
             SELECT DISTINCT ?floorNumber WHERE {
@@ -95,6 +101,8 @@ class FloorService (
         return null
     }
 
+    @CacheEvict("floors", key = "#request.floorNumber")
+    @CachePut("floors", key = "#request.newFloorNumber")
     fun updateFloor(request: UpdateFloorRequest) : Boolean {
         val query = """
             PREFIX bedreflyt: <$prefix>
@@ -126,6 +134,7 @@ class FloorService (
         }
     }
 
+    @CacheEvict("floors", key = "#request.floorNumber")
     fun deleteFloor(request: FloorRequest) : Boolean {
         val query = """
             PREFIX bedreflyt: <$prefix>

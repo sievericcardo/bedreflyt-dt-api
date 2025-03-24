@@ -21,7 +21,7 @@ class DatabaseService (
     private val patientAllocationService: PatientAllocationService,
     private val taskDependencyService: TaskDependencyService,
     private val taskService: TaskService,
-    private val roomCategoryService: RoomCategoryService,
+    private val monitoringCategoryService: MonitoringCategoryService,
     private val roomService: RoomService
 ) {
 
@@ -100,7 +100,7 @@ class DatabaseService (
 
                 scenarioRequest.diagnosis?.let { diagnosis ->
                     try {
-                        val treatment = diagnosis + "_" + treatmentService.selectTreatmentByDiagnosisAndMode(diagnosis, mode)
+                        val treatment = diagnosis + "_" + treatmentService.getTreatmentByDiagnosisAndMode(diagnosis, mode)
                         insertScenario(
                             scenarioDbUrl,
                             scenarioRequest.batch,

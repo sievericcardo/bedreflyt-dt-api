@@ -10,6 +10,9 @@ import org.apache.jena.update.UpdateExecutionFactory
 import org.apache.jena.update.UpdateFactory
 import org.apache.jena.update.UpdateProcessor
 import org.apache.jena.update.UpdateRequest
+import org.springframework.cache.annotation.CacheEvict
+import org.springframework.cache.annotation.CachePut
+import org.springframework.cache.annotation.Cacheable
 import org.springframework.stereotype.Service
 
 @Service
@@ -23,6 +26,7 @@ class CityService (
     private val ttlPrefix = triplestoreProperties.ttlPrefix
     private val repl = replConfig.repl()
 
+    @CachePut("cities", key = "#request.cityName")
     fun createCity(request: CityRequest) : Boolean {
         val query = """
             PREFIX bedreflyt: <$prefix>
@@ -45,6 +49,7 @@ class CityService (
         }
     }
 
+    @Cacheable("cities")
     fun getAllCities() : List<City>? {
         val cities = mutableListOf<City>()
 
@@ -69,6 +74,7 @@ class CityService (
         return cities
     }
 
+    @Cacheable("cities", key = "#cityName")
     fun getCityByName(cityName: String) : City? {
         val query = """
             PREFIX bedreflyt: <$prefix>
@@ -88,6 +94,8 @@ class CityService (
         return City(result.get("cityName").toString())
     }
 
+    @CacheEvict("cities", key = "#cityName")
+    @CachePut("cities", key = "#newCityName")
     fun updateCity(cityName: String, newCityName: String) : Boolean {
         val query = """
             PREFIX bedreflyt: <$prefix>
@@ -118,6 +126,7 @@ class CityService (
         }
     }
 
+    @CacheEvict("cities", key = "#cityName")
     fun deleteCity(cityName: String) : Boolean {
         val query = """
             PREFIX bedreflyt: <$prefix>
