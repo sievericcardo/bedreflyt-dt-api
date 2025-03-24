@@ -163,6 +163,151 @@ class TreatmentService (
         )
     }
 
+    @Cacheable("treatment-steps")
+    fun getAllTreatmentSteps() : List<TreatmentStep>? {
+        val steps = mutableListOf<TreatmentStep>()
+
+        val query = """
+        SELECT DISTINCT ?treatmentName ?previousTask ?nextTask ?monitoringCategory ?task ?staffLoad ?averageDuration WHERE {
+            ?step a prog:TreatmentStep ;
+                prog:TreatmentStep_treatmentName ?treatmentName ;
+                prog:TreatmentStep_task ?taskObj ;
+                prog:TreatmentStep_monitoringCategory ?monitoringCategoryObj ;
+                prog:TreatmentStep_staffLoad ?staffLoad ;
+                prog:TreatmentStep_averageDuration ?averageDuration ;
+                prog:TreatmentStep_previousTask ?previousTaskObj ;
+                prog:TreatmentStep_nextTask ?nextTaskObj .
+                
+            ?taskObj a prog:Task ;
+                prog:Task_taskName ?task .
+                
+            ?monitoringCategoryObj a prog:MonitoringCategory ;
+                prog:MonitoringCategory_description ?monitoringCategory .
+                
+            ?previousTaskObj a prog:TreatmentStep ;
+                prog:TreatmentStep_treatmentName ?treatmentName ;
+                prog:TreatmentStep_task ?previousTask .
+            ?previousTask a prog:Task .
+                prog:Task_taskName ?previousTask .
+                
+            ?nextTaskObj a prog:TreatmentStep ;
+                prog:TreatmentStep_treatmentName ?treatmentName ;
+                prog:TreatmentStep_task ?nextTask .
+            ?nextTask a prog:Task .
+                prog:Task_taskName ?nextTask .
+        }
+    """.trimIndent()
+
+        val resultSet: ResultSet = repl.interpreter!!.query(query)!!
+        if (!resultSet.hasNext()) {
+            return null
+        }
+
+        while (resultSet.hasNext()) {
+            val result = resultSet.next()
+            val treatmentName = result.get("treatmentName").toString()
+            val monitoringCategory = result.get("monitoringCategory").toString()
+            val category = monitoringCategoryService.getCategoryByDescription(monitoringCategory) ?: continue
+
+            val taskObj = result.get("task").toString()
+            val task = taskService.getTaskByTaskName(taskObj) ?: continue
+
+            val staffLoad = result.get("staffLoad").toString().toDouble()
+            val averageDuration = result.get("averageDuration").toString().toDouble()
+            val previousTaskName = result.get("previousTask")?.toString()
+            val nextTaskName = result.get("nextTask")?.toString()
+
+            val previousTask = previousTaskName?.let { getTreatmentStep(it, treatmentName) }
+            val nextTask = nextTaskName?.let { getTreatmentStep(it, treatmentName) }
+
+            steps.add(
+                TreatmentStep(
+                    treatmentName = treatmentName,
+                    monitoringCategory = category,
+                    task = task,
+                    staffLoad = staffLoad,
+                    averageDuration = averageDuration,
+                    previousTask = previousTask,
+                    nextTask = nextTask
+                )
+            )
+        }
+
+        return steps
+    }
+
+    @Cacheable("treatment-steps", key = "#treatmentName")
+    fun getTreatmentStepsByTreatmentName(treatmentName: String) : List<TreatmentStep>? {
+        val steps = mutableListOf<TreatmentStep>()
+
+        val query = """
+        SELECT DISTINCT ?previousTask ?nextTask ?monitoringCategory ?task ?staffLoad ?averageDuration WHERE {
+            ?step a prog:TreatmentStep ;
+                prog:TreatmentStep_treatmentName $treatmentName ;
+                prog:TreatmentStep_task ?taskObj ;
+                prog:TreatmentStep_monitoringCategory ?monitoringCategoryObj ;
+                prog:TreatmentStep_staffLoad ?staffLoad ;
+                prog:TreatmentStep_averageDuration ?averageDuration ;
+                prog:TreatmentStep_previousTask ?previousTaskObj ;
+                prog:TreatmentStep_nextTask ?nextTaskObj .
+                
+            ?taskObj a prog:Task ;
+                prog:Task_taskName ?task .
+                
+            ?monitoringCategoryObj a prog:MonitoringCategory ;
+                prog:MonitoringCategory_description ?monitoringCategory .
+                
+            ?previousTaskObj a prog:TreatmentStep ;
+                prog:TreatmentStep_treatmentName $treatmentName ;
+                prog:TreatmentStep_task ?previousTask .
+            ?previousTask a prog:Task .
+                prog:Task_taskName ?previousTask .
+                
+            ?nextTaskObj a prog:TreatmentStep ;
+                prog:TreatmentStep_treatmentName $treatmentName ;
+                prog:TreatmentStep_task ?nextTask .
+            ?nextTask a prog:Task .
+                prog:Task_taskName ?nextTask .
+        }
+    """.trimIndent()
+
+        val resultSet: ResultSet = repl.interpreter!!.query(query)!!
+        if (!resultSet.hasNext()) {
+            return null
+        }
+
+        while (resultSet.hasNext()) {
+            val result = resultSet.next()
+            val monitoringCategory = result.get("monitoringCategory").toString()
+            val category = monitoringCategoryService.getCategoryByDescription(monitoringCategory) ?: continue
+
+            val taskObj = result.get("task").toString()
+            val task = taskService.getTaskByTaskName(taskObj) ?: continue
+
+            val staffLoad = result.get("staffLoad").toString().toDouble()
+            val averageDuration = result.get("averageDuration").toString().toDouble()
+            val previousTaskName = result.get("previousTask")?.toString()
+            val nextTaskName = result.get("nextTask")?.toString()
+
+            val previousTask = previousTaskName?.let { getTreatmentStep(it, treatmentName) }
+            val nextTask = nextTaskName?.let { getTreatmentStep(it, treatmentName) }
+
+            steps.add(
+                TreatmentStep(
+                    treatmentName = treatmentName,
+                    monitoringCategory = category,
+                    task = task,
+                    staffLoad = staffLoad,
+                    averageDuration = averageDuration,
+                    previousTask = previousTask,
+                    nextTask = nextTask
+                )
+            )
+        }
+
+        return steps
+    }
+
     @Cacheable("treatments")
     fun getAllTreatments(): List<Pair<Treatment, List<TreatmentStep>>>? {
         val treatments = mutableListOf<Pair<Treatment, List<TreatmentStep>>>()
