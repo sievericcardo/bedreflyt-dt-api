@@ -23,13 +23,13 @@ import no.uio.bedreflyt.api.types.UpdateTreatmentRequest
 import no.uio.bedreflyt.api.types.DeleteTreatmentRequest
 
 @RestController
-@RequestMapping("/api/fuseki/treatment")
+@RequestMapping("/api/fuseki/treatments")
 class TreatmentController (
     private val replConfig: REPLConfig,
     private val triplestoreProperties: TriplestoreProperties,
     private val triplestoreService: TriplestoreService,
     private val diagnosisService: DiagnosisService,
-    private val treatmentService: TreatmentService
+    private val treatmentService: TreatmentService,
 ) {
 
     private val log: Logger = Logger.getLogger(TreatmentController::class.java.name)
@@ -44,62 +44,54 @@ class TreatmentController (
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
     @PostMapping("/create")
-    fun createTreatment(@SwaggerRequestBody(description = "Request to add a new treatment") @RequestBody treatmentRequest: TreatmentRequest) : ResponseEntity<String> {
-        // Check if diagnosis exists
-        if (diagnosisService.getDiagnosisByName(treatmentRequest.diagnosis) == null) {
-            log.warning("Diagnosis ${treatmentRequest.diagnosis} does not exist")
-            if (!diagnosisService.createDiagnosis(treatmentRequest.diagnosis)) {
-                log.warning("Failed to create diagnosis ${treatmentRequest.diagnosis}")
-                return ResponseEntity.badRequest().body("Failed to create diagnosis ${treatmentRequest.diagnosis}")
-            }
+    fun createTreatment(@SwaggerRequestBody(description = "Request to create a new treatment") @RequestBody request: TreatmentRequest) : ResponseEntity<Treatment> {
+        log.info("Creating treatment $request")
+
+        val diagnosis = diagnosisService.getDiagnosisByName(request.diagnosis) ?: return ResponseEntity.badRequest().build()
+        val firstTask = treatmentService.getTreatmentStep(request.firstStep, request.treatmentName) ?: return ResponseEntity.badRequest().build()
+        val lastTask = treatmentService.getTreatmentStep(request.lastStep, request.treatmentName) ?: return ResponseEntity.badRequest().build()
+
+        if (!treatmentService.createTreatment(request)) {
+            return ResponseEntity.badRequest().build()
         }
+        replConfig.regenerateSingleModel().invoke("treatment")
 
-        if (!treatmentService.createTreatment(treatmentRequest.treatmentId, treatmentRequest.diagnosis, treatmentRequest.frequency, treatmentRequest.weight)) {
-            log.warning("Failed to create treatment ${treatmentRequest.treatmentId}")
-            return ResponseEntity.badRequest().body("Failed to create treatment ${treatmentRequest.treatmentId}")
-        }
-
-        // Append to the file bedreflyt.ttl
-        val path = "bedreflyt.ttl"
-        val fileContent = File(path).readText(Charsets.UTF_8)
-        val newContent = """
-                $fileContent
-                    
-                ###  $ttlPrefix/treatment_${treatmentRequest.treatmentId}_${treatmentRequest.diagnosis}
-                :treatment_${treatmentRequest.treatmentId}_${treatmentRequest.diagnosis} rdf:type owl:NamedIndividual ,
-                                :Treatment ;
-                    :treatmentId "${treatmentRequest.treatmentId}" ;
-                    :diagnosis "${treatmentRequest.diagnosis}" ;
-                    :frequency "${treatmentRequest.frequency}"^^xsd:double ;
-                    :weight "${treatmentRequest.weight}"^^xsd:double .
-                """.trimIndent()
-
-        File(path).writeText(newContent)
-        replConfig.regenerateSingleModel().invoke("treatments")
-
-        return ResponseEntity.ok("Treatment ${treatmentRequest.treatmentId} created")
+        return ResponseEntity.ok(Treatment(request.treatmentName, request.treatmentDescription, diagnosis, request.frequency, request.weight, firstTask, lastTask))
     }
 
     @Operation(summary = "Get all treatments")
     @ApiResponses(value = [
-        ApiResponse(responseCode = "200", description = "List of treatments"),
-        ApiResponse(responseCode = "400", description = "Invalid treatment"),
+        ApiResponse(responseCode = "200", description = "All treatments returned"),
         ApiResponse(responseCode = "401", description = "Unauthorized"),
         ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
     @GetMapping("/retrieve")
     fun getAllTreatments() : ResponseEntity<List<Treatment>> {
-        val treatments = treatmentService.getAllTreatments()
-        if (treatments == null) {
-            log.warning("No treatments found")
-            return ResponseEntity.noContent().build()
-        }
+        log.info("Getting all treatments")
 
-        return ResponseEntity.ok(treatments)
+        val treatments = treatmentService.getAllTreatments() ?: return ResponseEntity.noContent().build()
+        val treatmentList = treatments.map { it.first }
+        return ResponseEntity.ok(treatmentList)
     }
 
-    @Operation(summary = "Update an existing treatment")
+    @Operation(summary = "Get a treatment")
+    @ApiResponses(value = [
+        ApiResponse(responseCode = "200", description = "Treatment found"),
+        ApiResponse(responseCode = "400", description = "No treatment found"),
+        ApiResponse(responseCode = "401", description = "Unauthorized"),
+        ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
+        ApiResponse(responseCode = "500", description = "Internal server error")
+    ])
+    @GetMapping("/retrieve/{treatmentName}")
+    fun getTreatment(@SwaggerRequestBody(description = "Request to retrieve a treatment by name") @RequestBody request: DeleteTreatmentRequest) : ResponseEntity<Treatment> {
+        log.info("Getting treatment $request")
+
+        val treatment = treatmentService.getTreatmentsByTreamentName(request.treatmentName) ?: return ResponseEntity.badRequest().build()
+        return ResponseEntity.ok(treatment.first)
+    }
+
+    @Operation(summary = "Update a treatment")
     @ApiResponses(value = [
         ApiResponse(responseCode = "200", description = "Treatment updated"),
         ApiResponse(responseCode = "400", description = "Invalid treatment"),
@@ -108,51 +100,13 @@ class TreatmentController (
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
     @PatchMapping("/update")
-    fun updateTreatment(@SwaggerRequestBody(description = "Request to update a treatment" ) @RequestBody updateTreatmentRequest: UpdateTreatmentRequest) : ResponseEntity<String> {
-        // Check if treatment exists
-        if (treatmentService.getTreatmentById(updateTreatmentRequest.treatmentId) == null) {
-            log.warning("Treatment ${updateTreatmentRequest.treatmentId} does not exist")
-            return ResponseEntity.badRequest().body("Treatment ${updateTreatmentRequest.treatmentId} does not exist")
-        }
+    fun updateTreatment(@SwaggerRequestBody(description = "Request to update a treatment") @RequestBody request: UpdateTreatmentRequest) : ResponseEntity<Treatment> {
+        log.info("Updating treatment ${request.treatmentName}")
 
-        val treatment = treatmentService.getTreatmentByTreamentDiagnosis(updateTreatmentRequest.treatmentId, updateTreatmentRequest.diagnosis)
-            ?: return ResponseEntity.badRequest().body("Treatment ${updateTreatmentRequest.treatmentId} does not exist")
-        val newWeight = updateTreatmentRequest.newWeight ?: treatment.weight
-        val newFrequency = updateTreatmentRequest.newFrequency ?: treatment.frequency
-
-        if (!treatmentService.updateTreatment(treatment, newFrequency, newWeight)) {
-            log.warning("Failed to update treatment ${updateTreatmentRequest.treatmentId}")
-            return ResponseEntity.badRequest().body("Failed to update treatment ${updateTreatmentRequest.treatmentId}")
-        }
-
-        // Append to the file bedreflyt.ttl
-        val path = "bedreflyt.ttl"
-        val oldContent = """
-                ###  $ttlPrefix/treatment_${updateTreatmentRequest.treatmentId}_${updateTreatmentRequest.diagnosis}
-                :treatment_${updateTreatmentRequest.treatmentId}_${updateTreatmentRequest.diagnosis} rdf:type owl:NamedIndividual ,
-                                :Treatment ;
-                    :treatmentId "${updateTreatmentRequest.treatmentId}" ;
-                    :diagnosis "${updateTreatmentRequest.diagnosis}" ;
-                    :frequency "${treatment.frequency}"^^xsd:double ;
-                    :weight "${treatment.frequency}"^^xsd:double .
-                """.trimIndent()
-        val newContent = """
-                ###  $ttlPrefix/treatment_${updateTreatmentRequest.treatmentId}_${updateTreatmentRequest.diagnosis}
-                :treatment_${updateTreatmentRequest.treatmentId}_${updateTreatmentRequest.diagnosis} rdf:type owl:NamedIndividual ,
-                                :Treatment ;
-                    :treatmentId "${updateTreatmentRequest.treatmentId}" ;
-                    :diagnosis "${updateTreatmentRequest.diagnosis}" ;
-                    :frequency "$newFrequency"^^xsd:double ;
-                    :weight "$newWeight"^^xsd:double .
-                """.trimIndent()
-
-        triplestoreService.replaceContentIgnoringSpaces(path, oldContent, newContent)
-        replConfig.regenerateSingleModel().invoke("treatments")
-
-        return ResponseEntity.ok("Treatment ${updateTreatmentRequest.treatmentId} updated")
+        return ResponseEntity.badRequest().build()
     }
 
-    @Operation(summary = "Delete an existing treatment")
+    @Operation(summary = "Delete a treatment")
     @ApiResponses(value = [
         ApiResponse(responseCode = "200", description = "Treatment deleted"),
         ApiResponse(responseCode = "400", description = "Invalid treatment"),
@@ -161,36 +115,14 @@ class TreatmentController (
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
     @DeleteMapping("/delete")
-    fun deleteTreatment(@SwaggerRequestBody(description = "Request to delete a treatment") @RequestBody deleteTreatmentRequest: DeleteTreatmentRequest) : ResponseEntity<String> {
-        // Check if treatment exists
-        if (treatmentService.getTreatmentById(deleteTreatmentRequest.treatmentId) == null) {
-            log.warning("Treatment ${deleteTreatmentRequest.treatmentId} does not exist")
-            return ResponseEntity.badRequest().body("Treatment ${deleteTreatmentRequest.treatmentId} does not exist")
+    fun deleteTreatment(@SwaggerRequestBody(description = "Request to delete a treatment") @RequestBody request: DeleteTreatmentRequest) : ResponseEntity<String> {
+        log.info("Deleting treatment ${request.treatmentName}")
+
+        if (!treatmentService.deleteTreatment(request.treatmentName)) {
+            return ResponseEntity.badRequest().build()
         }
+        replConfig.regenerateSingleModel().invoke("treatment")
 
-        val treatment = treatmentService.getTreatmentByTreamentDiagnosis(deleteTreatmentRequest.treatmentId, deleteTreatmentRequest.diagnosis)
-            ?: return ResponseEntity.badRequest().body("Treatment ${deleteTreatmentRequest.treatmentId} does not exist")
-
-        if (!treatmentService.deleteTreatment(treatment)) {
-            log.warning("Failed to delete treatment ${deleteTreatmentRequest.treatmentId}")
-            return ResponseEntity.badRequest().body("Failed to delete treatment ${deleteTreatmentRequest.treatmentId}")
-        }
-
-        // Append to the file bedreflyt.ttl
-        val path = "bedreflyt.ttl"
-        val content = """
-                ###  $ttlPrefix/treatment_${treatment.treatmentId}_${treatment.diagnosis}
-                :treatment_${treatment.treatmentId}_${treatment.diagnosis} rdf:type owl:NamedIndividual ,
-                                :Treatment ;
-                    :treatmentId "${treatment.treatmentId}" ;
-                    :diagnosis "${treatment.diagnosis}" ;
-                    :frequency "${treatment.frequency}"^^xsd:double ;
-                    :weight "${treatment.weight}"^^xsd:double .
-                """.trimIndent()
-
-        triplestoreService.replaceContentIgnoringSpaces(path, content, "")
-        replConfig.regenerateSingleModel().invoke("treatments")
-
-        return ResponseEntity.ok("Treatment ${treatment.treatmentId} deleted")
+        return ResponseEntity.ok("Treatment ${request.treatmentName} deleted")
     }
 }
