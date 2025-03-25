@@ -104,7 +104,7 @@ class CityController (
         cityRequest.newCityName?.let {
             log.info("New city name: $it")
             if (!cityService.updateCity(cityName, it)) {
-                return ResponseEntity.noContent().build()
+                return ResponseEntity.badRequest().build()
             }
         } ?: return ResponseEntity.noContent().build()
         replConfig.regenerateSingleModel().invoke("city")
