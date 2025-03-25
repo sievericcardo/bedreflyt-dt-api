@@ -101,6 +101,9 @@ class CityController (
                    @SwaggerRequestBody(description = "Request to update a city") @RequestBody cityRequest: UpdateCityRequest) : ResponseEntity<City> {
         log.info("Updating city $cityRequest")
 
+        if(cityService.getCityByName(cityName) == null) {
+            return ResponseEntity.notFound().build()
+        }
         cityRequest.newCityName?.let {
             log.info("New city name: $it")
             if (!cityService.updateCity(cityName, it)) {
@@ -124,6 +127,9 @@ class CityController (
     fun deleteCity(@ApiParam(value = "City name", required = true) @PathVariable cityName: String) : ResponseEntity<String> {
         log.info("Deleting city $cityName")
 
+        if(cityService.getCityByName(cityName) == null) {
+            return ResponseEntity.notFound().build()
+        }
         if (!cityService.deleteCity(cityName)) {
             return ResponseEntity.badRequest().build()
         }

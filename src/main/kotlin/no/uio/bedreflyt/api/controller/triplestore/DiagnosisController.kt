@@ -83,6 +83,9 @@ class DiagnosisController (
                         @SwaggerRequestBody(description = "Request to update a diagnosis") @RequestBody updateDiagnosisRequest: UpdateDiagnosisRequest) : ResponseEntity<Diagnosis> {
         log.info("Updating diagnosis $updateDiagnosisRequest")
 
+        if(diagnosisService.getDiagnosisByName(diagnosisCode) == null) {
+            return ResponseEntity.notFound().build()
+        }
         updateDiagnosisRequest.newDiagnosisName?.let {
             if(!diagnosisService.updateDiagnosis(diagnosisCode, it)) {
                 return ResponseEntity.badRequest().build()
@@ -105,6 +108,11 @@ class DiagnosisController (
     fun deleteDiagnosis(@ApiParam(value = "Diagnosis code", required = true) @PathVariable diagnosisCode: String) : ResponseEntity<String> {
         log.info("Deleting diagnosis $diagnosisCode")
 
+        if(diagnosisCode.isEmpty()) {
+            return ResponseEntity.badRequest().body("Diagnosis information are required")
+        } else if (diagnosisService.getDiagnosisByName(diagnosisCode) == null) {
+            return ResponseEntity.badRequest().body("Diagnosis does not exist")
+        }
         if(!diagnosisService.deleteDiagnosis(diagnosisCode)) {
             return ResponseEntity.badRequest().body("Diagnosis does not exist")
         }
