@@ -1,5 +1,6 @@
 package no.uio.bedreflyt.api.controller.triplestore
 
+import io.swagger.annotations.ApiParam
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.responses.ApiResponses
@@ -19,7 +20,9 @@ import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
 import java.io.File
 import java.util.logging.Logger
-import no.uio.bedreflyt.api.types.*
+import no.uio.bedreflyt.api.types.MonitoringCategoryRequest
+import no.uio.bedreflyt.api.types.UpdateMonitoringCategoryRequest
+import org.springframework.web.bind.annotation.PathVariable
 
 @RestController
 @RequestMapping("/api/v1/fuseki/monitoring-category")
@@ -81,11 +84,12 @@ class MonitoringCategoryController (
         ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
-    @PatchMapping
-    fun updateRoomCategory(@SwaggerRequestBody(description = "Request to update a room") @RequestBody request: UpdateMonitoringCategoryRequest) : ResponseEntity<MonitoringCategory> {
-        log.info("Updating monitoring category ${request.category}")
+    @PatchMapping("/{monitoringCategory}")
+    fun updateRoomCategory(@ApiParam(value = "Category", required = true) @PathVariable monitoringCategory: Int,
+                           @SwaggerRequestBody(description = "Request to update a room") @RequestBody request: UpdateMonitoringCategoryRequest) : ResponseEntity<MonitoringCategory> {
+        log.info("Updating monitoring category $monitoringCategory")
 
-        val category = monitoringCategoryService.getCategoryByCategory(request.category) ?: return ResponseEntity.badRequest().build()
+        val category = monitoringCategoryService.getCategoryByCategory(monitoringCategory) ?: return ResponseEntity.notFound().build()
         val cat = request.newCategory ?: category.category
         val desc = request.newDescription ?: category.description
 
@@ -105,11 +109,11 @@ class MonitoringCategoryController (
         ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
-    @DeleteMapping
-    fun deleteRoomCategory(@SwaggerRequestBody(description = "Request to delete a monitoring category") @RequestBody request: DeleteMonitoringCategoryRequest) : ResponseEntity<String> {
-        log.info("Deleting monitoring category ${request.category}")
+    @DeleteMapping("/{monitoringCategory}")
+    fun deleteRoomCategory(@ApiParam(value = "Category", required = true) @PathVariable monitoringCategory: Int) : ResponseEntity<String> {
+        log.info("Deleting monitoring category $monitoringCategory")
 
-        val category = monitoringCategoryService.getCategoryByCategory(request.category) ?: return ResponseEntity.badRequest().body("Error: the category could not be deleted.")
+        val category = monitoringCategoryService.getCategoryByCategory(monitoringCategory) ?: return ResponseEntity.badRequest().body("Error: the category could not be found.")
         if(!monitoringCategoryService.deleteCategory(category)) {
             return ResponseEntity.badRequest().body("Error: the category could not be deleted.")
         }
