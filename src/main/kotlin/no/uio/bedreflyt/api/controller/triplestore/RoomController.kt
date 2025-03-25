@@ -1,5 +1,6 @@
 package no.uio.bedreflyt.api.controller.triplestore
 
+import io.swagger.annotations.ApiParam
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.responses.ApiResponses
@@ -9,19 +10,12 @@ import no.uio.bedreflyt.api.model.triplestore.Room
 import no.uio.bedreflyt.api.model.triplestore.TreatmentRoom
 import no.uio.bedreflyt.api.service.triplestore.*
 import org.springframework.http.ResponseEntity
-import org.springframework.web.bind.annotation.DeleteMapping
-import org.springframework.web.bind.annotation.GetMapping
-import org.springframework.web.bind.annotation.PatchMapping
 import io.swagger.v3.oas.annotations.parameters.RequestBody as SwaggerRequestBody
-import org.springframework.web.bind.annotation.PostMapping
-import org.springframework.web.bind.annotation.RequestBody
-import org.springframework.web.bind.annotation.RequestMapping
-import org.springframework.web.bind.annotation.RestController
 import java.io.File
 import java.util.logging.Logger
 import no.uio.bedreflyt.api.types.RoomRequest
 import no.uio.bedreflyt.api.types.UpdateRoomRequest
-import no.uio.bedreflyt.api.types.DeleteRoomRequest
+import org.springframework.web.bind.annotation.*
 
 @RestController
 @RequestMapping("/api/v1/fuseki/rooms")
@@ -109,11 +103,12 @@ class RoomController (
         ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
-    @PatchMapping
-    fun updateRoom(@SwaggerRequestBody(description = "Request to update a room") @RequestBody updateRoomRequest: UpdateRoomRequest) : ResponseEntity<TreatmentRoom> {
+    @PatchMapping("/{roomNumber}/{wardName}/{hospitalCode}")
+    fun updateRoom(@ApiParam(value = "Request to update a room", required = true) @PathVariable roomNumber: Int, wardName: String, hospitalCode: String,
+                   @SwaggerRequestBody(description = "Request to update a room") @RequestBody updateRoomRequest: UpdateRoomRequest) : ResponseEntity<TreatmentRoom> {
         log.info("Updating room $updateRoomRequest")
 
-        val room = roomService.getRoomByRoomNumberWardHospital(updateRoomRequest.roomNumber, updateRoomRequest.ward, updateRoomRequest.hospital) ?: return ResponseEntity.badRequest().build()
+        val room = roomService.getRoomByRoomNumberWardHospital(roomNumber, wardName, hospitalCode) ?: return ResponseEntity.notFound().build()
         val capacity = updateRoomRequest.newCapacity ?: room.capacity
         val ward = updateRoomRequest.newWard ?: room.treatmentWard.wardName
         val category = updateRoomRequest.newCategoryDescription ?: room.monitoringCategory.description
@@ -137,17 +132,17 @@ class RoomController (
         ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
-    @DeleteMapping
-    fun deleteRoom(@SwaggerRequestBody(description = "Request to delete a room") @RequestBody deleteRoomRequest: DeleteRoomRequest) : ResponseEntity<TreatmentRoom> {
-        log.info("Deleting room $deleteRoomRequest")
+    @DeleteMapping("/{roomNumber}/{wardName}/{hospitalCode}")
+    fun deleteRoom(@ApiParam(value = "Request to update a room", required = true) @PathVariable roomNumber: Int, wardName: String, hospitalCode: String) : ResponseEntity<String> {
+        log.info("Deleting room $roomNumber in ward $wardName")
 
-        val room = roomService.getRoomByRoomNumberWardHospital(deleteRoomRequest.roomNumber, deleteRoomRequest.ward, deleteRoomRequest.hospital) ?: return ResponseEntity.badRequest().build()
+        val room = roomService.getRoomByRoomNumberWardHospital(roomNumber, wardName, hospitalCode) ?: return ResponseEntity.notFound().build()
 
         if (!roomService.deleteRoom(room)) {
             return ResponseEntity.badRequest().build()
         }
         replConfig.regenerateSingleModel().invoke("room")
 
-        return ResponseEntity.ok(room)
+        return ResponseEntity.ok("Room Deleted")
     }
 }
