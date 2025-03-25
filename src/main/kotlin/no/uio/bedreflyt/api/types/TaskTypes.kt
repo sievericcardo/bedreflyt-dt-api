@@ -5,10 +5,6 @@ data class TaskRequest (
 )
 
 data class UpdateTaskRequest (
-    val taskName: String,
-    val newTaskName: String
+    val newTaskName: String?
 )
 
-data class DeleteTaskRequest (
-    val taskName: String
-)

@@ -1,5 +1,6 @@
 package no.uio.bedreflyt.api.controller.triplestore
 
+import io.swagger.annotations.ApiParam
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.responses.ApiResponses
@@ -22,6 +23,7 @@ import java.util.logging.Logger
 import no.uio.bedreflyt.api.types.TaskRequest
 import no.uio.bedreflyt.api.types.UpdateTaskRequest
 import no.uio.bedreflyt.api.types.DeleteTaskRequest
+import org.springframework.web.bind.annotation.PathVariable
 
 @RestController
 @RequestMapping("/api/v1/fuseki/tasks")
@@ -84,17 +86,21 @@ class TaskController (
         ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
-    @PatchMapping
-    fun updateTask(@SwaggerRequestBody(description = "Request to update a task") @RequestBody updateTaskRequest: UpdateTaskRequest) : ResponseEntity<Task> {
+    @PatchMapping("/{taskName}")
+    fun updateTask(@ApiParam(value = "Task name", required = true) @PathVariable taskName: String,
+                   @SwaggerRequestBody(description = "Request to update a task") @RequestBody updateTaskRequest: UpdateTaskRequest) : ResponseEntity<Task> {
         log.info("Updating task $updateTaskRequest")
 
-        val task = taskService.getTaskByTaskName(updateTaskRequest.taskName) ?: return ResponseEntity.badRequest().build()
-        if(!taskService.updateTask(task, updateTaskRequest.newTaskName)) {
-            return ResponseEntity.badRequest().build()
-        }
+        val task = taskService.getTaskByTaskName(taskName) ?: return ResponseEntity.notFound().build()
+        updateTaskRequest.newTaskName?.let {
+            if(!taskService.updateTask(task, it)) {
+                return ResponseEntity.badRequest().build()
+            }
+        } ?: return ResponseEntity.noContent().build()
+
         replConfig.regenerateSingleModel().invoke("task")
 
-        return ResponseEntity.ok(Task(updateTaskRequest.taskName))
+        return ResponseEntity.ok(Task(updateTaskRequest.newTaskName))
     }
 
     @Operation(summary = "Delete a task")
@@ -105,16 +111,16 @@ class TaskController (
         ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
-    @DeleteMapping
-    fun deleteTask(@SwaggerRequestBody(description = "Request to delete a task") @RequestBody taskRequest: DeleteTaskRequest) : ResponseEntity<String> {
-        log.info("Deleting task $taskRequest")
+    @DeleteMapping("/{taskName}")
+    fun deleteTask(@ApiParam(value = "Task name", required = true) @PathVariable taskName: String) : ResponseEntity<String> {
+        log.info("Deleting task $taskName")
 
-        val task = taskService.getTaskByTaskName(taskRequest.taskName) ?: return ResponseEntity.badRequest().build()
+        val task = taskService.getTaskByTaskName(taskName) ?: return ResponseEntity.notFound().build()
         if(!taskService.deleteTask(task)) {
             return ResponseEntity.badRequest().build()
         }
         replConfig.regenerateSingleModel().invoke("task")
 
-        return ResponseEntity.ok("Task ${taskRequest.taskName} deleted")
+        return ResponseEntity.ok("Task $taskName deleted")
     }
 }
