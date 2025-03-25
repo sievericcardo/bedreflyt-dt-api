@@ -2,9 +2,7 @@ package no.uio.bedreflyt.api.service.triplestore
 
 import no.uio.bedreflyt.api.config.REPLConfig
 import no.uio.bedreflyt.api.config.TriplestoreProperties
-import no.uio.bedreflyt.api.model.triplestore.Room
 import no.uio.bedreflyt.api.model.triplestore.TreatmentRoom
-import no.uio.bedreflyt.api.types.DeleteRoomRequest
 import no.uio.bedreflyt.api.types.RoomRequest
 import org.apache.jena.query.QuerySolution
 import org.apache.jena.query.ResultSet
