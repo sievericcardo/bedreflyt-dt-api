@@ -93,7 +93,7 @@ class FloorService (
 
         while(resultSet.hasNext()) {
             val result: QuerySolution = resultSet.next()
-            val floorNumber = result.get("floorNumber").asLiteral().int
+            val floorNumber = result.get("floorNumber").asLiteral().toString().split("^^")[0].toInt()
             if (floorNumber == number) {
                 return Floor(floorNumber)
             }

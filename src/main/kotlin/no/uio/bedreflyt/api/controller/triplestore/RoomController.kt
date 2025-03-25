@@ -56,7 +56,7 @@ class RoomController (
         if (!roomService.createRoom(roomRequest)) {
             return ResponseEntity.badRequest().build()
         }
-        replConfig.regenerateSingleModel().invoke("room")
+        replConfig.regenerateSingleModel().invoke("rooms")
 
         return ResponseEntity.ok(TreatmentRoom(roomRequest.roomNumber, roomRequest.capacity, ward, hospital, monitoringCategory))
     }
@@ -123,7 +123,7 @@ class RoomController (
         if (!roomService.updateRoom(room, capacity, ward, category)) {
             return ResponseEntity.badRequest().build()
         }
-        replConfig.regenerateSingleModel().invoke("room")
+        replConfig.regenerateSingleModel().invoke("rooms")
 
         return ResponseEntity.ok(TreatmentRoom(room.roomNumber,capacity, newWard, room.hospital, newCategory))
     }
@@ -147,7 +147,7 @@ class RoomController (
         if (!roomService.deleteRoom(room)) {
             return ResponseEntity.badRequest().build()
         }
-        replConfig.regenerateSingleModel().invoke("room")
+        replConfig.regenerateSingleModel().invoke("rooms")
 
         return ResponseEntity.ok("Room Deleted")
     }

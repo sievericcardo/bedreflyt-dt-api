@@ -99,12 +99,12 @@ class WardService (
         val query = """
             SELECT DISTINCT ?wardName ?wardCode ?hospitalCode ?floorNumber WHERE {
                 ?ward a prog:Ward ;
-                    prog:Ward_wardName $wardName ;
+                    prog:Ward_wardName "$wardName" ;
                     prog:Ward_wardCode ?wardCode ;
                     prog:Ward_wardHospital ?wardHospital ;
                     prog:Ward_wardFloor ?wardFloor .
                 ?wardHospital a prog:Hospital ;
-                    prog:Hospital_hospitalCode $wardHospital .
+                    prog:Hospital_hospitalCode "$wardHospital" .
                 ?wardFloor a prog:Floor ;
                     prog:Floor_floorNumber ?floorNumber .
             }
@@ -117,7 +117,7 @@ class WardService (
 
         val result: QuerySolution = resultSet.next()
         val wardCode = result.get("wardCode")?.toString()
-        val floorNumber = result.get("floorNumber").toString().toInt()
+        val floorNumber = result.get("floorNumber").toString().split("^^")[0].toInt()
 
         val hospital = hospitalService.getHospitalByCode(wardHospital) ?: return null
         val floor = floorService.getFloorByNumber(floorNumber) ?: return null

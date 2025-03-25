@@ -33,6 +33,8 @@ class RoomService (
     fun createRoom(request: RoomRequest) : Boolean {
         val query = """
             PREFIX bedreflyt: <$prefix>
+            PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+            PREFIX owl: <http://www.w3.org/2002/07/owl#>
             
             INSERT DATA {
                 bedreflyt:Room${request.roomNumber} rdf:type owl:NamedIndividual ,
@@ -181,6 +183,8 @@ class RoomService (
 
         val query = """
             PREFIX bedreflyt: <$prefix>
+            PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+            PREFIX owl: <http://www.w3.org/2002/07/owl#>
             
             DELETE {
                 bedreflyt:Room${room.roomNumber} rdf:type owl:NamedIndividual ,
@@ -228,6 +232,8 @@ class RoomService (
 
         val query = """
             PREFIX bedreflyt: <$prefix>
+            PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+            PREFIX owl: <http://www.w3.org/2002/07/owl#>
             
             DELETE {
                 bedreflyt:Room${room.roomNumber} rdf:type owl:NamedIndividual ,
