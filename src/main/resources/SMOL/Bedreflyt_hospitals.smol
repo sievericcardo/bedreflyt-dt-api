@@ -9,6 +9,11 @@ class HospitalModel extends BaseModel ()
             ?hospital a brick:Hospital ;
                 :hospitalName ?hospitalName ;
                 :hospitalCode ?hospitalCode .
+            FILTER NOT EXISTS {
+                ?hospitalOntology a prog:Hospital ;
+                    prog:Hospital_hospitalName ?hospitalName ;
+                    prog:Hospital_hospitalCode ?hospitalCode .
+            }
         }");
 
         if newHospitals != null then

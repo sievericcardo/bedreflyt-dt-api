@@ -51,7 +51,7 @@ class HospitalController (
         if (!hospitalService.createHospital(hospitalRequest)) {
             return ResponseEntity.badRequest().build()
         }
-        replConfig.regenerateSingleModel().invoke("hospital")
+        replConfig.regenerateSingleModel().invoke("hospitals")
         val city = cityService.getCityByName(hospitalRequest.city)
 
         return ResponseEntity.ok(Hospital(hospitalRequest.hospitalName, hospitalRequest.hospitalCode, city!!))
@@ -110,7 +110,7 @@ class HospitalController (
                 return ResponseEntity.badRequest().build()
             }
         } ?: return ResponseEntity.noContent().build()
-        replConfig.regenerateSingleModel().invoke("hospital")
+        replConfig.regenerateSingleModel().invoke("hospitals")
 
         return ResponseEntity.ok(Hospital(updateHospitalRequest.newHospitalName, hospital.hospitalCode, hospital.hospitalCity))
     }
@@ -133,7 +133,7 @@ class HospitalController (
         if (!hospitalService.deleteHospital(hospitalCode)) {
             return ResponseEntity.badRequest().build()
         }
-        replConfig.regenerateSingleModel().invoke("hospital")
+        replConfig.regenerateSingleModel().invoke("hospitals")
 
         return ResponseEntity.ok("Hospital deleted")
     }

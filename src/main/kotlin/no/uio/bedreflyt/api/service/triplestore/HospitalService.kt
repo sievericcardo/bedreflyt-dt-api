@@ -29,12 +29,13 @@ class HospitalService (
 
     @CachePut("hospitals", key = "#request.hospitalCode")
     fun createHospital(request: HospitalRequest) : Boolean {
+        val name = request.hospitalName.split(" ").joinToString("")
         val query = """
             PREFIX bedreflyt: <$prefix>
             PREFIX brick: <https://brickschema.org/schema/Brick#>
             
             INSERT DATA {
-                bedreflyt:${request.hospitalName} a brick:Hospital ;
+                bedreflyt:$name a brick:Hospital ;
                     bedreflyt:hasCity bedreflyt:${request.city} ;
                     bedreflyt:hospitalCode "${request.hospitalCode}" ;
                     bedreflyt:hospitalName "${request.hospitalName}" .
@@ -116,8 +117,8 @@ class HospitalService (
     @CacheEvict("hospitals", key = "#hospitalCode")
     @CachePut("hospitals", key = "#newHospitalName")
     fun updateHospital (hospital: Hospital, newHospitalName: String) : Boolean {
-        val oldName = hospital.hospitalName.split(" ").joinToString(" ")
-        val newName = newHospitalName.split(" ").joinToString(" ")
+        val oldName = hospital.hospitalName.split(" ").joinToString("")
+        val newName = newHospitalName.split(" ").joinToString("")
 
         val query = """
             PREFIX bedreflyt: <$prefix>
@@ -125,11 +126,21 @@ class HospitalService (
             
             DELETE {
                 bedreflyt:$oldName a brick:Hospital ;
-                    bedreflyt:hospitalName "$oldName" .
+                    bedreflyt:hasCity bedreflyt:${hospital.hospitalCity.cityName} ;
+                    bedreflyt:hospitalCode "${hospital.hospitalCode}" ;
+                    bedreflyt:hospitalName "${hospital.hospitalName}" .
             }
             INSERT {
                 bedreflyt:$newName a brick:Hospital ;
-                    bedreflyt:hospitalName "$newName" .
+                    bedreflyt:hasCity bedreflyt:${hospital.hospitalCity.cityName} ;
+                    bedreflyt:hospitalCode "${hospital.hospitalCode}" ;
+                    bedreflyt:hospitalName "$newHospitalName" .
+            }
+            WHERE {
+                bedreflyt:$oldName a brick:Hospital ;
+                    bedreflyt:hasCity bedreflyt:${hospital.hospitalCity.cityName} ;
+                    bedreflyt:hospitalCode "${hospital.hospitalCode}" ;
+                    bedreflyt:hospitalName "${hospital.hospitalName}" .
             }
         """.trimIndent()
 
