@@ -87,7 +87,9 @@ class RoomController (
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
     @GetMapping("/{roomNumber}/{wardName}/{hospitalCode}", produces= ["application/json"])
-    fun retrieveRoom(@ApiParam(value = "Request to update a room", required = true) @PathVariable roomNumber: Int, @PathVariable wardName: String, @PathVariable hospitalCode: String) : ResponseEntity<TreatmentRoom> {
+    fun retrieveRoom(@ApiParam(value = "Room number", required = true) @PathVariable roomNumber: Int,
+                     @ApiParam(value = "Ward name", required = true) @PathVariable wardName: String,
+                     @ApiParam(value = "Hospital code", required = true) @PathVariable hospitalCode: String) : ResponseEntity<TreatmentRoom> {
         log.info("Retrieving room $roomNumber in ward $wardName")
 
         val room = roomService.getRoomByRoomNumberWardHospital(roomNumber, wardName, hospitalCode) ?: return ResponseEntity.badRequest().build()
@@ -104,7 +106,9 @@ class RoomController (
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
     @PatchMapping("/{roomNumber}/{wardName}/{hospitalCode}", produces= ["application/json"])
-    fun updateRoom(@ApiParam(value = "Request to update a room", required = true) @PathVariable roomNumber: Int, @PathVariable wardName: String, @PathVariable hospitalCode: String,
+    fun updateRoom(@ApiParam(value = "Room number", required = true) @PathVariable roomNumber: Int,
+                   @ApiParam(value = "Ward name", required = true) @PathVariable wardName: String,
+                   @ApiParam(value = "Hospital code", required = true) @PathVariable hospitalCode: String,
                    @SwaggerRequestBody(description = "Request to update a room") @RequestBody updateRoomRequest: UpdateRoomRequest) : ResponseEntity<TreatmentRoom> {
         log.info("Updating room $updateRoomRequest")
 
@@ -133,7 +137,9 @@ class RoomController (
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
     @DeleteMapping("/{roomNumber}/{wardName}/{hospitalCode}", produces= ["application/json"])
-    fun deleteRoom(@ApiParam(value = "Request to update a room", required = true) @PathVariable roomNumber: Int, @PathVariable wardName: String, @PathVariable hospitalCode: String) : ResponseEntity<String> {
+    fun deleteRoom(@ApiParam(value = "Room number", required = true) @PathVariable roomNumber: Int,
+                   @ApiParam(value = "Ward name", required = true) @PathVariable wardName: String,
+                   @ApiParam(value = "Hospital code", required = true) @PathVariable hospitalCode: String) : ResponseEntity<String> {
         log.info("Deleting room $roomNumber in ward $wardName")
 
         val room = roomService.getRoomByRoomNumberWardHospital(roomNumber, wardName, hospitalCode) ?: return ResponseEntity.notFound().build()
