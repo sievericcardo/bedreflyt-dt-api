@@ -1,11 +1,11 @@
 package no.uio.bedreflyt.api.controller
 
+import io.swagger.annotations.ApiParam
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.responses.ApiResponses
 import no.uio.bedreflyt.api.model.live.Patient
 import no.uio.bedreflyt.api.service.live.PatientService
-import no.uio.bedreflyt.api.types.DeletePatientRequest
 import no.uio.bedreflyt.api.types.PatientRequest
 import no.uio.bedreflyt.api.types.UpdatePatientRequest
 import org.springframework.http.ResponseEntity
@@ -60,14 +60,14 @@ class PatientController (
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
     @GetMapping("/{patientId}")
-    fun getPatient(@SwaggerRequestBody(description = "Request to get a patient by patientId") @PathVariable patientId: String) : ResponseEntity<Patient> {
+    fun getPatient(@ApiParam(value = "Request to get a patient by patientId", required = true) @PathVariable patientId: String) : ResponseEntity<Patient> {
         log.info("Getting patient")
 
         if (patientId.isEmpty()) {
-            return ResponseEntity.badRequest().build()
+            return ResponseEntity.noContent().build()
         }
 
-        val patient = patientService.findByPatientId(patientId) ?: return ResponseEntity.badRequest().build()
+        val patient = patientService.findByPatientId(patientId) ?: return ResponseEntity.notFound().build()
 
         return ResponseEntity.ok(patient)
     }
@@ -97,14 +97,15 @@ class PatientController (
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
     @PatchMapping
-    fun updatePatient(@SwaggerRequestBody(description = "Request to update a patient") @RequestBody patientRequest: UpdatePatientRequest) : ResponseEntity<String> {
+    fun updatePatient(@ApiParam(value = "Patient id to update", required = true) @PathVariable patientId: String,
+                      @SwaggerRequestBody(description = "Request to update a patient") @RequestBody patientRequest: UpdatePatientRequest) : ResponseEntity<Patient> {
         log.info("Updating patient")
 
-        if (patientRequest.patientId.isEmpty()) {
-            return ResponseEntity.badRequest().body("Patient information are required")
+        if (patientId.isEmpty()) {
+            return ResponseEntity.noContent().build()
         }
 
-        val patient = patientService.findByPatientId(patientRequest.patientId) ?: return ResponseEntity.badRequest().body("Patient not found")
+        val patient = patientService.findByPatientId(patientId) ?: return ResponseEntity.notFound().build()
         patient.patientName = patientRequest.patientName ?: patient.patientName
         patient.patientSurname = patientRequest.patientSurname ?: patient.patientSurname
         patient.patientAddress = patientRequest.patientAddress ?: patient.patientAddress
@@ -114,7 +115,7 @@ class PatientController (
 
         patientService.updatePatient(patient)
 
-        return ResponseEntity.ok("Patient updated")
+        return ResponseEntity.ok(patient)
     }
 
     @Operation(summary = "Delete a patient")
@@ -125,15 +126,14 @@ class PatientController (
         ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
-    @DeleteMapping
-    fun deletePatient(@SwaggerRequestBody(description = "Request to delete a patient") @RequestBody patientRequest: DeletePatientRequest) : ResponseEntity<String> {
+    @DeleteMapping("/{patientId}")
+    fun deletePatient(@ApiParam(value = "Request to delete a patient", required = true) @PathVariable patientId: String) : ResponseEntity<String> {
         log.info("Deleting patient")
 
-        if (patientRequest.patientId.isEmpty()) {
+        if (patientId.isEmpty()) {
             return ResponseEntity.badRequest().body("Patient information are required")
         }
-
-        val patient = patientService.findByPatientId(patientRequest.patientId) ?: return ResponseEntity.badRequest().body("Patient not found")
+        val patient = patientService.findByPatientId(patientId) ?: return ResponseEntity.badRequest().body("Patient not found")
         patientService.deletePatient(patient)
 
         return ResponseEntity.ok("Patient deleted")

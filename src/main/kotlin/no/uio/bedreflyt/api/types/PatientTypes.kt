@@ -10,15 +10,10 @@ data class PatientRequest (
 )
 
 data class UpdatePatientRequest (
-    val patientId: String,
     val patientName: String?,
     val patientSurname: String?,
     val patientAddress: String?,
     val city: String?,
     val patientBirthdate: String?,
     val gender: String?
-)
-
-data class DeletePatientRequest (
-    val patientId: String
 )
