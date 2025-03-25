@@ -32,7 +32,7 @@ class PatientController (
         ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
-    @PostMapping
+    @PostMapping(produces = ["application/json"])
     fun createPatient(@SwaggerRequestBody(description = "Request to add a new patient") @RequestBody patientRequest: PatientRequest) : ResponseEntity<String> {
         log.info("Creating patient $patientRequest")
         val formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss")
@@ -59,7 +59,7 @@ class PatientController (
         ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
-    @GetMapping("/{patientId}")
+    @GetMapping("/{patientId}", produces = ["application/json"])
     fun getPatient(@ApiParam(value = "Request to get a patient by patientId", required = true) @PathVariable patientId: String) : ResponseEntity<Patient> {
         log.info("Getting patient")
 
@@ -80,7 +80,7 @@ class PatientController (
         ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
-    @GetMapping
+    @GetMapping(produces = ["application/json"])
     fun getAllPatients() : ResponseEntity<List<Patient?>> {
         log.info("Getting all patients")
         val patients = patientService.findAll()
@@ -96,7 +96,7 @@ class PatientController (
         ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
-    @PatchMapping
+    @PatchMapping("/{patientId}", produces = ["application/json"])
     fun updatePatient(@ApiParam(value = "Patient id to update", required = true) @PathVariable patientId: String,
                       @SwaggerRequestBody(description = "Request to update a patient") @RequestBody patientRequest: UpdatePatientRequest) : ResponseEntity<Patient> {
         log.info("Updating patient")
@@ -126,7 +126,7 @@ class PatientController (
         ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
-    @DeleteMapping("/{patientId}")
+    @DeleteMapping("/{patientId}", produces = ["application/json"])
     fun deletePatient(@ApiParam(value = "Request to delete a patient", required = true) @PathVariable patientId: String) : ResponseEntity<String> {
         log.info("Deleting patient")
 

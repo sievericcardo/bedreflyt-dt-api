@@ -14,7 +14,6 @@ data class PatientAllocationRequest (
 )
 
 data class UpdatePatientAllocationRequest (
-    val patientId: String,
     val newAcute: Boolean?,
     val newDiagnosisCode: String?,
     val newDiagnosisName: String?,
@@ -24,8 +23,4 @@ data class UpdatePatientAllocationRequest (
     val newCareId: Int?,
     val newContagious: Boolean?,
     val newRoomNumber: Int?
-)
-
-data class DeletePatientAllocationRequest (
-    val patientId: String
 )
