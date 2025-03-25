@@ -7,10 +7,5 @@ data class HospitalRequest (
 )
 
 data class UpdateHospitalRequest (
-    val hospitalCode: String,
-    val newHospitalName: String
-)
-
-data class DeleteHospitalRequest (
-    val hospitalCode: String
+    val newHospitalName: String?
 )

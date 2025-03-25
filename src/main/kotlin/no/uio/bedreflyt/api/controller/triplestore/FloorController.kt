@@ -125,7 +125,7 @@ class FloorController (
     @DeleteMapping("/{floorNumber}")
     fun deleteFloor(@ApiParam(value = "Floor number", required = true) @PathVariable floorNumber: Int) : ResponseEntity<String> {
         log.info("Deleting floor $floorNumber")
-        
+
         if (floorService.getFloorByNumber(floorNumber) == null) {
             return ResponseEntity.notFound().build()
         }

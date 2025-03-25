@@ -1,5 +1,6 @@
 package no.uio.bedreflyt.api.controller.triplestore
 
+import io.swagger.annotations.ApiParam
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
 import io.swagger.v3.oas.annotations.Operation
@@ -12,12 +13,12 @@ import no.uio.bedreflyt.api.service.triplestore.CityService
 import no.uio.bedreflyt.api.service.triplestore.HospitalService
 import no.uio.bedreflyt.api.service.triplestore.TriplestoreService
 import no.uio.bedreflyt.api.types.HospitalRequest
-import no.uio.bedreflyt.api.types.DeleteHospitalRequest
 import no.uio.bedreflyt.api.types.UpdateHospitalRequest
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PatchMapping
+import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
 import java.util.logging.Logger
@@ -98,14 +99,17 @@ class HospitalController (
         ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
-    @PatchMapping
-    fun updateHospital(@SwaggerRequestBody(description = "Request to update a hospital") @RequestBody updateHospitalRequest: UpdateHospitalRequest) : ResponseEntity<Hospital> {
+    @PatchMapping("/{hospitalCode}")
+    fun updateHospital(@ApiParam(value = "Hospital code", required = true) @PathVariable hospitalCode: String,
+                       @SwaggerRequestBody(description = "Request to update a hospital") @RequestBody updateHospitalRequest: UpdateHospitalRequest) : ResponseEntity<Hospital> {
         log.info("Updating hospital $updateHospitalRequest")
 
-        val hospital = hospitalService.getHospitalByCode(updateHospitalRequest.hospitalCode) ?: return ResponseEntity.badRequest().build()
-        if (!hospitalService.updateHospital(hospital, updateHospitalRequest.newHospitalName)) {
-            return ResponseEntity.badRequest().build()
-        }
+        val hospital = hospitalService.getHospitalByCode(hospitalCode) ?: return ResponseEntity.notFound().build()
+        updateHospitalRequest.newHospitalName?.let {
+            if (!hospitalService.updateHospital(hospital, it)) {
+                return ResponseEntity.badRequest().build()
+            }
+        } ?: return ResponseEntity.noContent().build()
         replConfig.regenerateSingleModel().invoke("hospital")
 
         return ResponseEntity.ok(Hospital(updateHospitalRequest.newHospitalName, hospital.hospitalCode, hospital.hospitalCity))
@@ -119,11 +123,14 @@ class HospitalController (
         ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
-    @DeleteMapping
-    fun deleteHospital(@SwaggerRequestBody(description = "Request to delete a hospital") @RequestBody deleteHospitalRequest: DeleteHospitalRequest) : ResponseEntity<String> {
-        log.info("Deleting hospital $deleteHospitalRequest")
+    @DeleteMapping("/{hospitalCode}")
+    fun deleteHospital(@ApiParam(value = "Hospital code", required = true) @PathVariable hospitalCode: String) : ResponseEntity<String> {
+        log.info("Deleting hospital $hospitalCode")
 
-        if (!hospitalService.deleteHospital(deleteHospitalRequest.hospitalCode)) {
+        if(hospitalService.getHospitalByCode(hospitalCode) == null) {
+            return ResponseEntity.notFound().build()
+        }
+        if (!hospitalService.deleteHospital(hospitalCode)) {
             return ResponseEntity.badRequest().build()
         }
         replConfig.regenerateSingleModel().invoke("hospital")
