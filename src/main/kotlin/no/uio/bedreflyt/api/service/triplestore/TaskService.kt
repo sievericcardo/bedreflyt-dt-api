@@ -27,13 +27,16 @@ class TaskService (
 
     @CachePut("tasks", key = "#taskName")
     fun createTask(taskName: String) : Boolean {
+        val name = taskName.replace(" ", "")
         val query = """
             PREFIX bedreflyt: <$prefix>
+            PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+            PREFIX owl: <http://www.w3.org/2002/07/owl#>
             
             INSERT DATA {
-                bedreflyt:task_$taskName rdf:type owl:NamedIndividual , 
+                bedreflyt:$name rdf:type owl:NamedIndividual , 
                         <http://purl.org/net/p-plan#Step> ;
-                    :taskName "$taskName" .
+                    bedreflyt:taskName "$taskName" .
             }
         """
 
@@ -99,23 +102,27 @@ class TaskService (
     @CacheEvict("tasks", key = "#task.taskName")
     @CachePut("tasks", key = "#newTaskName")
     fun updateTask(task: Task, newTaskName: String) : Boolean {
+        val oldName = task.taskName.replace(" ", "")
+        val newName = newTaskName.replace(" ", "")
         val query = """
-            PREFIX : <$prefix>
+            PREFIX bedreflyt: <$prefix>
+            PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+            PREFIX owl: <http://www.w3.org/2002/07/owl#>
             
             DELETE {
-                :task_${task.taskName} rdf:type owl:NamedIndividual , 
+                bedreflyt:$oldName rdf:type owl:NamedIndividual , 
                         <http://purl.org/net/p-plan#Step> ;
-                    :taskName "${task.taskName}" .
+                    bedreflyt:taskName "${task.taskName}" .
             }
             INSERT {
-                :task_${task.taskName} rdf:type owl:NamedIndividual , 
+                bedreflyt:$newName rdf:type owl:NamedIndividual , 
                         <http://purl.org/net/p-plan#Step> ;
-                    :bed $newTaskName .
+                    bedreflyt:taskName "$newTaskName" .
             }
             WHERE {
-               :task_${task.taskName} rdf:type owl:NamedIndividual , 
+               bedreflyt:$oldName rdf:type owl:NamedIndividual , 
                         <http://purl.org/net/p-plan#Step> ;
-                    :taskName "${task.taskName}" .
+                    bedreflyt:taskName "${task.taskName}" .
             }
         """
 
@@ -133,18 +140,21 @@ class TaskService (
 
     @CacheEvict("tasks", key = "#task.taskName")
     fun deleteTask(task: Task) : Boolean {
+        val name = task.taskName.replace(" ", "")
         val query = """
-            PREFIX : <$prefix>
+            PREFIX bedreflyt: <$prefix>
+            PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+            PREFIX owl: <http://www.w3.org/2002/07/owl#>
             
             DELETE {
-                :task_${task.taskName} rdf:type owl:NamedIndividual , 
+                bedreflyt:$name rdf:type owl:NamedIndividual , 
                         <http://purl.org/net/p-plan#Step> ;
-                    :taskName "${task.taskName}" .
+                    bedreflyt:taskName "${task.taskName}" .
             }
             WHERE {
-                :task_${task.taskName} rdf:type owl:NamedIndividual , 
+                bedreflyt:$name rdf:type owl:NamedIndividual , 
                         <http://purl.org/net/p-plan#Step> ;
-                    :taskName "${task.taskName}" .
+                    bedreflyt:taskName "${task.taskName}" .
             }
         """
 

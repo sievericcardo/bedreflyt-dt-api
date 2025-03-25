@@ -56,7 +56,7 @@ class TaskController (
         if(!taskService.createTask(taskRequest.taskName)) {
             return ResponseEntity.badRequest().build()
         }
-        replConfig.regenerateSingleModel().invoke("task")
+        replConfig.regenerateSingleModel().invoke("tasks")
 
         return ResponseEntity.ok(Task(taskRequest.taskName))
     }
@@ -75,6 +75,23 @@ class TaskController (
         val tasks = taskService.getAllTasks() ?: return ResponseEntity.badRequest().build()
 
         return ResponseEntity.ok(tasks)
+    }
+
+    @Operation(summary = "Retrieve a task")
+    @ApiResponses(value = [
+        ApiResponse(responseCode = "200", description = "Task found"),
+        ApiResponse(responseCode = "400", description = "Invalid task"),
+        ApiResponse(responseCode = "401", description = "Unauthorized"),
+        ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
+        ApiResponse(responseCode = "404", description = "Task not found")
+    ])
+    @GetMapping("/{taskName}", produces= ["application/json"])
+    fun retrieveTask(@ApiParam(value = "Task name", required = true) @PathVariable taskName: String) : ResponseEntity<Task> {
+        log.info("Retrieving task $taskName")
+
+        val task = taskService.getTaskByTaskName(taskName) ?: return ResponseEntity.notFound().build()
+
+        return ResponseEntity.ok(task)
     }
 
     @Operation(summary = "Update a task")
@@ -97,7 +114,7 @@ class TaskController (
             }
         } ?: return ResponseEntity.noContent().build()
 
-        replConfig.regenerateSingleModel().invoke("task")
+        replConfig.regenerateSingleModel().invoke("tasks")
 
         return ResponseEntity.ok(Task(updateTaskRequest.newTaskName))
     }
@@ -118,7 +135,7 @@ class TaskController (
         if(!taskService.deleteTask(task)) {
             return ResponseEntity.badRequest().build()
         }
-        replConfig.regenerateSingleModel().invoke("task")
+        replConfig.regenerateSingleModel().invoke("tasks")
 
         return ResponseEntity.ok("Task $taskName deleted")
     }
