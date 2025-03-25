@@ -27,16 +27,17 @@ class WardService (
     private val repl = replConfig.repl()
 
     @CachePut("wards", key = "#request.wardName + _ + #request.wardHospitalName")
-    fun createWard (request: WardRequest) : Boolean {
+    fun createWard (request: WardRequest, hospitalName: String) : Boolean {
         val wardCodeLine = request.wardCode?.let { "bedreflyt:wardCode $it ;" } ?: ""
+        val name = request.wardName.split(" ").joinToString("")
 
         val query = """
             PREFIX bedreflyt: <$prefix>
             PREFIX brick: <https://brickschema.org/schema/Brick#>
             
             INSERT DATA {
-                bedreflyt:${request.wardName} a bedreflyt:Ward ;
-                    brick:hasHospital bedreflyt:${request.wardHospitalName} ;
+                bedreflyt:$name a bedreflyt:Ward ;
+                    brick:hasHospital bedreflyt:$hospitalName ;
                     brick:hasFloor bedreflyt:Floor${request.wardFloorNumber} ;
                     $wardCodeLine
                     bedreflyt:wardName "${request.wardName}" .
@@ -82,11 +83,11 @@ class WardService (
             val result: QuerySolution = resultSet.next()
             val wardName = result.get("wardName").toString()
             val wardCode = result.get("wardCode")?.toString()
-            val hospitalName = result.get("hospitalName").toString()
-            val floorNumber = result.get("floorNumber").toString()
+            val hospitalName = result.get("hospitalCode").toString()
+            val floorNumber = result.get("floorNumber").asLiteral().toString().split("^^")[0].toInt()
 
             val hospital = hospitalService.getHospitalByCode(hospitalName) ?: continue
-            val floor = floorService.getFloorByNumber(floorNumber.toInt()) ?: continue
+            val floor = floorService.getFloorByNumber(floorNumber) ?: continue
 
             wards.add(Ward(wardName, wardCode, hospital, floor))
         }
@@ -128,26 +129,26 @@ class WardService (
     @CacheEvict("wards", key = "#ward.wardName + _ + #ward.wardHospital.hospitalCode")
     @CachePut("wards", key = "#ward.wardName + _ + #ward.wardHospital.hospitalCode")
     fun updateWard (ward: Ward,  newFloorNumber: Int) : Boolean {
-        val oldName = ward.wardName.split(" ").joinToString(" ")
+        val name = ward.wardName.split(" ").joinToString("")
 
         val query = """
             PREFIX bedreflyt: <$prefix>
             PREFIX brick: <https://brickschema.org/schema/Brick#>
             
             DELETE {
-                bedreflyt:$oldName a bedreflyt:Ward ;
+                bedreflyt:$name a bedreflyt:Ward ;
                     bedreflyt:wardName "${ward.wardName}" ;
                     brick:hasHospital bedreflyt:${ward.wardHospital.hospitalCode} ;
                     brick:hasFloor bedreflyt:Floor${ward.wardFloor.floorNumber} .
             }
             INSERT {
-                bedreflyt:$oldName a bedreflyt:Ward ;
+                bedreflyt:$name a bedreflyt:Ward ;
                     bedreflyt:wardName "${ward.wardName}" ;
                     brick:hasHospital bedreflyt:${ward.wardHospital.hospitalCode} ;
                     brick:hasFloor bedreflyt:Floor${newFloorNumber} .
             }
             WHERE {
-                bedreflyt:$oldName a bedreflyt:Ward ;
+                bedreflyt:$name a bedreflyt:Ward ;
                     bedreflyt:wardName "${ward.wardName}" ;
                     brick:hasHospital bedreflyt:${ward.wardHospital.hospitalCode} ;
                     brick:hasFloor bedreflyt:Floor${ward.wardFloor.floorNumber} .
@@ -168,7 +169,7 @@ class WardService (
 
     @CacheEvict("wards", key = "#ward.wardName + _ + #ward.wardHospital.hospitalCode")
     fun deleteWard (ward: Ward) : Boolean {
-        val name = ward.wardName.split(" ").joinToString(" ")
+        val name = ward.wardName.split(" ").joinToString("")
 
         val query = """
             PREFIX bedreflyt: <$prefix>
@@ -177,12 +178,14 @@ class WardService (
             DELETE {
                 bedreflyt:$name a bedreflyt:Ward ;
                     bedreflyt:wardName "${ward.wardName}" ;
-                    brick:hasHospital bedreflyt:${ward.wardHospital.hospitalCode} .
+                    brick:hasHospital bedreflyt:${ward.wardHospital.hospitalCode} ;
+                    brick:hasFloor bedreflyt:Floor${ward.wardFloor.floorNumber} .
             }
             WHERE {
                 bedreflyt:$name a bedreflyt:Ward ;
                     bedreflyt:wardName "${ward.wardName}" ;
-                    brick:hasHospital bedreflyt:${ward.wardHospital.hospitalCode}  .
+                    brick:hasHospital bedreflyt:${ward.wardHospital.hospitalCode}  ;
+                    brick:hasFloor bedreflyt:Floor${ward.wardFloor.floorNumber} .
             }
         """.trimIndent()
 

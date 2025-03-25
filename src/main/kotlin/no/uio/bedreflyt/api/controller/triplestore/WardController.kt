@@ -50,10 +50,10 @@ class WardController (
 
         val hospital = hospitalService.getHospitalByCode(wardRequest.wardHospitalName) ?: return ResponseEntity.badRequest().build()
         val floor = floorService.getFloorByNumber(wardRequest.wardFloorNumber) ?: return ResponseEntity.badRequest().build()
-        if (!wardService.createWard(wardRequest)) {
+        if (!wardService.createWard(wardRequest, hospital.hospitalName)) {
             return ResponseEntity.badRequest().build()
         }
-        replConfig.regenerateSingleModel().invoke("ward")
+        replConfig.regenerateSingleModel().invoke("wards")
 
         return ResponseEntity.ok(Ward(wardRequest.wardName, wardRequest.wardCode, hospital, floor))
     }
@@ -113,7 +113,7 @@ class WardController (
                 return ResponseEntity.badRequest().build()
             }
         } ?: return ResponseEntity.noContent().build()
-        replConfig.regenerateSingleModel().invoke("ward")
+        replConfig.regenerateSingleModel().invoke("wards")
 
         val floor = floorService.getFloorByNumber(request.newWardFloorNumber) ?: return ResponseEntity.badRequest().build()
 
@@ -137,7 +137,7 @@ class WardController (
         if (!wardService.deleteWard(ward)) {
             return ResponseEntity.badRequest().build()
         }
-        replConfig.regenerateSingleModel().invoke("ward")
+        replConfig.regenerateSingleModel().invoke("wards")
 
         return ResponseEntity.ok("Ward $wardName deleted")
     }
