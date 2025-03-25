@@ -31,7 +31,7 @@ class DiagnosisService (
             PREFIX bedreflyt: <$prefix>
             
             INSERT DATA {
-                bedreflyt:$diagnosisName a :Diagnosis ;
+                bedreflyt:$diagnosisName a bedreflyt:Diagnosis ;
                     bedreflyt:diagnosisCode "$diagnosisName" .
             }"""
 
@@ -75,20 +75,19 @@ class DiagnosisService (
     @Cacheable("diagnosis", key = "#diagnosis")
     fun getDiagnosisByName(diagnosis: String) : Diagnosis? {
         val query = """
-            SELECT DISTINCT ?name WHERE {
+            SELECT DISTINCT ?diagnosis WHERE {
                 ?obj a prog:Diagnosis ;
                     prog:Diagnosis_diagnosisCode ?diagnosis .
                 FILTER (?diagnosis = "$diagnosis")
             }"""
 
         val resultDiagnosis: ResultSet = repl.interpreter!!.query(query)!!
-
         if (!resultDiagnosis.hasNext()) {
             return null
         }
 
         val solution: QuerySolution = resultDiagnosis.next()
-        val name = solution.get("?name").asLiteral().toString()
+        val name = solution.get("?diagnosis").asLiteral().toString()
         return Diagnosis(name)
     }
 
@@ -99,17 +98,17 @@ class DiagnosisService (
             PREFIX bedreflyt: <$prefix>
             
             DELETE {
-                bedreflyt:$oldDiagnosisName a :Diagnosis ;
+                bedreflyt:$oldDiagnosisName a bedreflyt:Diagnosis ;
                  bedreflyt:diagnosisCode "$oldDiagnosisName" .
             }
             
             INSERT {
-                bedreflyt:$newDiagnosisName a :Diagnosis ;
+                bedreflyt:$newDiagnosisName a bedreflyt:Diagnosis ;
                  bedreflyt:diagnosisCode "$newDiagnosisName" .
             }
             
             WHERE {
-                bedreflyt:$oldDiagnosisName a :Diagnosis ;
+                bedreflyt:$oldDiagnosisName a bedreflyt:Diagnosis ;
                  bedreflyt:diagnosisCode "$oldDiagnosisName" .
             }
         """.trimIndent()
@@ -132,12 +131,12 @@ class DiagnosisService (
             PREFIX bedreflyt: <$prefix>
             
             DELETE {
-                bedreflyt:$diagnosisName a :Diagnosis ;
+                bedreflyt:$diagnosisName a bedreflyt:Diagnosis ;
                  bedreflyt:diagnosisCode "$diagnosisName" .
             }
             
             WHERE {
-                bedreflyt:$diagnosisName a :Diagnosis ;
+                bedreflyt:$diagnosisName a bedreflyt:Diagnosis ;
                  bedreflyt:diagnosisCode "$diagnosisName" .
             }
         """.trimIndent()

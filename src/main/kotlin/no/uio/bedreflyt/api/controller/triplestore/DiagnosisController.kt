@@ -49,7 +49,7 @@ class DiagnosisController (
         if (!diagnosisService.createDiagnosis(diagnosisRequest.diagnosisName)) {
             return ResponseEntity.badRequest().body("Diagnosis already exists")
         }
-        replConfig.regenerateSingleModel().invoke("diagnosis")
+        replConfig.regenerateSingleModel().invoke("diagnoses")
 
         return ResponseEntity.ok("Diagnosis added")
     }
@@ -68,6 +68,23 @@ class DiagnosisController (
         val diagnosisList = diagnosisService.getAllDiagnosis() ?: return ResponseEntity.noContent().build()
 
         return ResponseEntity.ok(diagnosisList)
+    }
+
+    @Operation(summary = "Get a diagnosis by code")
+    @ApiResponses(value = [
+        ApiResponse(responseCode = "200", description = "Diagnosis found"),
+        ApiResponse(responseCode = "400", description = "Invalid diagnosis"),
+        ApiResponse(responseCode = "401", description = "Unauthorized"),
+        ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
+        ApiResponse(responseCode = "500", description = "Internal server error")
+    ])
+    @GetMapping("/{diagnosisCode}", produces= ["application/json"])
+    fun retrieveDiagnosisByCode(@ApiParam(value = "Diagnosis code", required = true) @PathVariable diagnosisCode: String) : ResponseEntity<Diagnosis> {
+        log.info("Retrieving diagnosis $diagnosisCode")
+
+        val diagnosis = diagnosisService.getDiagnosisByName(diagnosisCode) ?: return ResponseEntity.badRequest().build()
+
+        return ResponseEntity.ok(diagnosis)
     }
 
     @Operation(summary = "Update a diagnosis")
@@ -91,7 +108,7 @@ class DiagnosisController (
                 return ResponseEntity.badRequest().build()
             }
         } ?: return ResponseEntity.noContent().build()
-        replConfig.regenerateSingleModel().invoke("diagnosis")
+        replConfig.regenerateSingleModel().invoke("diagnoses")
 
         return ResponseEntity.ok(Diagnosis(updateDiagnosisRequest.newDiagnosisName))
     }
@@ -116,7 +133,7 @@ class DiagnosisController (
         if(!diagnosisService.deleteDiagnosis(diagnosisCode)) {
             return ResponseEntity.badRequest().body("Diagnosis does not exist")
         }
-        replConfig.regenerateSingleModel().invoke("diagnosis")
+        replConfig.regenerateSingleModel().invoke("diagnoses")
 
         return ResponseEntity.ok("Diagnosis deleted")
     }
