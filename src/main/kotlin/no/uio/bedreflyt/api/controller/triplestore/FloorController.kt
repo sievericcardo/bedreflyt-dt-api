@@ -49,7 +49,7 @@ class FloorController (
         if (!floorService.createFloor(floorRequest)) {
             return ResponseEntity.badRequest().build()
         }
-        replConfig.regenerateSingleModel().invoke("floor")
+        replConfig.regenerateSingleModel().invoke("floors")
 
         return ResponseEntity.ok(Floor(floorRequest.floorNumber))
     }
@@ -105,11 +105,11 @@ class FloorController (
             return ResponseEntity.notFound().build()
         }
         updateFloorRequest.newFloorNumber?.let {
-            if (floorService.getFloorByNumber(it) != null) {
+            if (!floorService.updateFloor(floorNumber, it)) {
                 return ResponseEntity.badRequest().build()
             }
         } ?: return ResponseEntity.noContent().build()
-        replConfig.regenerateSingleModel().invoke("floor")
+        replConfig.regenerateSingleModel().invoke("floors")
 
         return ResponseEntity.ok(Floor(updateFloorRequest.newFloorNumber))
     }
@@ -132,7 +132,7 @@ class FloorController (
         if (!floorService.deleteFloor(floorNumber)) {
             return ResponseEntity.notFound().build()
         }
-        replConfig.regenerateSingleModel().invoke("floor")
+        replConfig.regenerateSingleModel().invoke("floors")
 
         return ResponseEntity.ok("Floor deleted")
     }

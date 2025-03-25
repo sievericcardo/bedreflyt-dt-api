@@ -81,7 +81,8 @@ class FloorService (
         val query = """
             SELECT DISTINCT ?floorNumber WHERE {
                 ?floor a prog:Floor ;
-                    prog:Floor_floorNumber $number .
+                    prog:Floor_floorNumber ?floorNumber .
+                FILTER (?floorNumber = $number)
             }
         """.trimIndent()
 
