@@ -7,6 +7,10 @@ class CityModel extends BaseModel ()
         WHERE {
             ?city a :City ;
                 :cityName ?cityName .
+            FILTER NOT EXISTS {
+                ?x a prog:City ;
+                    prog:City_cityName ?cityName .
+            }
         }
         ");
 
@@ -53,8 +57,7 @@ class CityModel extends BaseModel ()
                 destroy(wrongCity);
                 destroy(lx);
             end
-
-            destroy(wrongCities);
+            
             print("RECONFIG> Wrong cities removed");
         end
     end
