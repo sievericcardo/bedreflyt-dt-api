@@ -1,5 +1,6 @@
 package no.uio.bedreflyt.api.controller.triplestore
 
+import io.swagger.annotations.ApiParam
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
 import io.swagger.v3.oas.annotations.Operation
@@ -10,12 +11,12 @@ import no.uio.bedreflyt.api.config.REPLConfig
 import no.uio.bedreflyt.api.model.triplestore.Ward
 import no.uio.bedreflyt.api.service.triplestore.*
 import no.uio.bedreflyt.api.types.WardRequest
-import no.uio.bedreflyt.api.types.DeleteWardRequest
 import no.uio.bedreflyt.api.types.UpdateWardRequest
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PatchMapping
+import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
 import java.util.logging.Logger
@@ -43,7 +44,7 @@ class WardController (
         ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
-    @PostMapping
+    @PostMapping(produces= ["application/json"])
     fun createWard(@SwaggerRequestBody(description = "Request to add a new ward") @RequestBody wardRequest: WardRequest) : ResponseEntity<Ward> {
         log.info("Creating ward $wardRequest")
 
@@ -65,7 +66,7 @@ class WardController (
         ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
-    @GetMapping
+    @GetMapping(produces= ["application/json"])
     fun retrieveWards() : ResponseEntity<List<Ward>> {
         log.info("Retrieving wards")
 
@@ -81,11 +82,12 @@ class WardController (
         ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
-    @GetMapping("/{wardName}/{hospitalCode}")
-    fun retrieveWard(@SwaggerRequestBody(description = "Request to retrieve a ward by name and hospital") @RequestBody wardRequest: WardRequest) : ResponseEntity<Ward> {
-        log.info("Retrieving ward $wardRequest")
+    @GetMapping("/{wardName}/{hospitalCode}", produces= ["application/json"])
+    fun retrieveWard(@ApiParam(value = "Ward name", required = true) @PathVariable wardName: String,
+                     @ApiParam(value = "Hospital code for the ward", required = true) @PathVariable hospitalCode: String) : ResponseEntity<Ward> {
+        log.info("Retrieving ward $wardName in hospital $hospitalCode")
 
-        val ward = wardService.getWardByNameAndHospital(wardRequest.wardName, wardRequest.wardHospitalName) ?: return ResponseEntity.badRequest().build()
+        val ward = wardService.getWardByNameAndHospital(wardName, hospitalCode) ?: return ResponseEntity.badRequest().build()
         return ResponseEntity.ok(ward)
     }
 
@@ -97,20 +99,25 @@ class WardController (
         ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
-    @PatchMapping
-    fun updateWard(@SwaggerRequestBody(description = "Request to update a ward") @RequestBody request: UpdateWardRequest) : ResponseEntity<Ward> {
-        log.info("Updating ward ${request.wardName}")
+    @PatchMapping("/{wardName}/{hospitalCode}", produces= ["application/json"])
+    fun updateWard(@ApiParam(value = "Ward name", required = true) @PathVariable wardName: String,
+                   @ApiParam(value = "Hospital code for the ward", required = true) @PathVariable hospitalCode: String,
+                   @SwaggerRequestBody(description = "Request to update a ward") @RequestBody request: UpdateWardRequest) : ResponseEntity<Ward> {
+        log.info("Updating ward $wardName")
 
-        val ward = wardService.getWardByNameAndHospital(request.wardName, request.hospitalName) ?: return ResponseEntity.badRequest().build()
-        val hospital = hospitalService.getHospitalByCode(request.hospitalName) ?: return ResponseEntity.badRequest().build()
-        val floor = request.newWardFloorNumber
-        val newFloor = floorService.getFloorByNumber(floor) ?: return ResponseEntity.badRequest().build()
-        if (!wardService.updateWard(ward, floor)) {
-            return ResponseEntity.badRequest().build()
-        }
+        val ward = wardService.getWardByNameAndHospital(wardName, hospitalCode) ?: return ResponseEntity.notFound().build()
+        val hospital = hospitalService.getHospitalByCode(hospitalCode) ?: return ResponseEntity.notFound().build()
+        request.newWardFloorNumber?.let {
+            floorService.getFloorByNumber(it) ?: return ResponseEntity.notFound().build()
+            if (!wardService.updateWard(ward, it)) {
+                return ResponseEntity.badRequest().build()
+            }
+        } ?: return ResponseEntity.noContent().build()
         replConfig.regenerateSingleModel().invoke("ward")
 
-        return ResponseEntity.ok(Ward(ward.wardName, ward.wardCode, hospital, newFloor))
+        val floor = floorService.getFloorByNumber(request.newWardFloorNumber) ?: return ResponseEntity.badRequest().build()
+
+        return ResponseEntity.ok(Ward(ward.wardName, ward.wardCode, hospital, floor))
     }
 
     @Operation(summary = "Delete a ward")
@@ -121,16 +128,17 @@ class WardController (
         ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
-    @DeleteMapping
-    fun deleteWard(@SwaggerRequestBody(description = "Request to delete a ward") @RequestBody request: DeleteWardRequest) : ResponseEntity<String> {
-        log.info("Deleting ward ${request.wardName}")
+    @DeleteMapping("/{wardName}/{hospitalCode}", produces= ["application/json"])
+    fun deleteWard(@ApiParam(value = "Ward name", required = true) @PathVariable wardName: String,
+                   @ApiParam(value = "Hospital code for the ward", required = true) @PathVariable hospitalCode: String) : ResponseEntity<String> {
+        log.info("Deleting ward $wardName in hospital $hospitalCode")
 
-        val ward = wardService.getWardByNameAndHospital(request.wardName, request.hospitalName) ?: return ResponseEntity.badRequest().build()
+        val ward = wardService.getWardByNameAndHospital(wardName, hospitalCode) ?: return ResponseEntity.notFound().build()
         if (!wardService.deleteWard(ward)) {
             return ResponseEntity.badRequest().build()
         }
         replConfig.regenerateSingleModel().invoke("ward")
 
-        return ResponseEntity.ok("Ward ${request.wardName} deleted")
+        return ResponseEntity.ok("Ward $wardName deleted")
     }
 }
