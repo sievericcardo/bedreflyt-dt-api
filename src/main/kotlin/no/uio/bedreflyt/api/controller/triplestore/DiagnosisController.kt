@@ -1,5 +1,6 @@
 package no.uio.bedreflyt.api.controller.triplestore
 
+import io.swagger.annotations.ApiParam
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.responses.ApiResponses
@@ -9,18 +10,12 @@ import no.uio.bedreflyt.api.model.triplestore.Diagnosis
 import no.uio.bedreflyt.api.service.triplestore.DiagnosisService
 import no.uio.bedreflyt.api.service.triplestore.TriplestoreService
 import org.springframework.http.ResponseEntity
-import org.springframework.web.bind.annotation.DeleteMapping
-import org.springframework.web.bind.annotation.GetMapping
-import org.springframework.web.bind.annotation.PatchMapping
 import io.swagger.v3.oas.annotations.parameters.RequestBody as SwaggerRequestBody
-import org.springframework.web.bind.annotation.PostMapping
-import org.springframework.web.bind.annotation.RequestBody
-import org.springframework.web.bind.annotation.RequestMapping
-import org.springframework.web.bind.annotation.RestController
 import java.io.File
 import java.util.logging.Logger
 import no.uio.bedreflyt.api.types.DiagnosisRequest
 import no.uio.bedreflyt.api.types.UpdateDiagnosisRequest
+import org.springframework.web.bind.annotation.*
 
 @RestController
 @RequestMapping("/api/v1/fuseki/diagnosis")
@@ -83,20 +78,19 @@ class DiagnosisController (
         ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
-    @PatchMapping
-    fun updateDiagnosis(@SwaggerRequestBody(description = "Request to update a diagnosis") @RequestBody updateDiagnosisRequest: UpdateDiagnosisRequest) : ResponseEntity<String> {
+    @PatchMapping("/{diagnosisCode}")
+    fun updateDiagnosis(@ApiParam(value = "Diagnosis code", required = true) @PathVariable diagnosisCode: String,
+                        @SwaggerRequestBody(description = "Request to update a diagnosis") @RequestBody updateDiagnosisRequest: UpdateDiagnosisRequest) : ResponseEntity<Diagnosis> {
         log.info("Updating diagnosis $updateDiagnosisRequest")
 
-        if (updateDiagnosisRequest.oldDiagnosisName.isEmpty() || updateDiagnosisRequest.newDiagnosisName.isEmpty()) {
-            return ResponseEntity.badRequest().body("Diagnosis name cannot be empty")
-        }
-
-        if(!diagnosisService.updateDiagnosis(updateDiagnosisRequest.oldDiagnosisName, updateDiagnosisRequest.newDiagnosisName)) {
-            return ResponseEntity.badRequest().body("Diagnosis does not exist")
-        }
+        updateDiagnosisRequest.newDiagnosisName?.let {
+            if(!diagnosisService.updateDiagnosis(diagnosisCode, it)) {
+                return ResponseEntity.badRequest().build()
+            }
+        } ?: return ResponseEntity.noContent().build()
         replConfig.regenerateSingleModel().invoke("diagnosis")
 
-        return ResponseEntity.ok("Diagnosis updated")
+        return ResponseEntity.ok(Diagnosis(updateDiagnosisRequest.newDiagnosisName))
     }
 
     @Operation(summary = "Delete a diagnosis")
@@ -107,15 +101,11 @@ class DiagnosisController (
         ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
-    @DeleteMapping
-    fun deleteDiagnosis(@SwaggerRequestBody(description = "Request to delete a diagnosis") @RequestBody diagnosisRequest: DiagnosisRequest) : ResponseEntity<String> {
-        log.info("Deleting diagnosis $diagnosisRequest")
+    @DeleteMapping("/{diagnosisCode}")
+    fun deleteDiagnosis(@ApiParam(value = "Diagnosis code", required = true) @PathVariable diagnosisCode: String) : ResponseEntity<String> {
+        log.info("Deleting diagnosis $diagnosisCode")
 
-        if (diagnosisRequest.diagnosisName.isEmpty()) {
-            return ResponseEntity.badRequest().body("Diagnosis name cannot be empty")
-        }
-
-        if(!diagnosisService.deleteDiagnosis(diagnosisRequest.diagnosisName)) {
+        if(!diagnosisService.deleteDiagnosis(diagnosisCode)) {
             return ResponseEntity.badRequest().body("Diagnosis does not exist")
         }
         replConfig.regenerateSingleModel().invoke("diagnosis")

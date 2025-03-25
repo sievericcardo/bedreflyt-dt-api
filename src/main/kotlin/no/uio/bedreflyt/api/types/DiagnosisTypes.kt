@@ -5,6 +5,5 @@ data class DiagnosisRequest (
 )
 
 data class UpdateDiagnosisRequest (
-    val oldDiagnosisName : String,
-    val newDiagnosisName : String,
+    val newDiagnosisName : String?,
 )
