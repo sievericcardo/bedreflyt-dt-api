@@ -138,7 +138,7 @@ class DatabaseService (
     }
 
     fun createAndPopulateRooms(roomDbUrl: String): List<Room> {
-        val categories = monitoringCategoryService.getAllCategoories()
+        val categories = monitoringCategoryService.getAllCategories()
 
         categories?.let {
             it.forEach { category ->

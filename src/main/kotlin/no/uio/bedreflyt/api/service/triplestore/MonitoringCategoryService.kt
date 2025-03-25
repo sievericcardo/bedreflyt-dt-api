@@ -28,13 +28,13 @@ class MonitoringCategoryService (
 
     @CachePut("monitoringCategories", key = "#monitoringCategoryRequest.description")
     fun createCategory(monitoringCategoryRequest: MonitoringCategoryRequest): Boolean {
-        val name = monitoringCategoryRequest.description.split(" ").joinToString(" ")
+        val name = monitoringCategoryRequest.description.split(" ").joinToString("")
 
         val query = """
             PREFIX bedreflyt: <$prefix>
             
             INSERT DATA {
-                bedreflyt:$name a :MonitoringCategory ;
+                bedreflyt:$name a bedreflyt:MonitoringCategory ;
                     bedreflyt:hasMonitoringCode ${monitoringCategoryRequest.category} ;
                     bedreflyt:monitoringName "${monitoringCategoryRequest.description}" .
             }
@@ -53,7 +53,7 @@ class MonitoringCategoryService (
     }
 
     @Cacheable("monitoringCategories")
-    fun getAllCategoories() : List<MonitoringCategory>? {
+    fun getAllCategories() : List<MonitoringCategory>? {
         val categories = mutableListOf<MonitoringCategory>()
 
         val query =
@@ -103,8 +103,6 @@ class MonitoringCategoryService (
 
     @Cacheable("monitoringCategories", key = "#description")
     fun getCategoryByDescription(description: String) : MonitoringCategory? {
-        val name = description.split(" ").joinToString(" ")
-
         val query =
             """
                SELECT DISTINCT ?category WHERE {
@@ -126,25 +124,25 @@ class MonitoringCategoryService (
 
     @CacheEvict("monitoringCategories", key = "#monitoringCategory.description")
     @CachePut("monitoringCategories", key = "#newDescription")
-    fun updateCategory(monitoringCategory: MonitoringCategory, newCategory: Int, newDescription: String) : Boolean {
-        val oldName = monitoringCategory.description.split(" ").joinToString(" ")
-        val newName = newDescription.split(" ").joinToString(" ")
+    fun updateCategory(monitoringCategory: MonitoringCategory, newDescription: String) : Boolean {
+        val oldName = monitoringCategory.description.split(" ").joinToString("")
+        val newName = newDescription.split(" ").joinToString("")
 
         val query = """
             PREFIX bedreflyt: <$prefix>
             
             DELETE {
-                bedreflyt:$oldName a :MonitoringCategory ;
+                bedreflyt:$oldName a bedreflyt:MonitoringCategory ;
                     bedreflyt:hasMonitoringCode ${monitoringCategory.category} ;
                     bedreflyt:monitoringName "${monitoringCategory.description}" .
             }
             INSERT {
-                bedreflyt:$newName a :MonitoringCategory ;
-                    bedreflyt:hasMonitoringCode $newCategory ;
+                bedreflyt:$newName a bedreflyt:MonitoringCategory ;
+                    bedreflyt:hasMonitoringCode ${monitoringCategory.category} ;
                     bedreflyt:monitoringName "$newDescription" .
             }
             WHERE {
-                bedreflyt:$oldName a :MonitoringCategory ;
+                bedreflyt:$oldName a bedreflyt:MonitoringCategory ;
                     bedreflyt:hasMonitoringCode ${monitoringCategory.category} ;
                     bedreflyt:monitoringName "${monitoringCategory.description}" .
             }
@@ -164,18 +162,18 @@ class MonitoringCategoryService (
 
     @CacheEvict("monitoringCategories", key = "#monitoringCategory.description")
     fun deleteCategory(monitoringCategory: MonitoringCategory) : Boolean {
-        val name = monitoringCategory.description.split(" ").joinToString(" ")
+        val name = monitoringCategory.description.split(" ").joinToString("")
 
         val query = """
             PREFIX bedreflyt: <$prefix>
             
             DELETE {
-                bedreflyt:$name a :MonitoringCategory ;
+                bedreflyt:$name a bedreflyt:MonitoringCategory ;
                     bedreflyt:hasMonitoringCode ${monitoringCategory.category} ;
                     bedreflyt:monitoringName "${monitoringCategory.description}" .
             }
             WHERE {
-                bedreflyt:$name a :MonitoringCategory ;
+                bedreflyt:$name a bedreflyt:MonitoringCategory ;
                     bedreflyt:hasMonitoringCode ${monitoringCategory.category} ;
                     bedreflyt:monitoringName "${monitoringCategory.description}" .
             }

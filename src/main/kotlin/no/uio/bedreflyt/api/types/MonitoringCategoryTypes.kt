@@ -6,6 +6,5 @@ data class MonitoringCategoryRequest (
 )
 
 data class UpdateMonitoringCategoryRequest (
-    val newCategory: Int?,
     val newDescription: String?
 )

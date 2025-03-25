@@ -25,7 +25,7 @@ import no.uio.bedreflyt.api.types.UpdateMonitoringCategoryRequest
 import org.springframework.web.bind.annotation.PathVariable
 
 @RestController
-@RequestMapping("/api/v1/fuseki/monitoring-category")
+@RequestMapping("/api/v1/fuseki/monitoring-categories")
 class MonitoringCategoryController (
     private val replConfig: REPLConfig,
     private val environmentConfig: EnvironmentConfig,
@@ -50,7 +50,7 @@ class MonitoringCategoryController (
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
     @PostMapping(produces= ["application/json"])
-    fun addRoomCategory(@SwaggerRequestBody(description = "Monitory category to add") @RequestBody request: MonitoringCategoryRequest) : ResponseEntity<MonitoringCategory> {
+    fun addMonitoringCategory(@SwaggerRequestBody(description = "Monitory category to add") @RequestBody request: MonitoringCategoryRequest) : ResponseEntity<MonitoringCategory> {
         log.info("Adding monitoring category")
 
         if(!monitoringCategoryService.createCategory(request)) {
@@ -61,19 +61,35 @@ class MonitoringCategoryController (
         return ResponseEntity.ok(MonitoringCategory(request.category, request.description))
     }
 
-    @Operation(summary = "Get all rooms")
+    @Operation(summary = "Get all monitoring categories")
     @ApiResponses(value = [
-        ApiResponse(responseCode = "200", description = "Rooms found"),
+        ApiResponse(responseCode = "200", description = "Category found"),
         ApiResponse(responseCode = "400", description = "Invalid request"),
         ApiResponse(responseCode = "401", description = "Unauthorized"),
         ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
     @GetMapping(produces= ["application/json"])
-    fun getRoomCategories() : ResponseEntity<List<MonitoringCategory>> {
-        log.info("Getting rooms")
-        val categories = monitoringCategoryService.getAllCategoories() ?: return ResponseEntity.noContent().build()
+    fun getMonitoringCategories() : ResponseEntity<List<MonitoringCategory>> {
+        log.info("Getting monitoring categories")
+        val categories = monitoringCategoryService.getAllCategories() ?: return ResponseEntity.noContent().build()
         return ResponseEntity.ok(categories)
+    }
+
+    @Operation(summary = "Get a monitoring category by category")
+    @ApiResponses(value = [
+        ApiResponse(responseCode = "200", description = "Category found"),
+        ApiResponse(responseCode = "400", description = "Invalid category"),
+        ApiResponse(responseCode = "401", description = "Unauthorized"),
+        ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
+        ApiResponse(responseCode = "500", description = "Internal server error")
+    ])
+    @GetMapping("/{monitoringCategory}", produces= ["application/json"])
+    fun getMonitoringCategory(@ApiParam(value = "Category", required = true) @PathVariable monitoringCategory: Int) : ResponseEntity<MonitoringCategory> {
+        log.info("Getting monitoring category $monitoringCategory")
+
+        val category = monitoringCategoryService.getCategoryByCategory(monitoringCategory) ?: return ResponseEntity.notFound().build()
+        return ResponseEntity.ok(category)
     }
 
     @Operation(summary = "Update a monitoring category")
@@ -85,20 +101,19 @@ class MonitoringCategoryController (
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
     @PatchMapping("/{monitoringCategory}", produces= ["application/json"])
-    fun updateRoomCategory(@ApiParam(value = "Category", required = true) @PathVariable monitoringCategory: Int,
-                           @SwaggerRequestBody(description = "Request to update a room") @RequestBody request: UpdateMonitoringCategoryRequest) : ResponseEntity<MonitoringCategory> {
+    fun updateMonitoringCategory(@ApiParam(value = "Category", required = true) @PathVariable monitoringCategory: Int,
+                           @SwaggerRequestBody(description = "Request to update a monitoring category") @RequestBody request: UpdateMonitoringCategoryRequest) : ResponseEntity<MonitoringCategory> {
         log.info("Updating monitoring category $monitoringCategory")
 
         val category = monitoringCategoryService.getCategoryByCategory(monitoringCategory) ?: return ResponseEntity.notFound().build()
-        val cat = request.newCategory ?: category.category
         val desc = request.newDescription ?: category.description
 
-        if(!monitoringCategoryService.updateCategory(category, cat, desc)) {
+        if(!monitoringCategoryService.updateCategory(category, desc)) {
             return ResponseEntity.badRequest().build()
         }
         replConfig.regenerateSingleModel().invoke("monitoring categories")
 
-        return ResponseEntity.ok(MonitoringCategory(cat, desc))
+        return ResponseEntity.ok(MonitoringCategory(monitoringCategory, desc))
     }
 
     @Operation(summary = "Delete a monitoring category")
@@ -110,7 +125,7 @@ class MonitoringCategoryController (
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
     @DeleteMapping("/{monitoringCategory}", produces= ["application/json"])
-    fun deleteRoomCategory(@ApiParam(value = "Category", required = true) @PathVariable monitoringCategory: Int) : ResponseEntity<String> {
+    fun deleteMonitoringCategory(@ApiParam(value = "Category", required = true) @PathVariable monitoringCategory: Int) : ResponseEntity<String> {
         log.info("Deleting monitoring category $monitoringCategory")
 
         val category = monitoringCategoryService.getCategoryByCategory(monitoringCategory) ?: return ResponseEntity.badRequest().body("Error: the category could not be found.")
