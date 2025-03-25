@@ -1,5 +1,6 @@
 package no.uio.bedreflyt.api.controller.triplestore
 
+import io.swagger.annotations.ApiParam
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.responses.ApiResponses
@@ -16,11 +17,10 @@ import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
-import java.io.File
 import java.util.logging.Logger
 import no.uio.bedreflyt.api.types.TreatmentRequest
 import no.uio.bedreflyt.api.types.UpdateTreatmentRequest
-import no.uio.bedreflyt.api.types.DeleteTreatmentRequest
+import org.springframework.web.bind.annotation.PathVariable
 
 @RestController
 @RequestMapping("/api/v1/fuseki/treatments")
@@ -54,7 +54,7 @@ class TreatmentController (
         if (!treatmentService.createTreatment(request)) {
             return ResponseEntity.badRequest().build()
         }
-        replConfig.regenerateSingleModel().invoke("treatment")
+        replConfig.regenerateSingleModel().invoke("treatments")
 
         return ResponseEntity.ok(Treatment(request.treatmentName, request.treatmentDescription, diagnosis, request.frequency, request.weight, firstTask, lastTask))
     }
@@ -99,9 +99,10 @@ class TreatmentController (
         ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
-    @PatchMapping
-    fun updateTreatment(@SwaggerRequestBody(description = "Request to update a treatment") @RequestBody request: UpdateTreatmentRequest) : ResponseEntity<Treatment> {
-        log.info("Updating treatment ${request.treatmentName}")
+    @PatchMapping("/{treatmentName}")
+    fun updateTreatment(@ApiParam(value = "Treatment name", required = true) @PathVariable treatmentName: String,
+                        @SwaggerRequestBody(description = "Request to update a treatment") @RequestBody request: UpdateTreatmentRequest) : ResponseEntity<Treatment> {
+        log.info("Updating treatment $treatmentName")
 
         return ResponseEntity.badRequest().build()
     }
@@ -115,14 +116,17 @@ class TreatmentController (
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
     @DeleteMapping
-    fun deleteTreatment(@SwaggerRequestBody(description = "Request to delete a treatment") @RequestBody request: DeleteTreatmentRequest) : ResponseEntity<String> {
-        log.info("Deleting treatment ${request.treatmentName}")
+    fun deleteTreatment(@ApiParam(value = "Treatment name", required = true) @PathVariable treatmentName: String) : ResponseEntity<String> {
+        log.info("Deleting treatment $treatmentName")
 
-        if (!treatmentService.deleteTreatment(request.treatmentName)) {
+        if (treatmentService.getTreatmentStepsByTreatmentName(treatmentName) == null) {
+            return ResponseEntity.notFound().build()
+        }
+        if (!treatmentService.deleteTreatment(treatmentName)) {
             return ResponseEntity.badRequest().build()
         }
-        replConfig.regenerateSingleModel().invoke("treatment")
+        replConfig.regenerateSingleModel().invoke("treatments")
 
-        return ResponseEntity.ok("Treatment ${request.treatmentName} deleted")
+        return ResponseEntity.ok("Treatment $treatmentName deleted")
     }
 }

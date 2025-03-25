@@ -22,7 +22,6 @@ import java.io.File
 import java.util.logging.Logger
 import no.uio.bedreflyt.api.types.TaskRequest
 import no.uio.bedreflyt.api.types.UpdateTaskRequest
-import no.uio.bedreflyt.api.types.DeleteTaskRequest
 import org.springframework.web.bind.annotation.PathVariable
 
 @RestController

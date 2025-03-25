@@ -14,15 +14,10 @@ data class TreatmentRequest (
 )
 
 data class UpdateTreatmentRequest (
-    val treatmentName: String,
     val newTreatmentDescription: String?,
     val newDiagnosis: String?,
     val newFrequency: Double?,
     val newWeight: Double?,
     val newFirstStep: String?,
     val newLastStep: String?,
-)
-
-data class DeleteTreatmentRequest (
-    val treatmentName: String
 )
