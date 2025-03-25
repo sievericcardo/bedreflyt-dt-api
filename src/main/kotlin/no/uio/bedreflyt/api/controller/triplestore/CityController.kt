@@ -49,7 +49,7 @@ class CityController (
         if (!cityService.createCity(cityRequest)) {
             return ResponseEntity.badRequest().build()
         }
-        replConfig.regenerateSingleModel().invoke("city")
+        replConfig.regenerateSingleModel().invoke("cities")
 
         return ResponseEntity.ok(City(cityRequest.cityName))
     }
@@ -110,7 +110,7 @@ class CityController (
                 return ResponseEntity.badRequest().build()
             }
         } ?: return ResponseEntity.noContent().build()
-        replConfig.regenerateSingleModel().invoke("city")
+        replConfig.regenerateSingleModel().invoke("cities")
 
         return ResponseEntity.ok(City(cityRequest.newCityName))
     }
@@ -133,7 +133,7 @@ class CityController (
         if (!cityService.deleteCity(cityName)) {
             return ResponseEntity.badRequest().build()
         }
-        replConfig.regenerateSingleModel().invoke("city")
+        replConfig.regenerateSingleModel().invoke("cities")
 
         return ResponseEntity.ok("City removed successfully")
     }

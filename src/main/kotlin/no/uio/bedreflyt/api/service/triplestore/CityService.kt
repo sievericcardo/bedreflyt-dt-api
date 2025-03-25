@@ -14,6 +14,7 @@ import org.springframework.cache.annotation.CacheEvict
 import org.springframework.cache.annotation.CachePut
 import org.springframework.cache.annotation.Cacheable
 import org.springframework.stereotype.Service
+import java.util.logging.Logger
 
 @Service
 class CityService (
@@ -25,14 +26,16 @@ class CityService (
     private val prefix = triplestoreProperties.prefix
     private val ttlPrefix = triplestoreProperties.ttlPrefix
     private val repl = replConfig.repl()
+    private val log: Logger = Logger.getLogger(CityService::class.java.name)
 
     @CachePut("cities", key = "#request.cityName")
     fun createCity(request: CityRequest) : Boolean {
+        val name = request.cityName.split(" ").joinToString("_")
         val query = """
             PREFIX bedreflyt: <$prefix>
             
             INSERT DATA {
-                bedreflyt:${request.cityName} a :City ;
+                bedreflyt:${name} a bedreflyt:City ;
                     bedreflyt:cityName "${request.cityName}" .
             }
         """.trimIndent()
@@ -76,12 +79,12 @@ class CityService (
 
     @Cacheable("cities", key = "#cityName")
     fun getCityByName(cityName: String) : City? {
+        log.info("Retrieving city $cityName")
         val query = """
-            PREFIX bedreflyt: <$prefix>
-            
             SELECT DISTINCT ?cityName WHERE {
                 ?city a prog:City ;
-                    prog:City_cityName "$cityName" .
+                    prog:City_cityName ?cityName .
+                FILTER (?cityName = "$cityName")
             }
         """.trimIndent()
 
@@ -91,25 +94,28 @@ class CityService (
         }
 
         val result: QuerySolution = resultSet.next()
-        return City(result.get("cityName").toString())
+        val name = result.get("cityName").toString()
+        return City(name)
     }
 
     @CacheEvict("cities", key = "#cityName")
     @CachePut("cities", key = "#newCityName")
     fun updateCity(cityName: String, newCityName: String) : Boolean {
+        val name = cityName.split(" ").joinToString("_")
+        val newName = newCityName.split(" ").joinToString("_")
         val query = """
             PREFIX bedreflyt: <$prefix>
             
             DELETE {
-                bedreflyt:$cityName a City ;
+                bedreflyt:$name a bedreflyt:City ;
                     bedreflyt:cityName "$cityName" .
             }
             INSERT {
-                bedreflyt:$newCityName a :City ;
+                bedreflyt:$newName a bedreflyt:City ;
                     bedreflyt:cityName "$newCityName" .
             }
             WHERE {
-                bedreflyt:$cityName a City ;
+                bedreflyt:$name a bedreflyt:City ;
                     bedreflyt:cityName "$cityName" .
             }
         """.trimIndent()
@@ -128,11 +134,12 @@ class CityService (
 
     @CacheEvict("cities", key = "#cityName")
     fun deleteCity(cityName: String) : Boolean {
+        val name = cityName.split(" ").joinToString("_")
         val query = """
             PREFIX bedreflyt: <$prefix>
             
             DELETE WHERE {
-                bedreflyt:$cityName a City ;
+                bedreflyt:$name a bedreflyt:City ;
                     bedreflyt:cityName "$cityName" .
             }
         """.trimIndent()
