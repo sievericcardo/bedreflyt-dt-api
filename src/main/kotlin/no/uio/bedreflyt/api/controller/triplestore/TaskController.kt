@@ -49,7 +49,7 @@ class TaskController (
         ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
-    @PostMapping
+    @PostMapping(produces= ["application/json"])
     fun createTask(@SwaggerRequestBody(description = "Request to add a new task") @RequestBody taskRequest: TaskRequest) : ResponseEntity<Task> {
         log.info("Creating task $taskRequest")
 
@@ -68,7 +68,7 @@ class TaskController (
         ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
         ApiResponse(responseCode = "404", description = "The resource you were trying to reach is not found")
     ])
-    @GetMapping
+    @GetMapping(produces= ["application/json"])
     fun retrieveTasks() : ResponseEntity<List<Task>> {
         log.info("Retrieving tasks")
 
@@ -85,7 +85,7 @@ class TaskController (
         ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
-    @PatchMapping("/{taskName}")
+    @PatchMapping("/{taskName}", produces= ["application/json"])
     fun updateTask(@ApiParam(value = "Task name", required = true) @PathVariable taskName: String,
                    @SwaggerRequestBody(description = "Request to update a task") @RequestBody updateTaskRequest: UpdateTaskRequest) : ResponseEntity<Task> {
         log.info("Updating task $updateTaskRequest")
@@ -110,7 +110,7 @@ class TaskController (
         ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
-    @DeleteMapping("/{taskName}")
+    @DeleteMapping("/{taskName}", produces= ["application/json"])
     fun deleteTask(@ApiParam(value = "Task name", required = true) @PathVariable taskName: String) : ResponseEntity<String> {
         log.info("Deleting task $taskName")
 

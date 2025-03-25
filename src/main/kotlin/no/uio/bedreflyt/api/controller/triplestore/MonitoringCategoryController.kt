@@ -49,7 +49,7 @@ class MonitoringCategoryController (
         ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
-    @PostMapping
+    @PostMapping(produces= ["application/json"])
     fun addRoomCategory(@SwaggerRequestBody(description = "Monitory category to add") @RequestBody request: MonitoringCategoryRequest) : ResponseEntity<MonitoringCategory> {
         log.info("Adding monitoring category")
 
@@ -69,7 +69,7 @@ class MonitoringCategoryController (
         ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
-    @GetMapping
+    @GetMapping(produces= ["application/json"])
     fun getRoomCategories() : ResponseEntity<List<MonitoringCategory>> {
         log.info("Getting rooms")
         val categories = monitoringCategoryService.getAllCategoories() ?: return ResponseEntity.noContent().build()
@@ -84,7 +84,7 @@ class MonitoringCategoryController (
         ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
-    @PatchMapping("/{monitoringCategory}")
+    @PatchMapping("/{monitoringCategory}", produces= ["application/json"])
     fun updateRoomCategory(@ApiParam(value = "Category", required = true) @PathVariable monitoringCategory: Int,
                            @SwaggerRequestBody(description = "Request to update a room") @RequestBody request: UpdateMonitoringCategoryRequest) : ResponseEntity<MonitoringCategory> {
         log.info("Updating monitoring category $monitoringCategory")
@@ -109,7 +109,7 @@ class MonitoringCategoryController (
         ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
-    @DeleteMapping("/{monitoringCategory}")
+    @DeleteMapping("/{monitoringCategory}", produces= ["application/json"])
     fun deleteRoomCategory(@ApiParam(value = "Category", required = true) @PathVariable monitoringCategory: Int) : ResponseEntity<String> {
         log.info("Deleting monitoring category $monitoringCategory")
 

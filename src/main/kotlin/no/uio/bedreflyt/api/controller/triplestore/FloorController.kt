@@ -42,7 +42,7 @@ class FloorController (
         ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
-    @PostMapping
+    @PostMapping(produces= ["application/json"])
     fun createFloor(@SwaggerRequestBody(description = "Request to add a new floor") @RequestBody floorRequest: FloorRequest) : ResponseEntity<Floor> {
         log.info("Creating floor $floorRequest")
 
@@ -62,7 +62,7 @@ class FloorController (
         ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
-    @GetMapping
+    @GetMapping(produces= ["application/json"])
     fun retrieveFloors() : ResponseEntity<List<Floor>> {
         log.info("Retrieving floors")
 
@@ -79,11 +79,11 @@ class FloorController (
         ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
-    @GetMapping("/{floorNumber}")
-    fun retrieveFloor(@SwaggerRequestBody(description = "Request to retrieve a floor by number") @RequestBody floorRequest: FloorRequest) : ResponseEntity<Floor> {
-        log.info("Retrieving floor $floorRequest")
+    @GetMapping("/{floorNumber}", produces= ["application/json"])
+    fun retrieveFloor(@ApiParam(value = "Floor number", required = true) @PathVariable floorNumber: Int) : ResponseEntity<Floor> {
+        log.info("Retrieving floor $floorNumber")
 
-        val floor = floorService.getFloorByNumber(floorRequest.floorNumber) ?: return ResponseEntity.badRequest().build()
+        val floor = floorService.getFloorByNumber(floorNumber) ?: return ResponseEntity.badRequest().build()
 
         return ResponseEntity.ok(floor)
     }
@@ -96,7 +96,7 @@ class FloorController (
         ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
-    @PatchMapping("/{floorNumber}")
+    @PatchMapping("/{floorNumber}", produces= ["application/json"])
     fun updateFloor(@ApiParam(value = "Floor number", required = true) @PathVariable floorNumber: Int,
                     @SwaggerRequestBody(description = "Request to update a floor") @RequestBody updateFloorRequest: UpdateFloorRequest) : ResponseEntity<Floor> {
         log.info("Updating floor $updateFloorRequest")
@@ -122,7 +122,7 @@ class FloorController (
         ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
-    @DeleteMapping("/{floorNumber}")
+    @DeleteMapping("/{floorNumber}", produces= ["application/json"])
     fun deleteFloor(@ApiParam(value = "Floor number", required = true) @PathVariable floorNumber: Int) : ResponseEntity<String> {
         log.info("Deleting floor $floorNumber")
 

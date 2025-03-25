@@ -44,7 +44,7 @@ class HospitalController (
         ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
-    @PostMapping
+    @PostMapping(produces= ["application/json"])
     fun createHospital(@SwaggerRequestBody(description = "Request to add a new hospital") @RequestBody hospitalRequest: HospitalRequest) : ResponseEntity<Hospital> {
         log.info("Creating hospital $hospitalRequest")
 
@@ -65,7 +65,7 @@ class HospitalController (
         ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
-    @GetMapping
+    @GetMapping(produces= ["application/json"])
     fun retrieveHospitals() : ResponseEntity<List<Hospital>> {
         log.info("Retrieving hospitals")
 
@@ -82,8 +82,8 @@ class HospitalController (
         ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
-    @GetMapping("/{hospitalCode}")
-    fun retrieveHospitalByCode(@SwaggerRequestBody(description = "Hospital code") @RequestBody hospitalCode: String) : ResponseEntity<Hospital> {
+    @GetMapping("/{hospitalCode}", produces= ["application/json"])
+    fun retrieveHospitalByCode(@ApiParam(value = "Hospital code", required = true) @PathVariable hospitalCode: String) : ResponseEntity<Hospital> {
         log.info("Retrieving hospital $hospitalCode")
 
         val hospital = hospitalService.getHospitalByCode(hospitalCode) ?: return ResponseEntity.badRequest().build()
@@ -99,7 +99,7 @@ class HospitalController (
         ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
-    @PatchMapping("/{hospitalCode}")
+    @PatchMapping("/{hospitalCode}", produces= ["application/json"])
     fun updateHospital(@ApiParam(value = "Hospital code", required = true) @PathVariable hospitalCode: String,
                        @SwaggerRequestBody(description = "Request to update a hospital") @RequestBody updateHospitalRequest: UpdateHospitalRequest) : ResponseEntity<Hospital> {
         log.info("Updating hospital $updateHospitalRequest")
@@ -123,7 +123,7 @@ class HospitalController (
         ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
-    @DeleteMapping("/{hospitalCode}")
+    @DeleteMapping("/{hospitalCode}", produces= ["application/json"])
     fun deleteHospital(@ApiParam(value = "Hospital code", required = true) @PathVariable hospitalCode: String) : ResponseEntity<String> {
         log.info("Deleting hospital $hospitalCode")
 

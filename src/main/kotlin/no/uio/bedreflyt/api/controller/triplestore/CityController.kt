@@ -42,7 +42,7 @@ class CityController (
         ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
-    @PostMapping
+    @PostMapping(produces= ["application/json"])
     fun createCity(@SwaggerRequestBody(description = "Request to add a new city") @RequestBody cityRequest: CityRequest) : ResponseEntity<City> {
         log.info("Creating city $cityRequest")
 
@@ -62,7 +62,7 @@ class CityController (
         ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
-    @GetMapping
+    @GetMapping(produces= ["application/json"])
     fun retrieveCities() : ResponseEntity<List<City>> {
         log.info("Retrieving all cities")
 
@@ -79,7 +79,7 @@ class CityController (
         ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
-    @GetMapping("/{cityName}")
+    @GetMapping("/{cityName}", produces= ["application/json"])
     fun retrieveCityByName(@ApiParam(value = "City name", required = true) @PathVariable cityName: String) : ResponseEntity<City> {
         log.info("Retrieving city $cityName")
 
@@ -96,7 +96,7 @@ class CityController (
         ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
-    @PatchMapping("/{cityName}")
+    @PatchMapping("/{cityName}", produces= ["application/json"])
     fun updateCity(@ApiParam(value = "City name", required = true) @PathVariable cityName: String,
                    @SwaggerRequestBody(description = "Request to update a city") @RequestBody cityRequest: UpdateCityRequest) : ResponseEntity<City> {
         log.info("Updating city $cityRequest")
@@ -123,7 +123,7 @@ class CityController (
         ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
-    @DeleteMapping("/{cityName}")
+    @DeleteMapping("/{cityName}", produces= ["application/json"])
     fun deleteCity(@ApiParam(value = "City name", required = true) @PathVariable cityName: String) : ResponseEntity<String> {
         log.info("Deleting city $cityName")
 

@@ -45,7 +45,7 @@ class RoomController (
         ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
-    @PostMapping
+    @PostMapping(produces= ["application/json"])
     fun createRoom (@SwaggerRequestBody(description = "Request to add a new room") @RequestBody roomRequest: RoomRequest) : ResponseEntity<TreatmentRoom> {
         log.info("Creating room $roomRequest")
 
@@ -69,7 +69,7 @@ class RoomController (
         ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
-    @GetMapping
+    @GetMapping(produces= ["application/json"])
     fun retrieveRooms() : ResponseEntity<List<Room>> {
         log.info("Retrieving rooms")
 
@@ -86,11 +86,11 @@ class RoomController (
         ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
-    @GetMapping("/{roomNumber}/{wardName}/{hospitalCode}")
-    fun retrieveRoom(@SwaggerRequestBody(description = "Request to retrieve a room by number, ward and hospital") @RequestBody roomRequest: RoomRequest) : ResponseEntity<TreatmentRoom> {
-        log.info("Retrieving room $roomRequest")
+    @GetMapping("/{roomNumber}/{wardName}/{hospitalCode}", produces= ["application/json"])
+    fun retrieveRoom(@ApiParam(value = "Request to update a room", required = true) @PathVariable roomNumber: Int, @PathVariable wardName: String, @PathVariable hospitalCode: String) : ResponseEntity<TreatmentRoom> {
+        log.info("Retrieving room $roomNumber in ward $wardName")
 
-        val room = roomService.getRoomByRoomNumberWardHospital(roomRequest.roomNumber, roomRequest.ward, roomRequest.hospital) ?: return ResponseEntity.badRequest().build()
+        val room = roomService.getRoomByRoomNumberWardHospital(roomNumber, wardName, hospitalCode) ?: return ResponseEntity.badRequest().build()
 
         return ResponseEntity.ok(room)
     }
@@ -103,8 +103,8 @@ class RoomController (
         ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
-    @PatchMapping("/{roomNumber}/{wardName}/{hospitalCode}")
-    fun updateRoom(@ApiParam(value = "Request to update a room", required = true) @PathVariable roomNumber: Int, wardName: String, hospitalCode: String,
+    @PatchMapping("/{roomNumber}/{wardName}/{hospitalCode}", produces= ["application/json"])
+    fun updateRoom(@ApiParam(value = "Request to update a room", required = true) @PathVariable roomNumber: Int, @PathVariable wardName: String, @PathVariable hospitalCode: String,
                    @SwaggerRequestBody(description = "Request to update a room") @RequestBody updateRoomRequest: UpdateRoomRequest) : ResponseEntity<TreatmentRoom> {
         log.info("Updating room $updateRoomRequest")
 
@@ -132,8 +132,8 @@ class RoomController (
         ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
-    @DeleteMapping("/{roomNumber}/{wardName}/{hospitalCode}")
-    fun deleteRoom(@ApiParam(value = "Request to update a room", required = true) @PathVariable roomNumber: Int, wardName: String, hospitalCode: String) : ResponseEntity<String> {
+    @DeleteMapping("/{roomNumber}/{wardName}/{hospitalCode}", produces= ["application/json"])
+    fun deleteRoom(@ApiParam(value = "Request to update a room", required = true) @PathVariable roomNumber: Int, @PathVariable wardName: String, @PathVariable hospitalCode: String) : ResponseEntity<String> {
         log.info("Deleting room $roomNumber in ward $wardName")
 
         val room = roomService.getRoomByRoomNumberWardHospital(roomNumber, wardName, hospitalCode) ?: return ResponseEntity.notFound().build()

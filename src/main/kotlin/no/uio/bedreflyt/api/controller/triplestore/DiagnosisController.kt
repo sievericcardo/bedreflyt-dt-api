@@ -42,7 +42,7 @@ class DiagnosisController (
         ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
-    @PostMapping
+    @PostMapping(produces= ["application/json"])
     fun createDiagnosis (@SwaggerRequestBody(description = "Request to add a new patient") @RequestBody diagnosisRequest: DiagnosisRequest) : ResponseEntity<String> {
         log.info("Creating diagnosis $diagnosisRequest")
 
@@ -62,7 +62,7 @@ class DiagnosisController (
         ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
-    @GetMapping
+    @GetMapping(produces= ["application/json"])
     fun retrieveDiagnosis() : ResponseEntity<List<Diagnosis>> {
         log.info("Retrieving diagnosis")
         val diagnosisList = diagnosisService.getAllDiagnosis() ?: return ResponseEntity.noContent().build()
@@ -78,7 +78,7 @@ class DiagnosisController (
         ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
-    @PatchMapping("/{diagnosisCode}")
+    @PatchMapping("/{diagnosisCode}", produces= ["application/json"])
     fun updateDiagnosis(@ApiParam(value = "Diagnosis code", required = true) @PathVariable diagnosisCode: String,
                         @SwaggerRequestBody(description = "Request to update a diagnosis") @RequestBody updateDiagnosisRequest: UpdateDiagnosisRequest) : ResponseEntity<Diagnosis> {
         log.info("Updating diagnosis $updateDiagnosisRequest")
@@ -104,7 +104,7 @@ class DiagnosisController (
         ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
-    @DeleteMapping("/{diagnosisCode}")
+    @DeleteMapping("/{diagnosisCode}", produces= ["application/json"])
     fun deleteDiagnosis(@ApiParam(value = "Diagnosis code", required = true) @PathVariable diagnosisCode: String) : ResponseEntity<String> {
         log.info("Deleting diagnosis $diagnosisCode")
 
