@@ -103,22 +103,22 @@ class FloorService (
 
     @CacheEvict("floors", key = "#request.floorNumber")
     @CachePut("floors", key = "#request.newFloorNumber")
-    fun updateFloor(request: UpdateFloorRequest) : Boolean {
+    fun updateFloor(oldFloorNumber: Int, newFloorNumber: Int) : Boolean {
         val query = """
             PREFIX bedreflyt: <$prefix>
             PREFIX brick: <https://brickschema.org/schema/Brick#>
             
             DELETE {
-                bedreflyt:Floor${request.floorNumber} a brick:Floor ; 
-                    bedreflyt:floorNumber ${request.floorNumber} .
+                bedreflyt:Floor${oldFloorNumber} a brick:Floor ; 
+                    bedreflyt:floorNumber $oldFloorNumber .
             }
             INSERT {
-                bedreflyt:Floor${request.newFloorNumber} a brick:Floor ;
-                    bedreflyt:floorNumber ${request.newFloorNumber} .
+                bedreflyt:Floor${newFloorNumber} a brick:Floor ;
+                    bedreflyt:floorNumber $newFloorNumber .
             }
             WHERE {
-                bedreflyt:Floor${request.floorNumber} a brick:Floor ;
-                    bedreflyt:floorNumber ${request.floorNumber} .
+                bedreflyt:Floor${oldFloorNumber} a brick:Floor ;
+                    bedreflyt:floorNumber $oldFloorNumber .
             }
         """.trimIndent()
 
@@ -135,14 +135,14 @@ class FloorService (
     }
 
     @CacheEvict("floors", key = "#request.floorNumber")
-    fun deleteFloor(request: FloorRequest) : Boolean {
+    fun deleteFloor(floorNumber: Int) : Boolean {
         val query = """
             PREFIX bedreflyt: <$prefix>
             PREFIX brick: <https://brickschema.org/schema/Brick#>
             
             DELETE WHERE {
-                bedreflyt:Floor${request.floorNumber} a brick:Floor ;
-                    bedreflyt:floorNumber ${request.floorNumber} .
+                bedreflyt:Floor${floorNumber} a brick:Floor ;
+                    bedreflyt:floorNumber $floorNumber .
             }
         """.trimIndent()
 

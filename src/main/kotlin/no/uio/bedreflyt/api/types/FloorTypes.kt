@@ -5,8 +5,5 @@ data class FloorRequest (
 )
 
 data class UpdateFloorRequest (
-    val floorNumber: Int,
-    val newFloorNumber: Int
+    val newFloorNumber: Int?
 )
-
-typealias DeleteFloorRequest = FloorRequest

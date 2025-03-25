@@ -1,5 +1,6 @@
 package no.uio.bedreflyt.api.controller.triplestore
 
+import io.swagger.annotations.ApiParam
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
 import io.swagger.v3.oas.annotations.Operation
@@ -11,12 +12,12 @@ import no.uio.bedreflyt.api.model.triplestore.Floor
 import no.uio.bedreflyt.api.service.triplestore.FloorService
 import no.uio.bedreflyt.api.service.triplestore.TriplestoreService
 import no.uio.bedreflyt.api.types.FloorRequest
-import no.uio.bedreflyt.api.types.DeleteFloorRequest
 import no.uio.bedreflyt.api.types.UpdateFloorRequest
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PatchMapping
+import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
 import java.util.logging.Logger
@@ -95,16 +96,22 @@ class FloorController (
         ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
-    @PatchMapping
-    fun updateFloor(@SwaggerRequestBody(description = "Request to update a floor") @RequestBody updateFloorRequest: UpdateFloorRequest) : ResponseEntity<Floor> {
+    @PatchMapping("/{floorNumber}")
+    fun updateFloor(@ApiParam(value = "Floor number", required = true) @PathVariable floorNumber: Int,
+                    @SwaggerRequestBody(description = "Request to update a floor") @RequestBody updateFloorRequest: UpdateFloorRequest) : ResponseEntity<Floor> {
         log.info("Updating floor $updateFloorRequest")
 
-        if (!floorService.updateFloor(updateFloorRequest)) {
-            return ResponseEntity.badRequest().build()
+        if (floorService.getFloorByNumber(floorNumber) == null) {
+            return ResponseEntity.notFound().build()
         }
+        updateFloorRequest.newFloorNumber?.let {
+            if (floorService.getFloorByNumber(it) != null) {
+                return ResponseEntity.badRequest().build()
+            }
+        } ?: return ResponseEntity.noContent().build()
         replConfig.regenerateSingleModel().invoke("floor")
 
-        return ResponseEntity.ok(Floor(updateFloorRequest.floorNumber))
+        return ResponseEntity.ok(Floor(updateFloorRequest.newFloorNumber))
     }
 
     @Operation(summary = "Delete a floor")
@@ -115,15 +122,15 @@ class FloorController (
         ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
-    @DeleteMapping
-    fun deleteFloor(@SwaggerRequestBody(description = "Request to delete a floor") @RequestBody deleteFloorRequest: DeleteFloorRequest) : ResponseEntity<Floor> {
-        log.info("Deleting floor $deleteFloorRequest")
+    @DeleteMapping("/{floorNumber}")
+    fun deleteFloor(@ApiParam(value = "Floor number", required = true) @PathVariable floorNumber: Int) : ResponseEntity<String> {
+        log.info("Deleting floor $floorNumber")
 
-        if (!floorService.deleteFloor(deleteFloorRequest)) {
-            return ResponseEntity.badRequest().build()
+        if (!floorService.deleteFloor(floorNumber)) {
+            return ResponseEntity.notFound().build()
         }
         replConfig.regenerateSingleModel().invoke("floor")
 
-        return ResponseEntity.ok(Floor(deleteFloorRequest.floorNumber))
+        return ResponseEntity.ok("Floor deleted")
     }
 }
