@@ -64,7 +64,6 @@ class MonitoringCategoryModel extends BaseModel()
                 destroy(lx);
             end
 
-            destroy(wrongCategories);
             print("RECONFIG> Wrong monitoring categories removed");
         end
     end

@@ -101,7 +101,6 @@ class TreatmentStepModel extends BaseModel ()
                 destroy(lx);
             end
             
-            destroy(wrongTaskDeps);
             print("RECONFIG> Wrong task dependencies removed");
         end
     end

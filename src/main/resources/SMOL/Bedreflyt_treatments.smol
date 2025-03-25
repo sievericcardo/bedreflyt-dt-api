@@ -75,7 +75,6 @@ class TreatmentModel extends BaseModel()
                 destroy(lx);
             end
 
-            destroy(wrongTreatments);
             print("RECONFIG> Wrong treatments removed");
         end
     end

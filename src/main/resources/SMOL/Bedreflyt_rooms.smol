@@ -94,7 +94,6 @@ class RoomModel extends BaseModel()
                 destroy(lx);
             end
 
-            destroy(wrongRooms);
             print("RECONFIG> Wrong Room(s) removed");
         end
     end

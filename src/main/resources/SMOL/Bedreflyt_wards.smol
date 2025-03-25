@@ -76,7 +76,6 @@ class WardModel extends BaseModel ()
                 destroy(lx);
             end
 
-            destroy(wrongWards);
             print("RECONFIG> Wrong wards removed");
         end
     end

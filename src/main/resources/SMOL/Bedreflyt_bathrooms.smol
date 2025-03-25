@@ -52,7 +52,6 @@ class BathroomModel extends BaseModel ()
                 destroy(lx);
             end
 
-            destroy(wrongBathrooms);
             print("RECONFIG> Wrong bathrooms removed");
         end
     end

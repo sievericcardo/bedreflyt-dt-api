@@ -58,7 +58,6 @@ class HospitalModel extends BaseModel ()
                 destroy(lx);
             end
 
-            destroy(wrongHospitals);
             print("RECONFIG> Wrong hospitals removed");
         end
     end

@@ -52,7 +52,6 @@ class TaskModel extends BaseModel ()
                 destroy(lx);
             end
 
-            destroy(wrongTasks);
             print("RECONFIG> Wrong tasks removed");
         end
     end
