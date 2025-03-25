@@ -23,7 +23,7 @@ import no.uio.bedreflyt.api.types.DiagnosisRequest
 import no.uio.bedreflyt.api.types.UpdateDiagnosisRequest
 
 @RestController
-@RequestMapping("/api/fuseki/diagnosis")
+@RequestMapping("/api/v1/fuseki/diagnosis")
 class DiagnosisController (
     private val replConfig: REPLConfig,
     private val environmentConfig: EnvironmentConfig,
@@ -47,7 +47,7 @@ class DiagnosisController (
         ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
-    @PostMapping("/create")
+    @PostMapping
     fun createDiagnosis (@SwaggerRequestBody(description = "Request to add a new patient") @RequestBody diagnosisRequest: DiagnosisRequest) : ResponseEntity<String> {
         log.info("Creating diagnosis $diagnosisRequest")
 
@@ -55,20 +55,6 @@ class DiagnosisController (
             return ResponseEntity.badRequest().body("Diagnosis already exists")
         }
         replConfig.regenerateSingleModel().invoke("diagnosis")
-
-        // Append to the file bedreflyt.ttl
-        val path = "bedreflyt.ttl"
-        val fileContent = File(path).readText(Charsets.UTF_8)
-        val newContent = """
-            $fileContent
-            
-            ###  $ttlPrefix/diagnosis_${diagnosisRequest.diagnosisName}
-            :diagnosis_${diagnosisRequest.diagnosisName} rdf:type owl:NamedIndividual ,
-                            :Diagnosis ;
-                :diagnosisName "${diagnosisRequest.diagnosisName}" .
-        """.trimIndent()
-
-        File(path).writeText(newContent)
 
         return ResponseEntity.ok("Diagnosis added")
     }
@@ -81,7 +67,7 @@ class DiagnosisController (
         ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
-    @GetMapping("/retrieve")
+    @GetMapping
     fun retrieveDiagnosis() : ResponseEntity<List<Diagnosis>> {
         log.info("Retrieving diagnosis")
         val diagnosisList = diagnosisService.getAllDiagnosis() ?: return ResponseEntity.noContent().build()
@@ -97,7 +83,7 @@ class DiagnosisController (
         ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
-    @PatchMapping("/update")
+    @PatchMapping
     fun updateDiagnosis(@SwaggerRequestBody(description = "Request to update a diagnosis") @RequestBody updateDiagnosisRequest: UpdateDiagnosisRequest) : ResponseEntity<String> {
         log.info("Updating diagnosis $updateDiagnosisRequest")
 
@@ -110,23 +96,6 @@ class DiagnosisController (
         }
         replConfig.regenerateSingleModel().invoke("diagnosis")
 
-        // Update the object in the file bedreflyt.ttl
-        val path = "bedreflyt.ttl"
-        val oldContent = """
-            ###  $ttlPrefix/diagnosis_${updateDiagnosisRequest.oldDiagnosisName}
-            :diagnosis_${updateDiagnosisRequest.oldDiagnosisName} rdf:type owl:NamedIndividual ,
-                            :Diagnosis ;
-                :diagnosisName "${updateDiagnosisRequest.oldDiagnosisName}" .
-            """.trimIndent()
-        val newContent = """
-            ###  $ttlPrefix/diagnosis_${updateDiagnosisRequest.newDiagnosisName}
-            :diagnosis_${updateDiagnosisRequest.newDiagnosisName} rdf:type owl:NamedIndividual ,
-                            :Diagnosis ;
-                :diagnosisName "${updateDiagnosisRequest.newDiagnosisName}" .
-            """.trimIndent()
-
-        triplestoreService.replaceContentIgnoringSpaces(path, oldContent, newContent)
-
         return ResponseEntity.ok("Diagnosis updated")
     }
 
@@ -138,7 +107,7 @@ class DiagnosisController (
         ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
-    @DeleteMapping("/delete")
+    @DeleteMapping
     fun deleteDiagnosis(@SwaggerRequestBody(description = "Request to delete a diagnosis") @RequestBody diagnosisRequest: DiagnosisRequest) : ResponseEntity<String> {
         log.info("Deleting diagnosis $diagnosisRequest")
 
@@ -150,17 +119,6 @@ class DiagnosisController (
             return ResponseEntity.badRequest().body("Diagnosis does not exist")
         }
         replConfig.regenerateSingleModel().invoke("diagnosis")
-
-        // Remove the object from the file bedreflyt.ttl
-        val path = "bedreflyt.ttl"
-        val oldContent = """
-            ###  $ttlPrefix/diagnosis_${diagnosisRequest.diagnosisName}
-            :diagnosis_${diagnosisRequest.diagnosisName} rdf:type owl:NamedIndividual ,
-                            :Diagnosis ;
-                :diagnosisName "${diagnosisRequest.diagnosisName}" .
-            """.trimIndent()
-
-        triplestoreService.replaceContentIgnoringSpaces(path, oldContent, "")
 
         return ResponseEntity.ok("Diagnosis deleted")
     }

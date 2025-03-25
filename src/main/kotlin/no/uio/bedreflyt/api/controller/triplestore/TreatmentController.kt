@@ -23,7 +23,7 @@ import no.uio.bedreflyt.api.types.UpdateTreatmentRequest
 import no.uio.bedreflyt.api.types.DeleteTreatmentRequest
 
 @RestController
-@RequestMapping("/api/fuseki/treatments")
+@RequestMapping("/api/v1/fuseki/treatments")
 class TreatmentController (
     private val replConfig: REPLConfig,
     private val triplestoreProperties: TriplestoreProperties,
@@ -43,7 +43,7 @@ class TreatmentController (
         ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
-    @PostMapping("/create")
+    @PostMapping
     fun createTreatment(@SwaggerRequestBody(description = "Request to create a new treatment") @RequestBody request: TreatmentRequest) : ResponseEntity<Treatment> {
         log.info("Creating treatment $request")
 
@@ -66,7 +66,7 @@ class TreatmentController (
         ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
-    @GetMapping("/retrieve")
+    @GetMapping
     fun getAllTreatments() : ResponseEntity<List<Treatment>> {
         log.info("Getting all treatments")
 
@@ -83,7 +83,7 @@ class TreatmentController (
         ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
-    @GetMapping("/retrieve/{treatmentName}")
+    @GetMapping("/{treatmentName}")
     fun getTreatment(@SwaggerRequestBody(description = "Request to retrieve a treatment by name") @RequestBody request: DeleteTreatmentRequest) : ResponseEntity<Treatment> {
         log.info("Getting treatment $request")
 
@@ -99,7 +99,7 @@ class TreatmentController (
         ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
-    @PatchMapping("/update")
+    @PatchMapping
     fun updateTreatment(@SwaggerRequestBody(description = "Request to update a treatment") @RequestBody request: UpdateTreatmentRequest) : ResponseEntity<Treatment> {
         log.info("Updating treatment ${request.treatmentName}")
 
@@ -114,7 +114,7 @@ class TreatmentController (
         ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
-    @DeleteMapping("/delete")
+    @DeleteMapping
     fun deleteTreatment(@SwaggerRequestBody(description = "Request to delete a treatment") @RequestBody request: DeleteTreatmentRequest) : ResponseEntity<String> {
         log.info("Deleting treatment ${request.treatmentName}")
 

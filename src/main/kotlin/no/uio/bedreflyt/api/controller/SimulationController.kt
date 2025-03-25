@@ -20,7 +20,7 @@ import java.util.logging.Logger
 import kotlin.random.Random
 
 @RestController
-@RequestMapping("/api/simulation")
+@RequestMapping("/api/v1/simulation")
 class SimulationController(
     private val databaseService: DatabaseService,
     private val simulator: Simulator,

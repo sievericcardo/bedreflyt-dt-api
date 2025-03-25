@@ -18,7 +18,7 @@ import java.net.URI
 import java.util.logging.Logger
 
 @RestController
-@RequestMapping("/api/fuseki")
+@RequestMapping("/api/v1/fuseki")
 class FusekiController (
     private val environmentConfig: EnvironmentConfig
 ) {

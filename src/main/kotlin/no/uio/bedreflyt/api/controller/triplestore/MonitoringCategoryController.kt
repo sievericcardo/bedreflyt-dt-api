@@ -22,7 +22,7 @@ import java.util.logging.Logger
 import no.uio.bedreflyt.api.types.*
 
 @RestController
-@RequestMapping("/api/fuseki/monitoring-category")
+@RequestMapping("/api/v1/fuseki/monitoring-category")
 class MonitoringCategoryController (
     private val replConfig: REPLConfig,
     private val environmentConfig: EnvironmentConfig,
@@ -46,7 +46,7 @@ class MonitoringCategoryController (
         ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
-    @PostMapping("/create")
+    @PostMapping
     fun addRoomCategory(@SwaggerRequestBody(description = "Monitory category to add") @RequestBody request: MonitoringCategoryRequest) : ResponseEntity<MonitoringCategory> {
         log.info("Adding monitoring category")
 
@@ -66,7 +66,7 @@ class MonitoringCategoryController (
         ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
-    @GetMapping("/retrieve")
+    @GetMapping
     fun getRoomCategories() : ResponseEntity<List<MonitoringCategory>> {
         log.info("Getting rooms")
         val categories = monitoringCategoryService.getAllCategoories() ?: return ResponseEntity.noContent().build()
@@ -81,7 +81,7 @@ class MonitoringCategoryController (
         ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
-    @PatchMapping("/update")
+    @PatchMapping
     fun updateRoomCategory(@SwaggerRequestBody(description = "Request to update a room") @RequestBody request: UpdateMonitoringCategoryRequest) : ResponseEntity<MonitoringCategory> {
         log.info("Updating monitoring category ${request.category}")
 
@@ -105,7 +105,7 @@ class MonitoringCategoryController (
         ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
-    @DeleteMapping("/delete")
+    @DeleteMapping
     fun deleteRoomCategory(@SwaggerRequestBody(description = "Request to delete a monitoring category") @RequestBody request: DeleteMonitoringCategoryRequest) : ResponseEntity<String> {
         log.info("Deleting monitoring category ${request.category}")
 

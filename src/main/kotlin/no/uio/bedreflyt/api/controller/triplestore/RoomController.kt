@@ -24,7 +24,7 @@ import no.uio.bedreflyt.api.types.UpdateRoomRequest
 import no.uio.bedreflyt.api.types.DeleteRoomRequest
 
 @RestController
-@RequestMapping("/api/fuseki/rooms")
+@RequestMapping("/api/v1/fuseki/rooms")
 class RoomController (
     private val replConfig: REPLConfig,
     private val environmentConfig: EnvironmentConfig,
@@ -51,7 +51,7 @@ class RoomController (
         ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
-    @PostMapping("/create")
+    @PostMapping
     fun createRoom (@SwaggerRequestBody(description = "Request to add a new room") @RequestBody roomRequest: RoomRequest) : ResponseEntity<TreatmentRoom> {
         log.info("Creating room $roomRequest")
 
@@ -75,7 +75,7 @@ class RoomController (
         ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
-    @GetMapping("/retrieve")
+    @GetMapping
     fun retrieveRooms() : ResponseEntity<List<Room>> {
         log.info("Retrieving rooms")
 
@@ -92,7 +92,7 @@ class RoomController (
         ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
-    @GetMapping("/retrieve/{roomNumber}/{wardName}/{hospitalCode}")
+    @GetMapping("/{roomNumber}/{wardName}/{hospitalCode}")
     fun retrieveRoom(@SwaggerRequestBody(description = "Request to retrieve a room by number, ward and hospital") @RequestBody roomRequest: RoomRequest) : ResponseEntity<TreatmentRoom> {
         log.info("Retrieving room $roomRequest")
 
@@ -109,7 +109,7 @@ class RoomController (
         ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
-    @PatchMapping("/update")
+    @PatchMapping
     fun updateRoom(@SwaggerRequestBody(description = "Request to update a room") @RequestBody updateRoomRequest: UpdateRoomRequest) : ResponseEntity<TreatmentRoom> {
         log.info("Updating room $updateRoomRequest")
 
@@ -137,7 +137,7 @@ class RoomController (
         ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
-    @DeleteMapping("/delete")
+    @DeleteMapping
     fun deleteRoom(@SwaggerRequestBody(description = "Request to delete a room") @RequestBody deleteRoomRequest: DeleteRoomRequest) : ResponseEntity<TreatmentRoom> {
         log.info("Deleting room $deleteRoomRequest")
 

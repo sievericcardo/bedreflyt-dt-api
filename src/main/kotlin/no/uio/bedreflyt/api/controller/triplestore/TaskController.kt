@@ -24,7 +24,7 @@ import no.uio.bedreflyt.api.types.UpdateTaskRequest
 import no.uio.bedreflyt.api.types.DeleteTaskRequest
 
 @RestController
-@RequestMapping("/api/fuseki/tasks")
+@RequestMapping("/api/v1/fuseki/tasks")
 class TaskController (
     private val replConfig: REPLConfig,
     private val environmentConfig: EnvironmentConfig,
@@ -48,7 +48,7 @@ class TaskController (
         ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
-    @PostMapping("/create")
+    @PostMapping
     fun createTask(@SwaggerRequestBody(description = "Request to add a new task") @RequestBody taskRequest: TaskRequest) : ResponseEntity<Task> {
         log.info("Creating task $taskRequest")
 
@@ -67,7 +67,7 @@ class TaskController (
         ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
         ApiResponse(responseCode = "404", description = "The resource you were trying to reach is not found")
     ])
-    @GetMapping("/retrieve")
+    @GetMapping
     fun retrieveTasks() : ResponseEntity<List<Task>> {
         log.info("Retrieving tasks")
 
@@ -84,7 +84,7 @@ class TaskController (
         ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
-    @PatchMapping("/update")
+    @PatchMapping
     fun updateTask(@SwaggerRequestBody(description = "Request to update a task") @RequestBody updateTaskRequest: UpdateTaskRequest) : ResponseEntity<Task> {
         log.info("Updating task $updateTaskRequest")
 
@@ -105,7 +105,7 @@ class TaskController (
         ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
-    @DeleteMapping("/delete")
+    @DeleteMapping
     fun deleteTask(@SwaggerRequestBody(description = "Request to delete a task") @RequestBody taskRequest: DeleteTaskRequest) : ResponseEntity<String> {
         log.info("Deleting task $taskRequest")
 

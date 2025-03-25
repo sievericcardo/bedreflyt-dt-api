@@ -23,7 +23,7 @@ import java.util.logging.Logger
 import io.swagger.v3.oas.annotations.parameters.RequestBody as SwaggerRequestBody
 
 @RestController
-@RequestMapping("/api/fuseki/floors")
+@RequestMapping("/api/v1/fuseki/floors")
 class FloorController (
     private val replConfig: REPLConfig,
     private val environmentConfig: EnvironmentConfig,
@@ -41,7 +41,7 @@ class FloorController (
         ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
-    @PostMapping("/create")
+    @PostMapping
     fun createFloor(@SwaggerRequestBody(description = "Request to add a new floor") @RequestBody floorRequest: FloorRequest) : ResponseEntity<Floor> {
         log.info("Creating floor $floorRequest")
 
@@ -61,7 +61,7 @@ class FloorController (
         ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
-    @GetMapping("/retrieve")
+    @GetMapping
     fun retrieveFloors() : ResponseEntity<List<Floor>> {
         log.info("Retrieving floors")
 
@@ -78,7 +78,7 @@ class FloorController (
         ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
-    @GetMapping("/retrieve/{floorNumber}")
+    @GetMapping("/{floorNumber}")
     fun retrieveFloor(@SwaggerRequestBody(description = "Request to retrieve a floor by number") @RequestBody floorRequest: FloorRequest) : ResponseEntity<Floor> {
         log.info("Retrieving floor $floorRequest")
 
@@ -95,7 +95,7 @@ class FloorController (
         ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
-    @PatchMapping("/update")
+    @PatchMapping
     fun updateFloor(@SwaggerRequestBody(description = "Request to update a floor") @RequestBody updateFloorRequest: UpdateFloorRequest) : ResponseEntity<Floor> {
         log.info("Updating floor $updateFloorRequest")
 
@@ -115,7 +115,7 @@ class FloorController (
         ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
-    @DeleteMapping("/delete")
+    @DeleteMapping
     fun deleteFloor(@SwaggerRequestBody(description = "Request to delete a floor") @RequestBody deleteFloorRequest: DeleteFloorRequest) : ResponseEntity<Floor> {
         log.info("Deleting floor $deleteFloorRequest")
 

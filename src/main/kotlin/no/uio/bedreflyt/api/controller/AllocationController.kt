@@ -27,7 +27,7 @@ import java.time.LocalDate
 import java.util.*
 
 @RestController
-@RequestMapping("/api/allocation")
+@RequestMapping("/api/v1/allocation")
 class AllocationController (
     private val databaseService: DatabaseService,
     private val simulator: Simulator,

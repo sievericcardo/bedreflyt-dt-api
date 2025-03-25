@@ -22,7 +22,7 @@ import java.util.logging.Logger
 import io.swagger.v3.oas.annotations.parameters.RequestBody as SwaggerRequestBody
 
 @RestController
-@RequestMapping("/api/fuseki/wards")
+@RequestMapping("/api/v1/fuseki/wards")
 class WardController (
     private val replConfig: REPLConfig,
     private val environmentConfig: EnvironmentConfig,
@@ -43,7 +43,7 @@ class WardController (
         ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
-    @PostMapping("/create")
+    @PostMapping
     fun createWard(@SwaggerRequestBody(description = "Request to add a new ward") @RequestBody wardRequest: WardRequest) : ResponseEntity<Ward> {
         log.info("Creating ward $wardRequest")
 
@@ -65,7 +65,7 @@ class WardController (
         ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
-    @GetMapping("/retrieve")
+    @GetMapping
     fun retrieveWards() : ResponseEntity<List<Ward>> {
         log.info("Retrieving wards")
 
@@ -81,7 +81,7 @@ class WardController (
         ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
-    @GetMapping("/retrieve/{wardName}/{hospitalCode}")
+    @GetMapping("/{wardName}/{hospitalCode}")
     fun retrieveWard(@SwaggerRequestBody(description = "Request to retrieve a ward by name and hospital") @RequestBody wardRequest: WardRequest) : ResponseEntity<Ward> {
         log.info("Retrieving ward $wardRequest")
 
@@ -97,7 +97,7 @@ class WardController (
         ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
-    @PatchMapping("/update")
+    @PatchMapping
     fun updateWard(@SwaggerRequestBody(description = "Request to update a ward") @RequestBody request: UpdateWardRequest) : ResponseEntity<Ward> {
         log.info("Updating ward ${request.wardName}")
 
@@ -121,7 +121,7 @@ class WardController (
         ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
-    @DeleteMapping("/delete")
+    @DeleteMapping
     fun deleteWard(@SwaggerRequestBody(description = "Request to delete a ward") @RequestBody request: DeleteWardRequest) : ResponseEntity<String> {
         log.info("Deleting ward ${request.wardName}")
 

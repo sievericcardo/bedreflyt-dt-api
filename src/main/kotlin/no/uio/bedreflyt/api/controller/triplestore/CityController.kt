@@ -23,7 +23,7 @@ import java.util.logging.Logger
 import io.swagger.v3.oas.annotations.parameters.RequestBody as SwaggerRequestBody
 
 @RestController
-@RequestMapping("/api/fuseki/cities")
+@RequestMapping("/api/v1/fuseki/cities")
 class CityController (
     private val replConfig: REPLConfig,
     private val environmentConfig: EnvironmentConfig,
@@ -41,7 +41,7 @@ class CityController (
         ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
-    @PostMapping("/create")
+    @PostMapping
     fun createCity(@SwaggerRequestBody(description = "Request to add a new city") @RequestBody cityRequest: CityRequest) : ResponseEntity<City> {
         log.info("Creating city $cityRequest")
 
@@ -61,7 +61,7 @@ class CityController (
         ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
-    @GetMapping("/retrieve")
+    @GetMapping
     fun retrieveCities() : ResponseEntity<List<City>> {
         log.info("Retrieving all cities")
 
@@ -78,7 +78,7 @@ class CityController (
         ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
-    @GetMapping("/retrieve/{cityName}")
+    @GetMapping("/{cityName}")
     fun retrieveCityByName(@SwaggerRequestBody(description = "City name") @RequestBody cityName: String) : ResponseEntity<City> {
         log.info("Retrieving city $cityName")
 
