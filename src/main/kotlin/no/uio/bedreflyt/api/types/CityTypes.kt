@@ -5,8 +5,5 @@ data class CityRequest (
 )
 
 data class UpdateCityRequest (
-    val cityName: String,
-    val newCityName: String
+    val newCityName: String?
 )
-
-typealias DeleteCityRequest = CityRequest
