@@ -48,15 +48,13 @@ class TreatmentController (
         log.info("Creating treatment $request")
 
         val diagnosis = diagnosisService.getDiagnosisByName(request.diagnosis) ?: return ResponseEntity.badRequest().build()
-        val firstTask = treatmentService.getTreatmentStep(request.firstStep, request.treatmentName) ?: return ResponseEntity.badRequest().build()
-        val lastTask = treatmentService.getTreatmentStep(request.lastStep, request.treatmentName) ?: return ResponseEntity.badRequest().build()
 
         if (!treatmentService.createTreatment(request)) {
             return ResponseEntity.badRequest().build()
         }
         replConfig.regenerateSingleModel().invoke("treatments")
 
-        return ResponseEntity.ok(Treatment(request.treatmentName, request.treatmentDescription, diagnosis, request.frequency, request.weight, firstTask.task.taskName, lastTask.task.taskName))
+        return ResponseEntity.ok(Treatment(request.treatmentName, request.treatmentDescription, diagnosis, request.frequency, request.weight, request.firstStep, request.lastStep))
     }
 
     @Operation(summary = "Get all treatments")
@@ -119,7 +117,7 @@ class TreatmentController (
     fun deleteTreatment(@ApiParam(value = "Treatment name", required = true) @PathVariable treatmentName: String) : ResponseEntity<String> {
         log.info("Deleting treatment $treatmentName")
 
-        if (treatmentService.getTreatmentStepsByTreatmentName(treatmentName) == null) {
+        if (treatmentService.getTreatmentsByTreatmentName(treatmentName) == null) {
             return ResponseEntity.notFound().build()
         }
         if (!treatmentService.deleteTreatment(treatmentName)) {

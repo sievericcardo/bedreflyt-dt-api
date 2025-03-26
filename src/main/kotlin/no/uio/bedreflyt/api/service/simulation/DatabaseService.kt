@@ -243,7 +243,7 @@ class DatabaseService (
                     treatmentDbUrl,
                     treatmentName,
                     task.taskName + "_" + treatmentName,
-                    taskDependency.previousTask.task.taskName + "_" + treatmentName
+                    it + "_" + treatmentName
                 ) }
             }
         }
