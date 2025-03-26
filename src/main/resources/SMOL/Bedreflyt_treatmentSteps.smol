@@ -5,7 +5,7 @@ class TreatmentStepModel extends BaseModel ()
         PREFIX time: <http://www.w3.org/2006/time#>
         PREFIX pko: <https://w3id.org/pko#>
 
-        SELECT DISTINCT ?treatmentName ?task ?monitoringCategory ?staffLoad ?averageDuration
+        SELECT DISTINCT ?treatmentName ?task ?monitoringCategory ?staffLoad ?averageDuration ?nextTask ?previousTask
         WHERE {
             ?taskDep a :TreatmentStep ;
                 :hasNurseBurden ?staffLoad ;
@@ -15,6 +15,23 @@ class TreatmentStepModel extends BaseModel ()
                 :hasTask ?taskObj .
             ?treatment a pko:Procedure ;
                 :procedureName ?treatmentName .
+
+            OPTIONAL {
+                ?taskDep pko:nextStep ?nextStep .
+                ?nextStep a :TreatmentStep ;
+                    :hasTask ?nextTaskObj .
+                ?nextTaskObj rdf:type <http://purl.org/net/p-plan#Step> ;
+                    :taskName ?nextTask .
+            }
+
+            OPTIONAL {
+                ?taskDep pko:previousStep ?prevStep .
+                ?prevStep a :TreatmentStep ;
+                    :hasTask ?prevTaskObj .
+                ?prevTaskObj rdf:type <http://purl.org/net/p-plan#Step> ;
+                    :taskName ?previousTask .
+            }
+
 
             ?monitoringStatus a :MonitoringCategory ;
                 :monitoringName ?monitoringCode .
@@ -26,8 +43,6 @@ class TreatmentStepModel extends BaseModel ()
             ?task a prog:Task ;
                 prog:Task_taskName ?taskName .
         }");
-
-        print(newTaskDeps);
         
         if newTaskDeps != null then
             print("RECONFIG> Adding new task dependencies...");
@@ -35,16 +50,6 @@ class TreatmentStepModel extends BaseModel ()
             while newTaskDeps != null do
                 TreatmentStep newTaskDep = newTaskDeps.content;
                 List<TreatmentStep> lx = newTaskDeps;
-
-                TreatmentStep previousTask = newTaskDep.getPreviousTask();
-                if previousTask != null then
-                    newTaskDep.previousTask = previousTask;
-                end
-                TreatmentStep nextTask = newTaskDep.getNextTask();
-                if nextTask != null then
-                    newTaskDep.nextTask = nextTask;
-                end
-
                 newTaskDeps = newTaskDeps.next;
                 
                 print("RECONFIG> Adding task dependency " ++ newTaskDep.task.taskName ++ " for treatment " ++ newTaskDep.treatmentName);
@@ -67,12 +72,9 @@ class TreatmentStepModel extends BaseModel ()
         SELECT DISTINCT ?obj {
             ?obj a prog:TreatmentStep ;
                 prog:TreatmentStep_treatmentName ?treatmentName ;
-                prog:TreatmentStep_task ?task ;
-                prog:TreatmentStep_previousTask ?previousTask ;
-                prog:TreatmentStep_nextTask ?nextTask ;
-                prog:TreatmentStep_monitoringCategory ?monitoringCategory ;
-                prog:TreatmentStep_staffLoad ?staffLoad ;
-                prog:TreatmentStep_averageDuration ?averageDuration .
+                prog:TreatmentStep_task ?task .
+            ?task a prog:Task ;
+                prog:Task_taskName ?taskName .
             FILTER NOT EXISTS {
                 ?taskDep a :TreatmentStep ;
                     :hasNurseBurden ?staffLoad ;
@@ -83,8 +85,6 @@ class TreatmentStepModel extends BaseModel ()
                     :procedureName ?treatmentName .
                 ?taskObj rdf:type <http://purl.org/net/p-plan#Step> ;
                     :taskName ?taskName .
-                ?task a prog:Task ;
-                    prog:Task_taskName ?taskName .
             }
         }");
 
@@ -110,35 +110,6 @@ class TreatmentStepModel extends BaseModel ()
     end
 
     override Unit adaptRepair()
-    //     skip;
-    // end
-        List<TreatmentStep> taskDeps = access("
-         SELECT DISTINCT ?obj {
-            ?obj a prog:TreatmentStep .
-        }");
-
-        if taskDeps != null then
-            print("RECONFIG> Repairing task dependencies...");
-            
-            while taskDeps != null do
-                TreatmentStep taskDep = taskDeps.content;
-                List<TreatmentStep> lx = taskDeps;
-
-                TreatmentStep previousTask = taskDep.getPreviousTask();
-                if previousTask != null then
-                    taskDep.previousTask = previousTask;
-                end
-                TreatmentStep nextTask = taskDep.getNextTask();
-                if nextTask != null then
-                    taskDep.nextTask = nextTask;
-                end
-
-                taskDeps = taskDeps.next;
-                
-                print("RECONFIG> Repairing task dependency " ++ taskDep.task.taskName ++ " for treatment " ++ taskDep.treatmentName);
-                destroy(lx);
-            end
-            print("RECONFIG> Task dependencies repaired");
-        end
+        skip;
     end
 end

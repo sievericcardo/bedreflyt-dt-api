@@ -33,87 +33,12 @@ end
 class TreatmentStep extends Twin (
     String treatmentName,
     Task task,
-    TreatmentStep previousTask,
-    TreatmentStep nextTask,
+    String previousTask,
+    String nextTask,
     MonitoringCategory monitoringCategory,
     Double staffLoad,
     Double averageDuration
 )
-    TreatmentStep getPreviousTask()
-        TreatmentStep previousTaskContent = access("
-        PREFIX : <http://www.smolang.org/bedreflyt/>
-        PREFIX time: <http://www.w3.org/2006/time#>
-        PREFIX pko: <https://w3id.org/pko#>
-
-        SELECT DISTINCT ?obj
-        WHERE {
-            ?taskDep a :TreatmentStep ;
-                :stepOfTreatment ?treatment ;
-                :hasTask ?taskObj ;
-                pko:previousStep ?prevStep .
-
-            ?treatment a pko:Procedure ;
-                :procedureName %1 .
-            ?taskObj rdf:type <http://purl.org/net/p-plan#Step> ;
-                :taskName %2 .
-            ?prevStep a :TreatmentStep ;
-                :hasTask ?prevTask .
-            ?prevTask rdf:type <http://purl.org/net/p-plan#Step> ;
-                :taskName ?name .
-            
-            ?obj a prog:TreatmentStep ;
-                prog:TreatmentStep_treatmentName %1 ;
-                prog:TreatmentStep_task ?taskOnt .
-            ?taskOnt a prog:Task ;
-                prog:Task_taskName ?name .
-        }", this.treatmentName, this.task.taskName);
-
-        if previousTaskContent == null then
-            return null;
-        end
-
-        Task previousTask = previousTaskContent.content;
-        destroy(previousTaskContent);
-        return previousTask;
-    end
-
-    TreatmentStep getNextTask()
-        TreatmentStep nextTaskContent = access("
-        PREFIX : <http://www.smolang.org/bedreflyt/>
-        PREFIX time: <http://www.w3.org/2006/time#>
-        PREFIX pko: <https://w3id.org/pko#>
-
-        SELECT DISTINCT ?obj
-        WHERE {
-            ?taskDep a :TreatmentStep ;
-                :stepOfTreatment ?treatment ;
-                :hasTask ?taskObj ;
-                pko:nextStep ?nextStep .
-
-            ?treatment a pko:Procedure ;
-                :procedureName %1 .
-            ?taskObj rdf:type <http://purl.org/net/p-plan#Step> ;
-                :taskName %2 .
-            ?nextStep a :TreatmentStep ;
-                :hasTask ?nextTask .
-            ?nextTask rdf:type <http://purl.org/net/p-plan#Step> ;
-                :taskName ?name .
-            
-            ?obj a prog:TreatmentStep ;
-                prog:TreatmentStep_treatmentName %1 ;
-                prog:TreatmentStep_task ?taskOnt .
-            ?taskOnt a prog:Task ;
-                prog:Task_taskName ?name .
-        }", this.treatmentName, this.task.taskName);
-
-        if nextTaskContent == null then
-            return null;
-        end
-
-        Task nextTask = nextTaskContent.content;
-        destroy(nextTaskContent);
-        return nextTask;
-    end
 end
 
 class Treatment extends Twin (
@@ -122,62 +47,9 @@ class Treatment extends Twin (
     Diagnosis diagnosis,
     Double frequency,
     Double weight,
-    TreatmentStep firstTask,
-    TreatmentStep lastTask
+    String firstTask,
+    String lastTask
 )
-    TreatmentStep getFirstTask()
-        TreatmentStep firstTaskContent = access("
-        PREFIX : <http://www.smolang.org/bedreflyt/>
-        PREFIX pko: <https://w3id.org/pko#>
-
-        SELECT DISTINCT ?obj
-        WHERE {
-            ?treatment a pko:Procedure ;
-                :procedureName %1 .
-            ?treatment pko:hasFirstStep ?firstTask .
-            ?firstTask a :TreatmentStep ;
-                :hasTask ?task .
-            ?task rdf:type <http://purl.org/net/p-plan#Step> ;
-                :taskName ?name .
-
-            ?obj a prog:TreatmentStep ;
-                prog:TreatmentStep_treatmentName %1 ;
-                prog:TreatmentStep_task ?objTask .
-            ?objTask a prog:Task ;
-                prog:Task_taskName ?name .
-        }", this.treatmentName);
-
-        Task firstTask = firstTaskContent.content;
-        destroy(firstTaskContent);
-        return firstTask;
-    end
-
-    TreatmentStep getLastTask()
-        TreatmentStep lastTaskContent = access("
-        PREFIX : <http://www.smolang.org/bedreflyt/>
-        PREFIX pko: <https://w3id.org/pko#>
-
-        SELECT DISTINCT ?obj
-        WHERE {
-            ?treatment a pko:Procedure ;
-                :procedureName %1 .
-            ?treatment :hasFinalStep ?lastTask .
-            ?lastTask a :TreatmentStep ;
-                :hasTask ?task .
-            ?task rdf:type <http://purl.org/net/p-plan#Step> ;
-                :taskName ?name .
-
-            ?obj a prog:TreatmentStep ;
-                prog:TreatmentStep_treatmentName %1 ;
-                prog:TreatmentStep_task ?objTask .
-            ?objTask a prog:Task ;
-                prog:Task_taskName ?name .
-        }", this.treatmentName);
-
-        Task lastTask = lastTaskContent.content;
-        destroy(lastTaskContent);
-        return lastTask;
-    end
 end
 
 class MonitoringCategory extends Twin (
