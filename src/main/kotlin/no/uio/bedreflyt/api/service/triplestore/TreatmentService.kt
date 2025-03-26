@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service
 import org.springframework.cache.annotation.CacheEvict
 import org.springframework.cache.annotation.CachePut
 import org.springframework.cache.annotation.Cacheable
+import java.util.logging.Logger
 import kotlin.random.Random
 
 @Service
@@ -27,6 +28,7 @@ class TreatmentService (
     private val prefix = triplestoreProperties.prefix
     private val ttlPrefix = triplestoreProperties.ttlPrefix
     private val repl = replConfig.repl()
+    private val log: Logger = Logger.getLogger(TreatmentService::class.java.name)
 
     @CachePut("treatments", key = "#request.treatmentName")
     fun createTreatment (request: TreatmentRequest) : Boolean {
@@ -102,9 +104,9 @@ class TreatmentService (
     @Cacheable("treatment-steps")
     fun getTreatmentStep(stepName: String, treatmentName: String): TreatmentStep? {
         val query = """
-        SELECT ?previousTask ?nextTask ?monitoringCategory ?task ?staffLoad ?averageDuration WHERE {
+        SELECT ?previousTask ?nextTask ?monitoringCategory ?staffLoad ?averageDuration WHERE {
             ?step a prog:TreatmentStep ;
-                prog:TreatmentStep_treatmentName $treatmentName ;
+                prog:TreatmentStep_treatmentName "$treatmentName" ;
                 prog:TreatmentStep_task ?taskObj ;
                 prog:TreatmentStep_monitoringCategory ?monitoringCategoryObj ;
                 prog:TreatmentStep_staffLoad ?staffLoad ;
@@ -113,24 +115,26 @@ class TreatmentService (
                 prog:TreatmentStep_nextTask ?nextTaskObj .
                 
             ?taskObj a prog:Task ;
-                prog:Task_taskName $stepName .
+                prog:Task_taskName "$stepName" .
                 
             ?monitoringCategoryObj a prog:MonitoringCategory ;
                 prog:MonitoringCategory_description ?monitoringCategory .
                 
             ?previousTaskObj a prog:TreatmentStep ;
-                prog:TreatmentStep_treatmentName $treatmentName ;
-                prog:TreatmentStep_task ?previousTask .
-            ?previousTask a prog:Task .
+                prog:TreatmentStep_treatmentName "$treatmentName" ;
+                prog:TreatmentStep_task ?previousTaskOnt .
+            ?previousTaskOnt a prog:Task ;
                 prog:Task_taskName ?previousTask .
                 
             ?nextTaskObj a prog:TreatmentStep ;
-                prog:TreatmentStep_treatmentName $treatmentName ;
-                prog:TreatmentStep_task ?nextTask .
-            ?nextTask a prog:Task .
+                prog:TreatmentStep_treatmentName "$treatmentName" ;
+                prog:TreatmentStep_task ?nextTaskOnt .
+            ?nextTaskOnt a prog:Task ;
                 prog:Task_taskName ?nextTask .
         }
     """.trimIndent()
+
+        log.info("Query: $query")
 
         val resultSet: ResultSet = repl.interpreter!!.query(query)!!
         if (!resultSet.hasNext()) {
@@ -140,17 +144,17 @@ class TreatmentService (
         val result = resultSet.next()
         val monitoringCategory = result.get("monitoringCategory").toString()
         val category = monitoringCategoryService.getCategoryByDescription(monitoringCategory) ?: return null
+        val task = taskService.getTaskByTaskName(stepName) ?: return null
 
-        val taskObj = result.get("task").toString()
-        val task = taskService.getTaskByTaskName(taskObj) ?: return null
-
-        val staffLoad = result.get("staffLoad").toString().toDouble()
-        val averageDuration = result.get("averageDuration").toString().toDouble()
+        val staffLoad = result.get("staffLoad").asLiteral().toString().split("^^")[0].toDouble()
+        val averageDuration = result.get("averageDuration").asLiteral().toString().split("^^")[0].toDouble()
         val previousTaskName = result.get("previousTask")?.toString()
         val nextTaskName = result.get("nextTask")?.toString()
 
+        log.info("Previous task: $previousTaskName Next task: $nextTaskName")
+
         val previousTask = previousTaskName?.let { getTreatmentStep(it, treatmentName) }
-        val nextTask = nextTaskName?.let { getTreatmentStep(it, treatmentName) }
+//        val nextTask = nextTaskName?.let { getTreatmentStep(it, treatmentName) }
 
         return TreatmentStep(
             treatmentName = treatmentName,
@@ -159,7 +163,7 @@ class TreatmentService (
             staffLoad = staffLoad,
             averageDuration = averageDuration,
             previousTask = previousTask,
-            nextTask = nextTask
+//            nextTask = nextTask
         )
     }
 
@@ -186,14 +190,14 @@ class TreatmentService (
                 
             ?previousTaskObj a prog:TreatmentStep ;
                 prog:TreatmentStep_treatmentName ?treatmentName ;
-                prog:TreatmentStep_task ?previousTask .
-            ?previousTask a prog:Task .
+                prog:TreatmentStep_task ?previousTaskOnt .
+            ?previousTaskOnt a prog:Task ;
                 prog:Task_taskName ?previousTask .
                 
             ?nextTaskObj a prog:TreatmentStep ;
                 prog:TreatmentStep_treatmentName ?treatmentName ;
-                prog:TreatmentStep_task ?nextTask .
-            ?nextTask a prog:Task .
+                prog:TreatmentStep_task ?nextTaskOnt .
+            ?nextTaskOnt a prog:Task ;
                 prog:Task_taskName ?nextTask .
         }
     """.trimIndent()
@@ -212,13 +216,15 @@ class TreatmentService (
             val taskObj = result.get("task").toString()
             val task = taskService.getTaskByTaskName(taskObj) ?: continue
 
-            val staffLoad = result.get("staffLoad").toString().toDouble()
-            val averageDuration = result.get("averageDuration").toString().toDouble()
+            val staffLoad = result.get("staffLoad").asLiteral().toString().split("^^")[0].toDouble()
+            val averageDuration = result.get("averageDuration").asLiteral().toString().split("^^")[0].toDouble()
             val previousTaskName = result.get("previousTask")?.toString()
             val nextTaskName = result.get("nextTask")?.toString()
 
+            log.info("Previous task: $previousTaskName Next task: $nextTaskName")
+
             val previousTask = previousTaskName?.let { getTreatmentStep(it, treatmentName) }
-            val nextTask = nextTaskName?.let { getTreatmentStep(it, treatmentName) }
+//            val nextTask = nextTaskName?.let { getTreatmentStep(it, treatmentName) }
 
             steps.add(
                 TreatmentStep(
@@ -228,7 +234,7 @@ class TreatmentService (
                     staffLoad = staffLoad,
                     averageDuration = averageDuration,
                     previousTask = previousTask,
-                    nextTask = nextTask
+//                    nextTask = nextTask
                 )
             )
         }
@@ -239,11 +245,12 @@ class TreatmentService (
     @Cacheable("treatment-steps", key = "#treatmentName")
     fun getTreatmentStepsByTreatmentName(treatmentName: String) : List<TreatmentStep>? {
         val steps = mutableListOf<TreatmentStep>()
+        val processedSteps = mutableSetOf<String>()
 
         val query = """
         SELECT DISTINCT ?previousTask ?nextTask ?monitoringCategory ?task ?staffLoad ?averageDuration WHERE {
             ?step a prog:TreatmentStep ;
-                prog:TreatmentStep_treatmentName $treatmentName ;
+                prog:TreatmentStep_treatmentName "$treatmentName" ;
                 prog:TreatmentStep_task ?taskObj ;
                 prog:TreatmentStep_monitoringCategory ?monitoringCategoryObj ;
                 prog:TreatmentStep_staffLoad ?staffLoad ;
@@ -258,15 +265,15 @@ class TreatmentService (
                 prog:MonitoringCategory_description ?monitoringCategory .
                 
             ?previousTaskObj a prog:TreatmentStep ;
-                prog:TreatmentStep_treatmentName $treatmentName ;
-                prog:TreatmentStep_task ?previousTask .
-            ?previousTask a prog:Task .
+                prog:TreatmentStep_treatmentName "$treatmentName" ;
+                prog:TreatmentStep_task ?previousTaskOnt .
+            ?previousTaskOnt a prog:Task ;
                 prog:Task_taskName ?previousTask .
                 
             ?nextTaskObj a prog:TreatmentStep ;
-                prog:TreatmentStep_treatmentName $treatmentName ;
-                prog:TreatmentStep_task ?nextTask .
-            ?nextTask a prog:Task .
+                prog:TreatmentStep_treatmentName "$treatmentName" ;
+                prog:TreatmentStep_task ?nextTaskOnt .
+            ?nextTaskOnt a prog:Task ;
                 prog:Task_taskName ?nextTask .
         }
     """.trimIndent()
@@ -278,19 +285,26 @@ class TreatmentService (
 
         while (resultSet.hasNext()) {
             val result = resultSet.next()
+            val taskObj = result.get("task").toString()
+
+            if (processedSteps.contains(taskObj)) {
+                continue
+            }
+
+            processedSteps.add(taskObj)
+
             val monitoringCategory = result.get("monitoringCategory").toString()
             val category = monitoringCategoryService.getCategoryByDescription(monitoringCategory) ?: continue
 
-            val taskObj = result.get("task").toString()
             val task = taskService.getTaskByTaskName(taskObj) ?: continue
 
-            val staffLoad = result.get("staffLoad").toString().toDouble()
-            val averageDuration = result.get("averageDuration").toString().toDouble()
+            val staffLoad = result.get("staffLoad").asLiteral().toString().split("^^")[0].toDouble()
+            val averageDuration = result.get("averageDuration").asLiteral().toString().split("^^")[0].toDouble()
             val previousTaskName = result.get("previousTask")?.toString()
             val nextTaskName = result.get("nextTask")?.toString()
 
             val previousTask = previousTaskName?.let { getTreatmentStep(it, treatmentName) }
-            val nextTask = nextTaskName?.let { getTreatmentStep(it, treatmentName) }
+//            val nextTask = nextTaskName?.let { getTreatmentStep(it, treatmentName) }
 
             steps.add(
                 TreatmentStep(
@@ -300,7 +314,7 @@ class TreatmentService (
                     staffLoad = staffLoad,
                     averageDuration = averageDuration,
                     previousTask = previousTask,
-                    nextTask = nextTask
+//                    nextTask = nextTask
                 )
             )
         }
@@ -313,7 +327,7 @@ class TreatmentService (
         val treatments = mutableListOf<Pair<Treatment, List<TreatmentStep>>>()
 
         val query = """            
-        SELECT DISTINCT ?treatmentName ?diagnosis ?frequency ?weight ?firstTask ?lastTask WHERE {
+        SELECT DISTINCT ?treatmentName ?diagnosis ?frequency ?weight ?firstTaskName ?lastTaskName WHERE {
             ?treatment a prog:Treatment ;
                 prog:Treatment_firstTask ?firstTask ;
                 prog:Treatment_lastTask ?lastTask ;
@@ -321,6 +335,21 @@ class TreatmentService (
                 prog:Treatment_diagnosis ?diagnosisObj ;
                 prog:Treatment_frequency ?frequency ;
                 prog:Treatment_weight ?weight .
+                
+           ?diagnosisObj a prog:Diagnosis ;
+                prog:Diagnosis_diagnosisCode ?diagnosis .
+                
+           ?firstTask a prog:TreatmentStep ;
+                prog:TreatmentStep_treatmentName ?treatmentName ;
+                prog:TreatmentStep_task ?firstTaskObj .
+           ?firstTaskObj a prog:Task ;
+                prog:Task_taskName ?firstTaskName .
+                
+           ?lastTask a prog:TreatmentStep ;
+                prog:TreatmentStep_treatmentName ?treatmentName ;
+                prog:TreatmentStep_task ?lastTaskObj .
+           ?lastTaskObj a prog:Task ;
+                prog:Task_taskName ?lastTaskName .
         }
     """.trimIndent()
 
@@ -335,13 +364,10 @@ class TreatmentService (
             val diagnosis = result.get("diagnosis").toString()
             val diagnosisObj = diagnosisService.getDiagnosisByName(diagnosis) ?: continue
 
-            val frequency = result.get("frequency").toString().toDouble()
-            val weight = result.get("weight").toString().toDouble()
-            val firstTaskName = result.get("firstTask").toString()
-            val lastTaskName = result.get("lastTask").toString()
-
-            val firstTask = getTreatmentStep(firstTaskName, treatmentName) ?: continue
-            val lastTask = getTreatmentStep(lastTaskName, treatmentName) ?: continue
+            val frequency = result.get("frequency").asLiteral().toString().split("^^")[0].toDouble()
+            val weight = result.get("weight").asLiteral().toString().split("^^")[0].toDouble()
+            val firstTaskName = result.get("firstTaskName").toString()
+            val lastTaskName = result.get("lastTaskName").toString()
 
             val treatment = Treatment(
                 treatmentName = treatmentName,
@@ -349,29 +375,32 @@ class TreatmentService (
                 diagnosis = diagnosisObj,
                 frequency = frequency,
                 weight = weight,
-                firstTask = firstTask,
-                lastTask = lastTask
+                firstTaskName = firstTaskName,
+                lastTaskName = lastTaskName
             )
 
-            val steps = mutableListOf<TreatmentStep>()
-            var currentStep: TreatmentStep? = firstTask
-            while (currentStep != null) {
-                steps.add(currentStep)
-                currentStep = currentStep.nextTask
-            }
+//            val steps = mutableListOf<TreatmentStep>()
+//            var currentStep: TreatmentStep? = firstTask
+//            while (currentStep != null) {
+//                steps.add(currentStep)
+//                currentStep = currentStep.nextTask
+//            }
+//            treatments.add(Pair(treatment, steps))
+//        }
+            val steps = getTreatmentStepsByTreatmentName(treatmentName)!!
             treatments.add(Pair(treatment, steps))
         }
 
         return treatments
     }
 
-    fun getTreatmentsByTreamentName(treamentName: String) : Pair<Treatment, List<TreatmentStep>>? {
+    fun getTreatmentsByTreatmentName(treatmentName: String) : Pair<Treatment, List<TreatmentStep>>? {
         val query = """
         SELECT DISTINCT ?diagnosis ?frequency ?weight ?firstTask ?lastTask WHERE {
             ?treatment a prog:Treatment ;
                 prog:Treatment_firstTask ?firstTask ;
                 prog:Treatment_lastTask ?lastTask ;
-                prog:Treatment_treatmentName $treamentName ;
+                prog:Treatment_treatmentName $treatmentName ;
                 prog:Treatment_diagnosis ?diagnosisObj ;
                 prog:Treatment_frequency ?frequency ;
                 prog:Treatment_weight ?weight .
@@ -387,30 +416,31 @@ class TreatmentService (
         val diagnosis = result.get("diagnosis").toString()
         val diagnosisObj = diagnosisService.getDiagnosisByName(diagnosis) ?: return null
 
-        val frequency = result.get("frequency").toString().toDouble()
-        val weight = result.get("weight").toString().toDouble()
+        val frequency = result.get("frequency").asLiteral().toString().split("^^")[0].toDouble()
+        val weight = result.get("weight").asLiteral().toString().split("^^")[0].toDouble()
         val firstTaskName = result.get("firstTask").toString()
         val lastTaskName = result.get("lastTask").toString()
 
-        val firstTask = getTreatmentStep(firstTaskName, treamentName) ?: return null
-        val lastTask = getTreatmentStep(lastTaskName, treamentName) ?: return null
+//        val firstTask = getTreatmentStep(firstTaskName, treatmentName) ?: return null
+//        val lastTask = getTreatmentStep(lastTaskName, treatmentName) ?: return null
 
         val treatment = Treatment(
-            treatmentName = treamentName,
+            treatmentName = treatmentName,
             treatmentDescription = null,
             diagnosis = diagnosisObj,
             frequency = frequency,
             weight = weight,
-            firstTask = firstTask,
-            lastTask = lastTask
+            firstTaskName = firstTaskName,
+            lastTaskName = lastTaskName
         )
 
-        val steps = mutableListOf<TreatmentStep>()
-        var currentStep: TreatmentStep? = firstTask
-        while (currentStep != null) {
-            steps.add(currentStep)
-            currentStep = currentStep.nextTask
-        }
+//        val steps = mutableListOf<TreatmentStep>()
+//        var currentStep: TreatmentStep? = firstTask
+//        while (currentStep != null) {
+//            steps.add(currentStep)
+//            currentStep = currentStep.nextTask
+//        }
+        val steps = getTreatmentStepsByTreatmentName(treatmentName)!!
 
         return Pair(treatment, steps)
     }
@@ -439,13 +469,13 @@ class TreatmentService (
         while (resultSet.hasNext()) {
             val result = resultSet.next()
             val treatmentName = result.get("treatmentName").toString()
-            val frequency = result.get("frequency").toString().toDouble()
-            val weight = result.get("weight").toString().toDouble()
+            val frequency = result.get("frequency").asLiteral().toString().split("^^")[0].toDouble()
+            val weight = result.get("weight").asLiteral().toString().split("^^")[0].toDouble()
             val firstTaskName = result.get("firstTask").toString()
             val lastTaskName = result.get("lastTask").toString()
 
-            val firstTask = getTreatmentStep(firstTaskName, treatmentName) ?: continue
-            val lastTask = getTreatmentStep(lastTaskName, treatmentName) ?: continue
+//            val firstTask = getTreatmentStep(firstTaskName, treatmentName) ?: continue
+//            val lastTask = getTreatmentStep(lastTaskName, treatmentName) ?: continue
 
             val treatment = Treatment(
                 treatmentName = treatmentName,
@@ -453,8 +483,8 @@ class TreatmentService (
                 diagnosis = diagnosisService.getDiagnosisByName(diagnosisName) ?: continue,
                 frequency = frequency,
                 weight = weight,
-                firstTask = firstTask,
-                lastTask = lastTask
+                firstTaskName = firstTaskName,
+                lastTaskName = lastTaskName
             )
 
             treatments.add(treatment)
@@ -504,20 +534,20 @@ class TreatmentService (
     }
 
     @CacheEvict(value = ["treatments"], key = "#tratmentName")
-    fun deleteTreatment(treamentName: String) : Boolean {
-        val name = treamentName.split(" ").joinToString("")
+    fun deleteTreatment(treatmentName: String) : Boolean {
+        val name = treatmentName.split(" ").joinToString("")
         val query = """
             PREFIX bedreflyt: <http://www.smolang.org/bedreflyt/>
             
             DELETE {
                 bedreflyt:$name ?p ?o .
                 ?treatment a bedreflyt:TreatmentStep ;
-                    bedreflyt:stepOfTreament bedreflyt:$name .
+                    bedreflyt:stepOfTreatment bedreflyt:$name .
             }
             WHERE {
                 bedreflyt:$name ?p ?o .
                 ?treatment a bedreflyt:TreatmentStep ;
-                    bedreflyt:stepOfTreament bedreflyt:$name .
+                    bedreflyt:stepOfTreatment bedreflyt:$name .
             }
         """.trimIndent()
 

@@ -61,14 +61,12 @@ class TreatmentStep extends Twin (
             ?prevTask rdf:type <http://purl.org/net/p-plan#Step> ;
                 :taskName ?name .
             
-            ?taskObj a prog:Task ;
-                prog:Task_taskName ?name .
             ?obj a prog:TreatmentStep ;
                 prog:TreatmentStep_treatmentName %1 ;
-                prog:TreatmentStep_task ?taskObj .
+                prog:TreatmentStep_task ?taskOnt .
+            ?taskOnt a prog:Task ;
+                prog:Task_taskName ?name .
         }", this.treatmentName, this.task.taskName);
-
-        print(previousTaskContent);
 
         if previousTaskContent == null then
             return null;
@@ -101,11 +99,11 @@ class TreatmentStep extends Twin (
             ?nextTask rdf:type <http://purl.org/net/p-plan#Step> ;
                 :taskName ?name .
             
-            ?taskObj a prog:Task ;
-                prog:Task_taskName ?name .
             ?obj a prog:TreatmentStep ;
                 prog:TreatmentStep_treatmentName %1 ;
-                prog:TreatmentStep_task ?taskObj .
+                prog:TreatmentStep_task ?taskOnt .
+            ?taskOnt a prog:Task ;
+                prog:Task_taskName ?name .
         }", this.treatmentName, this.task.taskName);
 
         if nextTaskContent == null then
@@ -142,11 +140,11 @@ class Treatment extends Twin (
             ?task rdf:type <http://purl.org/net/p-plan#Step> ;
                 :taskName ?name .
 
-            ?objTask a prog:Task ;
-                prog:Task_taskName ?name .
             ?obj a prog:TreatmentStep ;
                 prog:TreatmentStep_treatmentName %1 ;
                 prog:TreatmentStep_task ?objTask .
+            ?objTask a prog:Task ;
+                prog:Task_taskName ?name .
         }", this.treatmentName);
 
         Task firstTask = firstTaskContent.content;
@@ -169,11 +167,11 @@ class Treatment extends Twin (
             ?task rdf:type <http://purl.org/net/p-plan#Step> ;
                 :taskName ?name .
 
-            ?objTask a prog:Task ;
-                prog:Task_taskName ?name .
             ?obj a prog:TreatmentStep ;
                 prog:TreatmentStep_treatmentName %1 ;
                 prog:TreatmentStep_task ?objTask .
+            ?objTask a prog:Task ;
+                prog:Task_taskName ?name .
         }", this.treatmentName);
 
         Task lastTask = lastTaskContent.content;

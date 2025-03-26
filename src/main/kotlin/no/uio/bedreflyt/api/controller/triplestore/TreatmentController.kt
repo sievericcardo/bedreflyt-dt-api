@@ -56,7 +56,7 @@ class TreatmentController (
         }
         replConfig.regenerateSingleModel().invoke("treatments")
 
-        return ResponseEntity.ok(Treatment(request.treatmentName, request.treatmentDescription, diagnosis, request.frequency, request.weight, firstTask, lastTask))
+        return ResponseEntity.ok(Treatment(request.treatmentName, request.treatmentDescription, diagnosis, request.frequency, request.weight, firstTask.task.taskName, lastTask.task.taskName))
     }
 
     @Operation(summary = "Get all treatments")
@@ -87,7 +87,7 @@ class TreatmentController (
     fun getTreatment(@ApiParam(value = "Treatment name", required = true) @PathVariable treatmentName: String) : ResponseEntity<Treatment> {
         log.info("Getting treatment $treatmentName")
 
-        val treatment = treatmentService.getTreatmentsByTreamentName(treatmentName) ?: return ResponseEntity.badRequest().build()
+        val treatment = treatmentService.getTreatmentsByTreatmentName(treatmentName) ?: return ResponseEntity.badRequest().build()
         return ResponseEntity.ok(treatment.first)
     }
 

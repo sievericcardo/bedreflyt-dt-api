@@ -6,6 +6,6 @@ class Treatment (
     val diagnosis: Diagnosis,
     val frequency: Double,
     val weight: Double,
-    val firstTask: TreatmentStep,
-    val lastTask: TreatmentStep
+    val firstTaskName: String,
+    val lastTaskName: String
 )

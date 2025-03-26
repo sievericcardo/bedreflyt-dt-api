@@ -31,6 +31,11 @@ class TreatmentModel extends BaseModel()
                 newTreatments = newTreatments.next;
 
                 print("RECONFIG> Adding treatment " ++ newTreatment.treatmentName);
+                print("          Frequency: " ++ doubleToString(newTreatment.frequency));
+                print("          Weight: " ++ doubleToString(newTreatment.weight));
+                print("          Diagnosis: " ++ newTreatment.diagnosis.diagnosisCode);
+                print("          First task: " ++ newTreatment.firstTask.task.taskName);
+                print("          Last task: " ++ newTreatment.lastTask.task.taskName);
                 destroy(lx);
             end
             print("RECONFIG> New treatments added");
