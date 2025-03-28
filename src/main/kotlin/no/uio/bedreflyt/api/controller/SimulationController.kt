@@ -6,10 +6,8 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses
 import jakarta.validation.Valid
 import no.uio.bedreflyt.api.model.live.Patient
 import no.uio.bedreflyt.api.model.live.PatientAllocation
-import no.uio.bedreflyt.api.service.live.PatientAllocationService
-import no.uio.bedreflyt.api.service.live.PatientService
 import no.uio.bedreflyt.api.service.simulation.DatabaseService
-import no.uio.bedreflyt.api.service.triplestore.HospitalService
+import no.uio.bedreflyt.api.service.triplestore.RoomService
 import no.uio.bedreflyt.api.service.triplestore.WardService
 import no.uio.bedreflyt.api.types.*
 import no.uio.bedreflyt.api.utils.Simulator
@@ -27,10 +25,7 @@ import kotlin.random.Random
 class SimulationController(
     private val databaseService: DatabaseService,
     private val simulator: Simulator,
-    private val patientAllocationService: PatientAllocationService,
-    private val patientService: PatientService,
-    private val wardService: WardService,
-    private val hospitalService: HospitalService
+    private val wardService: WardService
 ) {
 
     private val log: Logger = Logger.getLogger(SimulationController::class.java.name)

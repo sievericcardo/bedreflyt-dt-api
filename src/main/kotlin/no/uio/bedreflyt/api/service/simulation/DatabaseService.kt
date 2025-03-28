@@ -100,7 +100,7 @@ class DatabaseService (
 
                 scenarioRequest.diagnosis?.let { diagnosis ->
                     try {
-                        val treatment = diagnosis + "_" + treatmentService.getTreatmentByDiagnosisAndMode(diagnosis, mode)
+                        val treatment = treatmentService.getTreatmentByDiagnosisAndMode(diagnosis, mode).treatmentName
                         insertScenario(
                             scenarioDbUrl,
                             scenarioRequest.batch,
@@ -220,16 +220,6 @@ class DatabaseService (
         treatments.forEach { treatment ->
             val taskDependencies = treatment.second
 
-            // Insert the arrivals
-//            val arrival: Task = taskService.getTaskByTaskName("arrival")!!
-//            val appendName = treatment.diagnosis + "_" + treatment.treatmentId
-//            insertTask(
-//                treatmentDbUrl,
-//                arrival.taskName + "_" + appendName,
-//                arrival.bed,
-//                arrival.averageDuration.toInt()
-//            )
-
             taskDependencies.forEach { taskDependency ->
                 val treatmentName = taskDependency.treatmentName
                 val task = taskService.getTaskByTaskName(taskDependency.task.taskName)
@@ -240,7 +230,7 @@ class DatabaseService (
                     taskDependency.monitoringCategory.category,
                     taskDependency.averageDuration.toInt()
                 )
-                taskDependency.previousTask?.let { insertTaskDependency(
+                taskDependency.previousTask?.takeIf { it.isNotEmpty() }?.let  { insertTaskDependency(
                     treatmentDbUrl,
                     treatmentName,
                     task.taskName + "_" + treatmentName,

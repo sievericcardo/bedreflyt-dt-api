@@ -178,7 +178,7 @@ class RoomService (
     fun getRoomsByWardHospital(wardName: String, hospitalCode: String) : List<TreatmentRoom>? {
         val rooms = mutableListOf<TreatmentRoom>()
         val query = """
-            SELECT DISTINCT ?capacity ?category WHERE {
+            SELECT DISTINCT ?roomNumber ?capacity ?category WHERE {
                 ?obj a prog:TreatingRoom ;
                     prog:TreatingRoom_roomNumber ?roomNumber ;
                     prog:TreatingRoom_capacity ?capacity ;
