@@ -3,7 +3,9 @@ package no.uio.bedreflyt.api.controller
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.responses.ApiResponses
+import jakarta.validation.Valid
 import no.uio.bedreflyt.api.config.EnvironmentConfig
+import no.uio.bedreflyt.api.config.REPLConfig
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.GetMapping
 import io.swagger.v3.oas.annotations.parameters.RequestBody as SwaggerRequestBody
@@ -18,9 +20,10 @@ import java.net.URI
 import java.util.logging.Logger
 
 @RestController
-@RequestMapping("/api/fuseki")
+@RequestMapping("/api/v1/fuseki")
 class FusekiController (
-    private val environmentConfig: EnvironmentConfig
+    private val environmentConfig: EnvironmentConfig,
+    private val replConfig: REPLConfig
 ) {
 
     private val log : Logger = Logger.getLogger(FusekiController::class.java.name)
@@ -34,7 +37,7 @@ class FusekiController (
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
     @PostMapping("/update")
-    fun updateModel(@SwaggerRequestBody(description = "Query to update the model") @RequestBody query: String) : ResponseEntity<String> {
+    fun updateModel(@SwaggerRequestBody(description = "Query to update the model") @Valid @RequestBody query: String) : ResponseEntity<String> {
         log.info("Updating model")
 
         return ResponseEntity.ok("Model updated")
@@ -96,7 +99,7 @@ class FusekiController (
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
     @PostMapping("/upload")
-    fun uploadModel(@SwaggerRequestBody(description = "Model to upload") @RequestBody modelFile: MultipartFile) : ResponseEntity<String> {
+    fun uploadModel(@SwaggerRequestBody(description = "Model to upload") @Valid @RequestBody modelFile: MultipartFile) : ResponseEntity<String> {
         log.info("Uploading model")
 
         val host = environmentConfig.getOrDefault("TRIPLESTORE_URL", "localhost")
@@ -118,6 +121,14 @@ class FusekiController (
 
         val uploadResponse = makePostRequest(uploadUrl, uploadHeaders, ontologyData)
         println(uploadResponse)
+
+        val repl = replConfig.repl()
+        repl.interpreter!!.tripleManager.regenerateTripleStoreModel()
+        repl.interpreter!!.evalCall(
+            repl.interpreter!!.getObjectNames("AssetModel")[0],
+            "AssetModel",
+            "reconfigure"
+        )
 
         val path = "bedreflyt.ttl"
         modelFile.transferTo(File(path))

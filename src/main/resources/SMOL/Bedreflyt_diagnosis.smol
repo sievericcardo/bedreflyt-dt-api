@@ -1,14 +1,14 @@
-class DiagnosisModel extends KindModel()
+class DiagnosisModel extends BaseModel()
 
     override Unit adaptAddition()
         List<Diagnosis> newDiagnoses = construct("
-            PREFIX ast: <http://www.smolang.org/bedreflyt#>
-            SELECT DISTINCT ?diagnosisName {
+            PREFIX ast: <http://www.smolang.org/bedreflyt/>
+            SELECT DISTINCT ?diagnosisCode {
                 ?x a ast:Diagnosis ;
-                    ast:diagnosisName ?diagnosisName .
+                    ast:diagnosisCode ?diagnosisCode .
                 FILTER NOT EXISTS {
                     ?y a prog:Diagnosis ;
-                        prog:Diagnosis_diagnosisName ?diagnosisName .
+                        prog:Diagnosis_diagnosisCode ?diagnosisCode .
                 }
             }");
 
@@ -19,8 +19,9 @@ class DiagnosisModel extends KindModel()
                 Diagnosis newDiagnosis = newDiagnoses.content;
                 List<Diagnosis> lx = newDiagnoses;
                 newDiagnoses = newDiagnoses.next;
+
                 print("RECONFIG> New diagnosis detected: ");
-                print("          Diagnosis Name: " ++ newDiagnosis.diagnosisName);
+                print("          Diagnosis Code: " ++ newDiagnosis.diagnosisCode);
 
                 destroy(lx);
             end
@@ -31,13 +32,13 @@ class DiagnosisModel extends KindModel()
 
     override Unit adaptRemoval()
         List<Diagnosis> wrongDiagnoses = access("
-            PREFIX ast: <http://www.smolang.org/bedreflyt#>
+            PREFIX ast: <http://www.smolang.org/bedreflyt/>
             SELECT DISTINCT ?obj {
                 ?obj a prog:Diagnosis ;
-                     prog:Diagnosis_diagnosisName ?diagnosisName.
+                     prog:Diagnosis_diagnosisCode ?diagnosisCode.
                 FILTER NOT EXISTS {
                     ?y a ast:Diagnosis ;
-                       ast:diagnosisName ?diagnosisName.
+                       ast:diagnosisCode ?diagnosisCode.
                 }
             }");
 
@@ -49,17 +50,17 @@ class DiagnosisModel extends KindModel()
                 wrongDiagnoses = wrongDiagnoses.next;
 
                 print("RECONFIG> Misconfigured diagnosis to remove: ");
-                print("          Diagnosis Name: " ++ wrongDiagnosis.diagnosisName);
+                print("          Diagnosis Code: " ++ wrongDiagnosis.diagnosisCode);
 
                 destroy(wrongDiagnosis);
                 destroy(lx);
             end
-
-            destroy(wrongDiagnoses);
 
             print("RECONFIG> Diagnosis(es) removed");
         end
     end
 
     override Unit adaptDefect() skip; end
+
+    override Unit adaptRepair() skip; end
 end

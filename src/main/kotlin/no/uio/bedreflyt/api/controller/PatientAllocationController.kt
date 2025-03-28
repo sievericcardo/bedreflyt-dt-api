@@ -1,15 +1,16 @@
 package no.uio.bedreflyt.api.controller
 
+import io.swagger.annotations.ApiParam
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.responses.ApiResponses
+import jakarta.validation.Valid
 import no.uio.bedreflyt.api.model.live.PatientAllocation
 import io.swagger.v3.oas.annotations.parameters.RequestBody as SwaggerRequestBody
 import no.uio.bedreflyt.api.service.live.PatientAllocationService
 import no.uio.bedreflyt.api.service.live.PatientService
 import no.uio.bedreflyt.api.types.PatientAllocationRequest
 import no.uio.bedreflyt.api.types.UpdatePatientAllocationRequest
-import no.uio.bedreflyt.api.types.DeletePatientAllocationRequest
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
 import org.springframework.web.bind.annotation.RequestMapping
@@ -17,7 +18,7 @@ import org.springframework.web.bind.annotation.RestController
 import java.util.logging.Logger
 
 @RestController
-@RequestMapping("/api/patient-allocation")
+@RequestMapping("/api/v1/patient-allocations")
 class PatientAllocationController (
     private val patientService : PatientService,
     private val patientAllocationService : PatientAllocationService
@@ -33,22 +34,22 @@ class PatientAllocationController (
         ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
-    @PostMapping("/create")
-    fun createPatientAllocation(@SwaggerRequestBody(description = "Request to add a new patient allocation") @RequestBody patientAllocation: PatientAllocationRequest) : ResponseEntity<String> {
-        log.info("Creating patient allocation $patientAllocation")
+    @PostMapping(produces = ["application/json"])
+    fun createPatientAllocation(@SwaggerRequestBody(description = "Request to add a new patient allocation") @Valid @RequestBody request: PatientAllocationRequest) : ResponseEntity<String> {
+        log.info("Creating patient allocation $request")
 
-        val patient = patientService.findByPatientId(patientAllocation.patientId) ?: return ResponseEntity.badRequest().body("Patient not found")
+        val patient = patientService.findByPatientId(request.patientId) ?: return ResponseEntity.badRequest().body("Patient not found")
         val patientAllocation = PatientAllocation(
             patientId = patient,
-            acute = patientAllocation.acute,
-            diagnosisCode = patientAllocation.diagnosisCode,
-            diagnosisName = patientAllocation.diagnosisName,
-            acuteCategory = patientAllocation.acuteCategory ?: 0,
-            careCategory = patientAllocation.careCategory ?: 0,
-            monitoringCategory = patientAllocation.monitoringCategory ?: 0,
-            careId = patientAllocation.careId ?: 0,
-            contagious = patientAllocation.contagious,
-            roomNumber = patientAllocation.roomNumber ?: -1
+            acute = request.acute,
+            diagnosisCode = request.diagnosisCode,
+            diagnosisName = request.diagnosisName,
+            acuteCategory = request.acuteCategory ?: 0,
+            careCategory = request.careCategory ?: 0,
+            monitoringCategory = request.monitoringCategory ?: 0,
+            careId = request.careId ?: 0,
+            contagious = request.contagious,
+            roomNumber = request.roomNumber ?: -1
         )
 
         patientAllocationService.savePatientAllocation(patientAllocation)
@@ -64,7 +65,7 @@ class PatientAllocationController (
         ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
-    @GetMapping("/retrieve")
+    @GetMapping(produces = ["application/json"])
     fun retrievePatientAllocations() : ResponseEntity<List<PatientAllocation>?> {
         log.info("Retrieving all patient allocations")
 
@@ -81,18 +82,36 @@ class PatientAllocationController (
         ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
-    @GetMapping("/get/{patientId}")
-    fun getPatientAllocation(@SwaggerRequestBody(description = "Request to get a patient allocation by patientId") @PathVariable patientId: String) : ResponseEntity<PatientAllocation> {
+    @GetMapping("/{patientId}", produces = ["application/json"])
+    fun getPatientAllocation(@ApiParam(value = "Request to get a patient allocation by patientId", required = true) @Valid @PathVariable patientId: String) : ResponseEntity<PatientAllocation> {
         log.info("Getting patient allocation")
 
         if (patientId.isEmpty()) {
-            return ResponseEntity.badRequest().build()
+            return ResponseEntity.noContent().build()
         }
 
-        val patient = patientService.findByPatientId(patientId) ?: return ResponseEntity.badRequest().build()
+        val patient = patientService.findByPatientId(patientId) ?: return ResponseEntity.notFound().build()
         val patientAllocation = patientAllocationService.findByPatientId(patient)
 
         return ResponseEntity.ok(patientAllocation)
+    }
+
+    @Operation(summary = "Get allocations for a specific ward and hospital")
+    @ApiResponses(value = [
+        ApiResponse(responseCode = "200", description = "Allocations found"),
+        ApiResponse(responseCode = "400", description = "Invalid allocations"),
+        ApiResponse(responseCode = "401", description = "Unauthorized"),
+        ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
+        ApiResponse(responseCode = "500", description = "Internal server error")
+    ])
+    @GetMapping("/{wardName}/{hospitalCode}", produces = ["application/json"])
+    fun getAllocationsForWardAndHospital(@ApiParam(value = "Ward name", required = true) @Valid @PathVariable wardName: String,
+                                         @ApiParam(value = "Hospital code", required = true) @Valid @PathVariable hospitalCode: String) : ResponseEntity<List<PatientAllocation>> {
+        log.info("Getting allocations for ward $wardName and hospital $hospitalCode")
+
+        val allocations = patientAllocationService.findByWardNameAndHospitalCode(wardName, hospitalCode)
+
+        return ResponseEntity.ok(allocations)
     }
 
     @Operation(summary = "Update a patient allocation")
@@ -103,12 +122,13 @@ class PatientAllocationController (
         ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
-    @PutMapping("/update")
-    fun updatePatientAllocation(@SwaggerRequestBody(description = "Request to update a patient allocation") @RequestBody updatedPatientAllocation: UpdatePatientAllocationRequest) : ResponseEntity<String> {
+    @PatchMapping("/{patientId}", produces = ["application/json"])
+    fun updatePatientAllocation(@ApiParam(value = "Patient id to be update") @Valid @PathVariable patientId: String,
+                                @SwaggerRequestBody(description = "Request to update a patient allocation") @Valid @RequestBody updatedPatientAllocation: UpdatePatientAllocationRequest) : ResponseEntity<PatientAllocation> {
         log.info("Updating patient allocation")
 
-        val patient = patientService.findByPatientId(updatedPatientAllocation.patientId) ?: return ResponseEntity.badRequest().body("Patient not found")
-        val currentAllocation = patientAllocationService.findByPatientId(patient) ?: return ResponseEntity.badRequest().body("Patient allocation not found")
+        val patient = patientService.findByPatientId(patientId) ?: return ResponseEntity.notFound().build()
+        val currentAllocation = patientAllocationService.findByPatientId(patient) ?: return ResponseEntity.notFound().build()
         val patientAllocation = PatientAllocation(
             patientId = patient,
             acute = updatedPatientAllocation.newAcute ?: currentAllocation.acute,
@@ -124,7 +144,7 @@ class PatientAllocationController (
 
         patientAllocationService.updatePatientAllocation(patientAllocation)
 
-        return ResponseEntity.ok("Patient allocation updated")
+        return ResponseEntity.ok(patientAllocation)
     }
 
     @Operation(summary = "Delete a patient allocation")
@@ -135,12 +155,12 @@ class PatientAllocationController (
         ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
-    @DeleteMapping("/delete")
-    fun deletePatientAllocation(@SwaggerRequestBody(description = "Request to delete a patient allocation") @RequestBody patientAllocation: DeletePatientAllocationRequest) : ResponseEntity<String> {
+    @DeleteMapping("/{patientId}", produces = ["application/json"])
+    fun deletePatientAllocation(@ApiParam(value = "Patient id to be deleted", required = true) @Valid @PathVariable patientId: String) : ResponseEntity<String> {
         log.info("Deleting patient allocation")
 
-        val patient = patientService.findByPatientId(patientAllocation.patientId) ?: return ResponseEntity.badRequest().body("Patient not found")
-        val allocation = patientAllocationService.findByPatientId(patient) ?: return ResponseEntity.badRequest().body("Patient allocation not found")
+        val patient = patientService.findByPatientId(patientId) ?: return ResponseEntity.notFound().build()
+        val allocation = patientAllocationService.findByPatientId(patient) ?: return ResponseEntity.notFound().build()
         patientAllocationService.deletePatientAllocation(allocation)
 
         return ResponseEntity.ok("Patient allocation deleted")

@@ -1,35 +1,33 @@
 package no.uio.bedreflyt.api.controller.triplestore
 
+import io.swagger.annotations.ApiParam
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.responses.ApiResponses
+import jakarta.validation.Valid
 import no.uio.bedreflyt.api.config.EnvironmentConfig
 import no.uio.bedreflyt.api.config.REPLConfig
 import no.uio.bedreflyt.api.model.triplestore.Room
-import no.uio.bedreflyt.api.service.triplestore.RoomService
-import no.uio.bedreflyt.api.service.triplestore.TriplestoreService
+import no.uio.bedreflyt.api.model.triplestore.TreatmentRoom
+import no.uio.bedreflyt.api.service.triplestore.*
 import org.springframework.http.ResponseEntity
-import org.springframework.web.bind.annotation.DeleteMapping
-import org.springframework.web.bind.annotation.GetMapping
-import org.springframework.web.bind.annotation.PatchMapping
 import io.swagger.v3.oas.annotations.parameters.RequestBody as SwaggerRequestBody
-import org.springframework.web.bind.annotation.PostMapping
-import org.springframework.web.bind.annotation.RequestBody
-import org.springframework.web.bind.annotation.RequestMapping
-import org.springframework.web.bind.annotation.RestController
 import java.io.File
 import java.util.logging.Logger
 import no.uio.bedreflyt.api.types.RoomRequest
 import no.uio.bedreflyt.api.types.UpdateRoomRequest
-import no.uio.bedreflyt.api.types.DeleteRoomRequest
+import org.springframework.web.bind.annotation.*
 
 @RestController
-@RequestMapping("/api/fuseki/room")
+@RequestMapping("/api/v1/fuseki/rooms")
 class RoomController (
     private val replConfig: REPLConfig,
     private val environmentConfig: EnvironmentConfig,
     private val triplestoreService: TriplestoreService,
-    private val roomService: RoomService
+    private val roomService: RoomService,
+    private val wardService: WardService,
+    private val hospitalService: HospitalService,
+    private val monitoringCategoryService: MonitoringCategoryService
 ) {
 
     private val log : Logger = Logger.getLogger(RoomController::class.java.name)
@@ -48,55 +46,56 @@ class RoomController (
         ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
-    @PostMapping("/create")
-    fun addRoom(@SwaggerRequestBody(description = "Room distribution to add") @RequestBody roomDistributionRequest: RoomRequest) : ResponseEntity<String> {
-        log.info("Adding room distribution")
+    @PostMapping(produces= ["application/json"])
+    fun createRoom (@SwaggerRequestBody(description = "Request to add a new room") @Valid @RequestBody roomRequest: RoomRequest) : ResponseEntity<TreatmentRoom> {
+        log.info("Creating room $roomRequest")
 
-        val bathroomInt = if (roomDistributionRequest.bathroom) 1 else 0
-        if (!roomService.createRoom(
-                roomDistributionRequest.roomNumber,
-                roomDistributionRequest.roomNumberModel,
-                roomDistributionRequest.room,
-                roomDistributionRequest.capacity,
-                bathroomInt)) {
-            return ResponseEntity.badRequest().body("Error: the room distribution could not be added.")
+        val ward = wardService.getWardByNameAndHospital(roomRequest.ward, roomRequest.hospital) ?: return ResponseEntity.badRequest().build()
+        val hospital = hospitalService.getHospitalByCode(roomRequest.hospital) ?: return ResponseEntity.badRequest().build()
+        val monitoringCategory = monitoringCategoryService.getCategoryByDescription(roomRequest.categoryDescription) ?: return ResponseEntity.badRequest().build()
+
+        if (!roomService.createRoom(roomRequest)) {
+            return ResponseEntity.badRequest().build()
         }
-        replConfig.regenerateSingleModel().invoke("room distributions")
+        replConfig.regenerateSingleModel().invoke("rooms")
 
-        // Append to the file bedreflyt.ttl
-        val path = "bedreflyt.ttl"
-        val fileContent = File(path).readText(Charsets.UTF_8)
-        val newContent = """
-            $fileContent
-            
-            ###  $ttlPrefix/room${roomDistributionRequest.roomNumber}
-            :room${roomDistributionRequest.roomNumber} rdf:type owl:NamedIndividual ,
-                            :Room ;
-                :roomNumber ${roomDistributionRequest.roomNumber} ;
-                :roomNumberModel ${roomDistributionRequest.roomNumberModel} ;
-                :roomCategory ${roomDistributionRequest.room} ;
-                :capacity ${roomDistributionRequest.capacity} ;
-                :bathroom $bathroomInt .
-        """.trimIndent()
-
-        File(path).writeText(newContent)
-
-        return ResponseEntity.ok("Room distribution added")
+        return ResponseEntity.ok(TreatmentRoom(roomRequest.roomNumber, roomRequest.capacity, ward, hospital, monitoringCategory))
     }
 
-    @Operation(summary = "Get all room distributions")
+    @Operation(summary = "Get all rooms")
     @ApiResponses(value = [
-        ApiResponse(responseCode = "200", description = "Room found"),
+        ApiResponse(responseCode = "200", description = "Rooms retrieved"),
         ApiResponse(responseCode = "400", description = "Invalid request"),
         ApiResponse(responseCode = "401", description = "Unauthorized"),
         ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
-    @GetMapping("/retrieve")
-    fun getRooms() : ResponseEntity<List<Room>> {
-        log.info("Retrieving room distributions")
-        val roomDistributions = roomService.getAllRooms()?: return ResponseEntity.noContent().build()
-        return ResponseEntity.ok(roomDistributions)
+    @GetMapping(produces= ["application/json"])
+    fun retrieveRooms() : ResponseEntity<List<Room>> {
+        log.info("Retrieving rooms")
+
+        val rooms = roomService.getAllRooms() ?: return ResponseEntity.badRequest().build()
+
+        return ResponseEntity.ok(rooms)
+    }
+
+    @Operation(summary = "Get a room by number, ward and hospital")
+    @ApiResponses(value = [
+        ApiResponse(responseCode = "200", description = "Room retrieved"),
+        ApiResponse(responseCode = "400", description = "Invalid request"),
+        ApiResponse(responseCode = "401", description = "Unauthorized"),
+        ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
+        ApiResponse(responseCode = "500", description = "Internal server error")
+    ])
+    @GetMapping("/{roomNumber}/{wardName}/{hospitalCode}", produces= ["application/json"])
+    fun retrieveRoom(@ApiParam(value = "Room number", required = true) @Valid @PathVariable roomNumber: Int,
+                     @ApiParam(value = "Ward name", required = true) @Valid @PathVariable wardName: String,
+                     @ApiParam(value = "Hospital code", required = true) @Valid @PathVariable hospitalCode: String) : ResponseEntity<TreatmentRoom> {
+        log.info("Retrieving room $roomNumber in ward $wardName")
+
+        val room = roomService.getRoomByRoomNumberWardHospital(roomNumber, wardName, hospitalCode) ?: return ResponseEntity.badRequest().build()
+
+        return ResponseEntity.ok(room)
     }
 
     @Operation(summary = "Update a room")
@@ -107,128 +106,27 @@ class RoomController (
         ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
-    @PatchMapping("/update")
-    fun updateRoom(@SwaggerRequestBody(description = "Request to update a room distribution") @RequestBody updateRoomRequest: UpdateRoomRequest) : ResponseEntity<String> {
-        log.info("Updating room ${updateRoomRequest.roomNumber}")
+    @PatchMapping("/{roomNumber}/{wardName}/{hospitalCode}", produces= ["application/json"])
+    fun updateRoom(@ApiParam(value = "Room number", required = true) @Valid @PathVariable roomNumber: Int,
+                   @ApiParam(value = "Ward name", required = true) @Valid @PathVariable wardName: String,
+                   @ApiParam(value = "Hospital code", required = true) @Valid @PathVariable hospitalCode: String,
+                   @SwaggerRequestBody(description = "Request to update a room") @Valid @RequestBody updateRoomRequest: UpdateRoomRequest) : ResponseEntity<TreatmentRoom> {
+        log.info("Updating room $updateRoomRequest")
 
-        val room = roomService.getRoomByRoomNumber(updateRoomRequest.roomNumber) ?: return ResponseEntity.badRequest().body("Error: the room could not be updated.")
-        val oldBath = if (room.bathroom) 1 else 0
-        val newBath = if (updateRoomRequest.newBathroom != null) {
-            if (updateRoomRequest.newBathroom) 1 else 0
-        } else {
-            oldBath
+        val room = roomService.getRoomByRoomNumberWardHospital(roomNumber, wardName, hospitalCode) ?: return ResponseEntity.notFound().build()
+        val capacity = updateRoomRequest.newCapacity ?: room.capacity
+        val ward = updateRoomRequest.newWard ?: room.treatmentWard.wardName
+        val category = updateRoomRequest.newCategoryDescription ?: room.monitoringCategory.description
+
+        val newWard = wardService.getWardByNameAndHospital(ward, room.hospital.hospitalCode) ?: return ResponseEntity.badRequest().build()
+        val newCategory = monitoringCategoryService.getCategoryByDescription(category) ?: return ResponseEntity.badRequest().build()
+
+        if (!roomService.updateRoom(room, capacity, ward, category)) {
+            return ResponseEntity.badRequest().build()
         }
+        replConfig.regenerateSingleModel().invoke("rooms")
 
-        val newRoomNumberModel = updateRoomRequest.newRoomNumberModel ?: room.roomNumberModel
-        val newRoomCategory = updateRoomRequest.newRoom ?: room.roomCategory
-        val newCapacity = updateRoomRequest.newCapacity ?: room.capacity
-
-        if(!roomService.updateRoom(
-                room,
-                newRoomNumberModel,
-                newRoomCategory,
-                newCapacity,
-                newBath)) {
-            return ResponseEntity.badRequest().body("Error: the room distribution could not be updated.")
-        }
-        replConfig.regenerateSingleModel().invoke("room distributions")
-
-        // Append to the file bedreflyt.ttl
-        val path = "bedreflyt.ttl"
-        val oldContent = """
-            ###  $ttlPrefix/room${updateRoomRequest.roomNumber}
-            :room${updateRoomRequest.roomNumber} rdf:type owl:NamedIndividual ,
-                            :Room ;
-                :roomNumber ${room.roomNumber} ;
-                :roomNumberModel ${room.roomNumberModel} ;
-                :roomCategory ${room.roomCategory} ;
-                :capacity ${room.capacity} ;
-                :bathroom $oldBath .
-        """.trimIndent()
-        val newContent = """
-            ###  $ttlPrefix/room${updateRoomRequest.roomNumber}
-            :room${updateRoomRequest.roomNumber} rdf:type owl:NamedIndividual ,
-                            :Room ;
-                :roomNumber ${updateRoomRequest.roomNumber} ;
-                :roomNumberModel $newRoomNumberModel ;
-                :roomCategory $newRoomCategory ;
-                :capacity $newCapacity ;
-                :bathroom $newBath .
-        """.trimIndent()
-
-        triplestoreService.replaceContentIgnoringSpaces(path, oldContent, newContent)
-
-        return ResponseEntity.ok("Room distribution updated")
-    }
-
-    @Operation(summary = "Update multiple room distribution")
-    @ApiResponses(value = [
-        ApiResponse(responseCode = "200", description = "Rooms updated"),
-        ApiResponse(responseCode = "400", description = "Invalid rooms"),
-        ApiResponse(responseCode = "401", description = "Unauthorized"),
-        ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
-        ApiResponse(responseCode = "500", description = "Internal server error")
-    ])
-    @PatchMapping("/update-multi")
-    fun updateMultipleRooms(@SwaggerRequestBody(description = "Request to update a room distribution") @RequestBody updateRoomRequests: List<UpdateRoomRequest>) : ResponseEntity<String> {
-        log.info("Updating ${updateRoomRequests.size} rooms")
-        val rooms = mutableListOf<Room>()
-        updateRoomRequests.forEach { updateRoomRequest ->
-            val room = roomService.getRoomByRoomNumber(updateRoomRequest.roomNumber) ?: return ResponseEntity.badRequest().body("Error: the room ${updateRoomRequest.roomNumber} could not be updated.")
-            rooms.add(room)
-        }
-
-        updateRoomRequests.forEach { updateRoomRequest ->
-            val room = rooms.find { it.roomNumber == updateRoomRequest.roomNumber } ?: return ResponseEntity.badRequest().body("Error: the room could not be updated.")
-            val oldBath = if (room.bathroom) 1 else 0
-            val newBath = if (updateRoomRequest.newBathroom != null) {
-                if (updateRoomRequest.newBathroom) 1 else 0
-            } else {
-                oldBath
-            }
-
-            val newRoomNumberModel = updateRoomRequest.newRoomNumberModel ?: room.roomNumberModel
-            val newRoomCategory = updateRoomRequest.newRoom ?: room.roomCategory
-            val newCapacity = updateRoomRequest.newCapacity ?: room.capacity
-
-            if(!roomService.updateRoom(
-                    room,
-                    newRoomNumberModel,
-                    newRoomCategory,
-                    newCapacity,
-                    newBath)) {
-                return ResponseEntity.badRequest().body("Error: the room distribution could not be updated.")
-            }
-
-            // Append to the file bedreflyt.ttl
-            val path = "bedreflyt.ttl"
-            val oldContent = """
-                ###  $ttlPrefix/room${updateRoomRequest.roomNumber}
-                :room${updateRoomRequest.roomNumber} rdf:type owl:NamedIndividual ,
-                                :Room ;
-                    :roomNumber ${room.roomNumber} ;
-                    :roomNumberModel ${room.roomNumberModel} ;
-                    :roomCategory ${room.roomCategory} ;
-                    :capacity ${room.capacity} ;
-                    :bathroom $oldBath .
-            """.trimIndent()
-            val newContent = """
-                ###  $ttlPrefix/room${updateRoomRequest.roomNumber}
-                :room${updateRoomRequest.roomNumber} rdf:type owl:NamedIndividual ,
-                                :Room ;
-                    :roomNumber ${updateRoomRequest.roomNumber} ;
-                    :roomNumberModel $newRoomNumberModel ;
-                    :roomCategory $newRoomCategory ;
-                    :capacity $newCapacity ;
-                    :bathroom $newBath .
-            """.trimIndent()
-
-            triplestoreService.replaceContentIgnoringSpaces(path, oldContent, newContent)
-        }
-
-        replConfig.regenerateSingleModel().invoke("room distributions")
-
-        return ResponseEntity.ok("Room distribution updated")
+        return ResponseEntity.ok(TreatmentRoom(room.roomNumber,capacity, newWard, room.hospital, newCategory))
     }
 
     @Operation(summary = "Delete a room")
@@ -239,34 +137,19 @@ class RoomController (
         ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
-    @DeleteMapping("/delete")
-    fun deleteRoom(@SwaggerRequestBody(description = "Request to delete a room distribution") @RequestBody roomDeleteRequest: DeleteRoomRequest) : ResponseEntity<String> {
-        log.info("Deleting room distribution")
+    @DeleteMapping("/{roomNumber}/{wardName}/{hospitalCode}", produces= ["application/json"])
+    fun deleteRoom(@ApiParam(value = "Room number", required = true) @Valid @PathVariable roomNumber: Int,
+                   @ApiParam(value = "Ward name", required = true) @Valid @PathVariable wardName: String,
+                   @ApiParam(value = "Hospital code", required = true) @Valid @PathVariable hospitalCode: String) : ResponseEntity<String> {
+        log.info("Deleting room $roomNumber in ward $wardName")
 
-        if(!roomService.deleteRoom(
-                roomDeleteRequest.roomNumber)) {
-            return ResponseEntity.badRequest().body("Error: the room distribution could not be deleted.")
+        val room = roomService.getRoomByRoomNumberWardHospital(roomNumber, wardName, hospitalCode) ?: return ResponseEntity.notFound().build()
+
+        if (!roomService.deleteRoom(room)) {
+            return ResponseEntity.badRequest().build()
         }
-        replConfig.regenerateSingleModel().invoke("room distributions")
+        replConfig.regenerateSingleModel().invoke("rooms")
 
-        val room = roomService.getRoomByRoomNumber(roomDeleteRequest.roomNumber)!!
-        val bath = if (room.bathroom) 1 else 0
-
-        // Append to the file bedreflyt.ttl
-        val path = "bedreflyt.ttl"
-        val oldContent = """
-            ###  $ttlPrefix/room${roomDeleteRequest.roomNumber}
-            :room${roomDeleteRequest.roomNumber} rdf:type owl:NamedIndividual ,
-                            :Room ;
-                :roomNumber ${roomDeleteRequest.roomNumber} ;
-                :roomNumberModel ${room.roomNumberModel} ;
-                :roomCategory ${room.roomCategory} ;
-                :capacity ${room.capacity} ;
-                :bathroom $bath .
-        """.trimIndent()
-
-        triplestoreService.replaceContentIgnoringSpaces(path, oldContent, "")
-
-        return ResponseEntity.ok("Room distribution deleted")
+        return ResponseEntity.ok("Room Deleted")
     }
 }

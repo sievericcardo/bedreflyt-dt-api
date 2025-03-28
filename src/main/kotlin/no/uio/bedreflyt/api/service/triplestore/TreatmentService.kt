@@ -3,36 +3,90 @@ package no.uio.bedreflyt.api.service.triplestore
 import no.uio.bedreflyt.api.config.REPLConfig
 import no.uio.bedreflyt.api.config.TriplestoreProperties
 import no.uio.bedreflyt.api.model.triplestore.Treatment
+import no.uio.bedreflyt.api.model.triplestore.TreatmentStep
+import no.uio.bedreflyt.api.types.TreatmentRequest
 import org.apache.jena.query.ResultSet
 import org.apache.jena.update.UpdateExecutionFactory
 import org.apache.jena.update.UpdateFactory
 import org.springframework.stereotype.Service
+import org.springframework.cache.annotation.CacheEvict
+import org.springframework.cache.annotation.CachePut
+import org.springframework.cache.annotation.Cacheable
+import java.util.logging.Logger
 import kotlin.random.Random
 
 @Service
-class TreatmentService (
-    private val replConfig: REPLConfig,
-    private val triplestoreProperties: TriplestoreProperties,
-    private val diagnosisService: DiagnosisService
+class TreatmentService(
+    replConfig: REPLConfig,
+    triplestoreProperties: TriplestoreProperties,
+    private val diagnosisService: DiagnosisService,
+    private val treatmentStepService: TreatmentStepService
 ) {
 
     private val tripleStore = triplestoreProperties.tripleStore
     private val prefix = triplestoreProperties.prefix
-    private val ttlPrefix = triplestoreProperties.ttlPrefix
     private val repl = replConfig.repl()
+    private val log: Logger = Logger.getLogger(TreatmentService::class.java.name)
 
-    fun createTreatment (treatmentId: String, diagnosis: String, frequency: Double, weight: Double) : Boolean {
-        val query = """
-            PREFIX : <$prefix>
-            
-            INSERT DATA {
-                :treatment_${treatmentId}_$diagnosis a :Treatment ;
-                    :treatmentId "$treatmentId" ;
-                    :diagnosis "$diagnosis" ;
-                    :frequency "$frequency"^^xsd:double ;
-                    :weight "$weight"^^xsd:double ;
+    @CachePut("treatments", key = "#request.treatmentName")
+    fun createTreatment (request: TreatmentRequest) : Boolean {
+        val treatmentName = request.treatmentName.split(" ").joinToString("")
+        val steps = mutableListOf<String>()
+
+        request.steps.forEachIndexed { index, treatmentStep ->
+            val stepName = request.treatmentName.split(" ").joinToString("_") + "STEP_${index + 1}"
+            steps.add(stepName)
+
+            val previousStep = if (index == 0) {
+                ""
+            } else {
+                "pko:previous bedreflyt:${treatmentName}STEP_${index}"
             }
-        """
+            val nextStep = if (index == request.steps.size - 1) {
+                ""
+            } else {
+                "pko:next bedreflyt:${treatmentName}STEP_${index + 2}"
+            }
+
+            val query = """
+                PREFIX bedreflyt: <$prefix>
+                PREFIX time: <http://www.w3.org/2006/time#>
+                PREFIX pko: <https://w3id.org/pko#>
+                
+                bedreflyt:$stepName a bedreflyt:TreatmentStep ;
+                    bedreflyt:hasMonitoringStatus bedreflyt:${treatmentStep.monitoringCategory.description} ;
+                    bedreflyt:hasTask bedreflyt:${treatmentStep.task.taskName} ;
+                    $nextStep ;
+                    $previousStep ;
+                    bedreflyt:hasNurseBurden ${treatmentStep.staffLoad} ;
+                    time:hours ${treatmentStep.averageDuration}
+            """.trimIndent()
+
+            val updateRequest = UpdateFactory.create(query)
+            val fusekiEndpoint = "$tripleStore/update"
+            val updateProcessor = UpdateExecutionFactory.createRemote(updateRequest, fusekiEndpoint)
+
+            try {
+                updateProcessor.execute()
+                log.info("Treatment created")
+            } catch (e: Exception) {
+                return false
+            }
+        }
+
+        val query = """
+            PREFIX bedreflyt: <http://www.smolang.org/bedreflyt/>
+            PREFIX time: <http://www.w3.org/2006/time#>
+            PREFIX pko: <https://w3id.org/pko#>
+            
+            bedreflyt:$treatmentName a pko:Procedure ;
+                bedreflyt:hasFinalStep bedreflyt:${steps.last()} ;
+                bedreflyt:isTreatmentProcOf bedreflyt:${request.diagnosis} ;
+                pko:hasFirstStep bedreflyt:${steps.first()} ;
+                pko:hasStep bedreflyt:${steps.joinToString(" , bedreflyt:")} ;
+                bedreflyt:hasFrequency ${request.frequency} ;
+                bedreflyt:hasWeight ${request.weight} .
+        """.trimIndent()
 
         val updateRequest = UpdateFactory.create(query)
         val fusekiEndpoint = "$tripleStore/update"
@@ -40,116 +94,151 @@ class TreatmentService (
 
         try {
             updateProcessor.execute()
+            log.info("Steps created")
             return true
         } catch (e: Exception) {
             return false
         }
     }
 
-    fun getAllTreatments() : List<Treatment>? {
-        val treatments: MutableList<Treatment> = mutableListOf()
+    @Cacheable("treatments")
+    fun getAllTreatments(): List<Pair<Treatment, List<TreatmentStep>>>? {
+        val treatments = mutableListOf<Pair<Treatment, List<TreatmentStep>>>()
 
-        val query = """
-            SELECT DISTINCT ?treatmentId ?diagnosis ?frequency ?weight WHERE {
-                ?obj a prog:Treatment ;
-                    prog:Treatment_treatmentId ?treatmentId ;
-                    prog:Treatment_diagnosis ?diagnosis ;
-                    prog:Treatment_frequency ?frequency ;
-                    prog:Treatment_weight ?weight .
-            }"""
+        val query = """            
+        SELECT DISTINCT ?treatmentName ?diagnosis ?frequency ?weight ?firstTaskName ?lastTaskName WHERE {
+            ?treatment a prog:Treatment ;
+                prog:Treatment_firstTask ?firstTaskName ;
+                prog:Treatment_lastTask ?lastTaskName ;
+                prog:Treatment_treatmentName ?treatmentName ;
+                prog:Treatment_diagnosis ?diagnosisObj ;
+                prog:Treatment_frequency ?frequency ;
+                prog:Treatment_weight ?weight .
+                
+           ?diagnosisObj a prog:Diagnosis ;
+                prog:Diagnosis_diagnosisCode ?diagnosis .
+        }
+    """.trimIndent()
 
-        val resultSet : ResultSet = repl.interpreter!!.query(query) ?: return null
-
-        if(!resultSet.hasNext()) {
+        val resultSet: ResultSet = repl.interpreter!!.query(query)!!
+        if (!resultSet.hasNext()) {
             return null
         }
 
         while (resultSet.hasNext()) {
-            val solution = resultSet.next()
-            val treatmentId = solution.get("treatmentId").asLiteral().toString()
-            val diagnosis = solution.get("diagnosis").asLiteral().toString()
-            val frequency = solution.get("frequency").asLiteral().toString().split("^^")[0].toDouble()
-            val weight = solution.get("weight").asLiteral().toString().split("^^")[0].toDouble()
+            val result = resultSet.next()
+            val treatmentName = result.get("treatmentName").toString()
+            val diagnosis = result.get("diagnosis").toString()
+            val diagnosisObj = diagnosisService.getDiagnosisByName(diagnosis) ?: continue
 
-            treatments.add(Treatment(treatmentId, diagnosis, frequency, weight))
+            val frequency = result.get("frequency").asLiteral().toString().split("^^")[0].toDouble()
+            val weight = result.get("weight").asLiteral().toString().split("^^")[0].toDouble()
+            val firstTaskName = result.get("firstTaskName").toString()
+            val lastTaskName = result.get("lastTaskName").toString()
+
+            val treatment = Treatment(
+                treatmentName = treatmentName,
+                treatmentDescription = null,
+                diagnosis = diagnosisObj,
+                frequency = frequency,
+                weight = weight,
+                firstTaskName = firstTaskName,
+                lastTaskName = lastTaskName
+            )
+
+            val steps = treatmentStepService.getTreatmentStepsByTreatmentName(treatmentName)!!
+            treatments.add(Pair(treatment, steps))
         }
 
         return treatments
     }
 
-    fun getAllTreatmentsByDiagnosis(diagnosis: String) : List<Treatment> {
-        val treatments: MutableList<Treatment> = mutableListOf()
-
+    fun getTreatmentsByTreatmentName(treatmentName: String) : Pair<Treatment, List<TreatmentStep>>? {
         val query = """
-            SELECT DISTINCT ?treatmentId ?diagnosis ?frequency ?weight WHERE {
-                ?obj a prog:Treatment ;
-                    prog:Treatment_treatmentId ?treatmentId ;
-                    prog:Treatment_diagnosis ?diagnosis ;
-                    prog:Treatment_frequency ?frequency ;
-                    prog:Treatment_weight ?weight .
-                FILTER (?diagnosis = "$diagnosis")
-            }"""
+        SELECT DISTINCT ?diagnosis ?frequency ?weight ?firstTask ?lastTask WHERE {
+            ?treatment a prog:Treatment ;
+                prog:Treatment_firstTask ?firstTask ;
+                prog:Treatment_lastTask ?lastTask ;
+                prog:Treatment_treatmentName $treatmentName ;
+                prog:Treatment_diagnosis ?diagnosisObj ;
+                prog:Treatment_frequency ?frequency ;
+                prog:Treatment_weight ?weight .
+            ?diagnosisObj a prog:Diagnosis ;
+                prog:Diagnosis_diagnosisCode ?diagnosis .
+        }
+    """.trimIndent()
 
-        val resultSet : ResultSet = repl.interpreter!!.query(query)!!
+        val resultSet: ResultSet = repl.interpreter!!.query(query)!!
+        if (!resultSet.hasNext()) {
+            return null
+        }
+
+        val result = resultSet.next()
+        val diagnosis = result.get("diagnosis").toString()
+        val diagnosisObj = diagnosisService.getDiagnosisByName(diagnosis) ?: return null
+
+        val frequency = result.get("frequency").asLiteral().toString().split("^^")[0].toDouble()
+        val weight = result.get("weight").asLiteral().toString().split("^^")[0].toDouble()
+        val firstTaskName = result.get("firstTask").toString()
+        val lastTaskName = result.get("lastTask").toString()
+
+        val treatment = Treatment(
+            treatmentName = treatmentName,
+            treatmentDescription = null,
+            diagnosis = diagnosisObj,
+            frequency = frequency,
+            weight = weight,
+            firstTaskName = firstTaskName,
+            lastTaskName = lastTaskName
+        )
+
+        val steps = treatmentStepService.getTreatmentStepsByTreatmentName(treatmentName)!!
+        return Pair(treatment, steps)
+    }
+
+    fun getTreatmentByDiagnosisName(diagnosisName: String) : List<Treatment>? {
+        val treatments = mutableListOf<Treatment>()
+        val query = """
+        SELECT DISTINCT ?treatmentName ?frequency ?weight ?firstTask ?lastTask WHERE {
+            ?treatment a prog:Treatment ;
+                prog:Treatment_firstTask ?firstTask ;
+                prog:Treatment_lastTask ?lastTask ;
+                prog:Treatment_treatmentName ?treatmentName ;
+                prog:Treatment_diagnosis ?diagnosis ;
+                prog:Treatment_frequency ?frequency ;
+                prog:Treatment_weight ?weight .
+           ?diagnosis a prog:Diagnosis;
+                prog:Diagnosis_diagnosisCode "$diagnosisName" .
+        }
+    """.trimIndent()
+
+        val resultSet: ResultSet = repl.interpreter!!.query(query)!!
+        if (!resultSet.hasNext()) {
+            return null
+        }
 
         while (resultSet.hasNext()) {
-            val solution = resultSet.next()
-            val treatmentId = solution.get("treatmentId").asLiteral().string
-            val frequency = solution.get("frequency").asLiteral().double
-            val weight = solution.get("weight").asLiteral().double
+            val result = resultSet.next()
+            val treatmentName = result.get("treatmentName").toString()
+            val frequency = result.get("frequency").asLiteral().toString().split("^^")[0].toDouble()
+            val weight = result.get("weight").asLiteral().toString().split("^^")[0].toDouble()
+            val firstTaskName = result.get("firstTask").toString()
+            val lastTaskName = result.get("lastTask").toString()
 
-            treatments.add(Treatment(treatmentId, diagnosis, frequency, weight))
+            val treatment = Treatment(
+                treatmentName = treatmentName,
+                treatmentDescription = null,
+                diagnosis = diagnosisService.getDiagnosisByName(diagnosisName) ?: continue,
+                frequency = frequency,
+                weight = weight,
+                firstTaskName = firstTaskName,
+                lastTaskName = lastTaskName
+            )
+
+            treatments.add(treatment)
         }
 
         return treatments
-    }
-
-    fun getTreatmentById(treatment: String) : Treatment? {
-        val query = """
-            SELECT DISTINCT ?diagnosis ?frequency ?weight WHERE {
-                ?obj a prog:Treatment ;
-                    prog:Treatment_treatmentId ?treatment ;
-                    prog:Treatment_diagnosis ?diagnosis ;
-                    prog:Treatment_frequency ?frequency ;
-                    prog:Treatment_weight ?weight .
-                FILTER (?treatment = "$treatment")
-            }"""
-
-        val resultSet : ResultSet = repl.interpreter!!.query(query)!!
-
-        if (!resultSet.hasNext()) {
-            return null
-        }
-
-        val solution = resultSet.next()
-        val diagnosis = solution.get("diagnosis").asLiteral().string
-        val frequency = solution.get("frequency").asLiteral().double
-        val weight = solution.get("weight").asLiteral().double
-
-        return Treatment(treatment, diagnosis, frequency, weight)
-    }
-
-    fun getTreatmentByTreamentDiagnosis (diagnosis: String, treatment: String) : Treatment? {
-        val query = """
-            SELECT DISTINCT ?frequency ?weight WHERE {
-                ?obj a prog:Treatment ;
-                    prog:Treatment_treatmentId "$treatment" ;
-                    prog:Treatment_diagnosis "$diagnosis" ;
-                    prog:Treatment_frequency ?frequency ;
-                    prog:Treatment_weight ?weight .
-            }"""
-
-        val resultSet : ResultSet = repl.interpreter!!.query(query)!!
-
-        if (!resultSet.hasNext()) {
-            return null
-        }
-
-        val solution = resultSet.next()
-        val frequency = solution.get("frequency").asLiteral().double
-        val weight = solution.get("weight").asLiteral().double
-
-        return Treatment(treatment, diagnosis, frequency, weight)
     }
 
     private fun <T> List<T>.weightedChoice(weight: (T) -> Double): T {
@@ -165,26 +254,25 @@ class TreatmentService (
         return this.last()
     }
 
-    fun selectTreatmentByDiagnosisAndMode(diagnosis: String, mode: String): String {
-        val treatments: List<Treatment> = getAllTreatmentsByDiagnosis(diagnosis)
-        if (treatments.isEmpty()) {
-            throw NoSuchElementException("No treatment found for diagnosis: $diagnosis")
-        }
+    fun getTreatmentByDiagnosisAndMode(diagnosisName: String, mode: String) : Treatment {
+        val treatments : List<Treatment> = getTreatmentByDiagnosisName(diagnosisName)
+            ?: throw IllegalArgumentException("No treatments found for diagnosis $diagnosisName")
+
         return when (mode) {
             "worst" -> {
-                treatments.maxByOrNull { it.weight }!!.treatmentId
+                treatments.maxByOrNull { it.weight }!!
             }
 
             "common" -> {
-                treatments.maxByOrNull { it.frequency }!!.treatmentId
+                treatments.maxByOrNull { it.frequency }!!
             }
 
             "random" -> {
-                treatments.random().treatmentId
+                treatments.random()
             }
 
             "sample" -> {
-                treatments.weightedChoice { it.frequency }.treatmentId
+                treatments.weightedChoice { it.frequency }
             }
 
             else -> {
@@ -193,64 +281,23 @@ class TreatmentService (
         }
     }
 
-    fun updateTreatment(treatment: Treatment, newFrequency: Double, newWeight: Double) : Boolean {
+    @CacheEvict(value = ["treatments"], key = "#tratmentName")
+    fun deleteTreatment(treatmentName: String) : Boolean {
+        val name = treatmentName.split(" ").joinToString("")
         val query = """
-            PREFIX : <$prefix>
+            PREFIX bedreflyt: <http://www.smolang.org/bedreflyt/>
             
             DELETE {
-                :treatment_${treatment.treatmentId}_${treatment.diagnosis} a :Treatment ;
-                    :treatmentId "${treatment.treatmentId}" ;
-                    :diagnosis "${treatment.diagnosis}" ;
-                    :frequency "${treatment.frequency}"^^xsd:double ;
-                    :weight "${treatment.weight}"^^xsd:double ;
-            }
-            INSERT {
-                :treatment_${treatment.treatmentId}_${treatment.diagnosis} a :Treatment ;
-                    :treatmentId "${treatment.treatmentId}" ;
-                    :diagnosis "${treatment.diagnosis}" ;
-                    :frequency "$newFrequency"^^xsd:double ;
-                    :weight "$newWeight"^^xsd:double ;
+                bedreflyt:$name ?p ?o .
+                ?treatment a bedreflyt:TreatmentStep ;
+                    bedreflyt:stepOfTreatment bedreflyt:$name .
             }
             WHERE {
-                :treatment_${treatment.treatmentId}_${treatment.diagnosis} a :Treatment ;
-                    :treatmentId "${treatment.treatmentId}" ;
-                    :diagnosis "${treatment.diagnosis}" ;
-                    :frequency "${treatment.frequency}"^^xsd:double ;
-                    :weight "${treatment.weight}"^^xsd:double ;
+                bedreflyt:$name ?p ?o .
+                ?treatment a bedreflyt:TreatmentStep ;
+                    bedreflyt:stepOfTreatment bedreflyt:$name .
             }
-        """
-
-        val updateRequest = UpdateFactory.create(query)
-        val fusekiEndpoint = "$tripleStore/update"
-        val updateProcessor = UpdateExecutionFactory.createRemote(updateRequest, fusekiEndpoint)
-
-        try {
-            updateProcessor.execute()
-            return true
-        } catch (e: Exception) {
-            return false
-        }
-    }
-
-    fun deleteTreatment(treatment: Treatment) : Boolean {
-        val query = """
-            PREFIX : <$prefix>
-            
-            DELETE {
-                :treatment_${treatment.treatmentId}_${treatment.diagnosis} a :Treatment ;
-                    :treatmentId "${treatment.treatmentId}" ;
-                    :diagnosis "${treatment.diagnosis}" ;
-                    :frequency "${treatment.frequency}"^^xsd:double ;
-                    :weight "${treatment.weight}"^^xsd:double ;
-            }
-            WHERE {
-                :treatment_${treatment.treatmentId}_${treatment.diagnosis} a :Treatment ;
-                    :treatmentId "${treatment.treatmentId}" ;
-                    :diagnosis "${treatment.diagnosis}" ;
-                    :frequency "${treatment.frequency}"^^xsd:double ;
-                    :weight "${treatment.weight}"^^xsd:double ;
-            }
-        """
+        """.trimIndent()
 
         val updateRequest = UpdateFactory.create(query)
         val fusekiEndpoint = "$tripleStore/update"

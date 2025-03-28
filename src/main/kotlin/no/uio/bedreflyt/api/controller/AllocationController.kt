@@ -3,6 +3,7 @@ package no.uio.bedreflyt.api.controller
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.responses.ApiResponses
+import jakarta.validation.Valid
 import no.uio.bedreflyt.api.model.live.Patient
 import no.uio.bedreflyt.api.model.live.PatientAllocation
 import no.uio.bedreflyt.api.model.live.PatientTrajectory
@@ -11,6 +12,7 @@ import no.uio.bedreflyt.api.service.live.PatientAllocationService
 import no.uio.bedreflyt.api.service.live.PatientService
 import no.uio.bedreflyt.api.service.live.PatientTrajectoryService
 import no.uio.bedreflyt.api.service.simulation.DatabaseService
+import no.uio.bedreflyt.api.service.triplestore.WardService
 import no.uio.bedreflyt.api.utils.Simulator
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
@@ -27,13 +29,14 @@ import java.time.LocalDate
 import java.util.*
 
 @RestController
-@RequestMapping("/api/allocation")
+@RequestMapping("/api/v1/allocation")
 class AllocationController (
     private val databaseService: DatabaseService,
     private val simulator: Simulator,
     private val patientAllocationService: PatientAllocationService,
     private val patientService: PatientService,
-    private val patientTrajectoryService: PatientTrajectoryService
+    private val patientTrajectoryService: PatientTrajectoryService,
+    private val wardService: WardService
 ) {
 
     private val log: Logger = Logger.getLogger(SimulationController::class.java.name)
@@ -52,7 +55,7 @@ class AllocationController (
         ]
     )
     @PostMapping("/allocate")
-    fun allocateRooms(@SwaggerRequestBody(description = "Request to allocate rooms for patients") @RequestBody allocationRequest: AllocationRequest): ResponseEntity<AllocationResponse> {
+    fun allocateRooms(@SwaggerRequestBody(description = "Request to allocate rooms for patients") @Valid @RequestBody allocationRequest: AllocationRequest): ResponseEntity<AllocationResponse> {
         log.info("Allocating rooms for ${allocationRequest.scenario.size} patients")
 
         // Remove expired trajectories
@@ -95,7 +98,8 @@ class AllocationController (
         val bedreflytDB = tempDir.resolve("bedreflyt.db").toString()
         databaseService.createTables(bedreflytDB)
 
-        val rooms = databaseService.createAndPopulateRooms(bedreflytDB)
+        val ward = wardService.getWardByNameAndHospital(allocationRequest.wardName, allocationRequest.hospitalCode) ?: return ResponseEntity.badRequest().build()
+        val rooms = databaseService.createAndPopulateRooms(bedreflytDB, ward)
         val patients : MutableMap<String, Patient> = databaseService.createAndPopulatePatientTables(bedreflytDB, allocationRequest.scenario, allocationRequest.mode).toMutableMap()
         // Add the patients that are already in the trajectory
         val trajectories = patientTrajectoryService.findAll() ?: listOf()

@@ -4,6 +4,7 @@ import no.uio.bedreflyt.api.model.live.Patient
 import no.uio.bedreflyt.api.model.live.PatientAllocation
 import no.uio.bedreflyt.api.model.simulation.Room
 import no.uio.bedreflyt.api.model.triplestore.Task
+import no.uio.bedreflyt.api.model.triplestore.Ward
 import no.uio.bedreflyt.api.service.live.PatientAllocationService
 import no.uio.bedreflyt.api.service.live.PatientService
 import no.uio.bedreflyt.api.service.triplestore.*
@@ -19,9 +20,8 @@ class DatabaseService (
     private val treatmentService: TreatmentService,
     private val patientService: PatientService,
     private val patientAllocationService: PatientAllocationService,
-    private val taskDependencyService: TaskDependencyService,
     private val taskService: TaskService,
-    private val roomCategoryService: RoomCategoryService,
+    private val monitoringCategoryService: MonitoringCategoryService,
     private val roomService: RoomService
 ) {
 
@@ -100,7 +100,7 @@ class DatabaseService (
 
                 scenarioRequest.diagnosis?.let { diagnosis ->
                     try {
-                        val treatment = diagnosis + "_" + treatmentService.selectTreatmentByDiagnosisAndMode(diagnosis, mode)
+                        val treatment = treatmentService.getTreatmentByDiagnosisAndMode(diagnosis, mode).treatmentName
                         insertScenario(
                             scenarioDbUrl,
                             scenarioRequest.batch,
@@ -138,28 +138,29 @@ class DatabaseService (
         jdbcTemplate.execute(createRoomDistributionTable)
     }
 
-    fun createAndPopulateRooms(roomDbUrl: String): List<Room> {
-        val roomList = roomCategoryService.getAllRooms()
+    fun createAndPopulateRooms(roomDbUrl: String, ward: Ward): List<Room> {
+        val categories = monitoringCategoryService.getAllCategories()
 
-        roomList?.let {
-            it.forEach { room ->
-                insertRoom(roomDbUrl, room.bedCategory, room.roomDescription)
+        categories?.let {
+            it.forEach { category ->
+                insertRoom(roomDbUrl, category.category.toLong(), category.description)
             }
         } ?: throw IllegalArgumentException("No rooms found")
 
-        val rooms = roomService.getAllRooms()
+        val rooms = roomService.getRoomsByWardHospital(ward.wardName, ward.wardHospital.hospitalCode)
             ?: throw IllegalArgumentException("No room distributions found")
         val simulationRoom = mutableListOf<Room>()
 
-        rooms.forEach { singleRoom ->
+        rooms.forEachIndexed { index, singleRoom ->
             insertRoomDistribution(
-                roomDbUrl, singleRoom.roomNumber.toLong(), singleRoom.roomNumberModel.toLong(),
-                singleRoom.roomCategory, singleRoom.capacity, singleRoom.bathroom
+                roomDbUrl, singleRoom.roomNumber.toLong(), index.toLong(),
+                singleRoom.monitoringCategory.category.toLong(), singleRoom.capacity, true
             )
             simulationRoom.add(
                 Room(
-                    singleRoom.roomNumber, singleRoom.roomNumberModel, singleRoom.roomCategory,
-                    singleRoom.capacity, singleRoom.bathroom
+                    singleRoom.roomNumber, index,
+                    singleRoom.monitoringCategory.category.toLong(),
+                    singleRoom.capacity, true
                 )
             )
         }
@@ -217,35 +218,24 @@ class DatabaseService (
 
         val treatments = treatmentService.getAllTreatments() ?: throw IllegalArgumentException("No treatments found")
         treatments.forEach { treatment ->
-            val taskDependencies = taskDependencyService.getTaskDependenciesByTreatment(treatment.treatmentId)
-                ?: throw IllegalArgumentException("No task dependencies found")
-
-            // Insert the arrivals
-            val arrival: Task = taskService.getTaskByTaskName("arrival")!!
-            val appendName = treatment.diagnosis + "_" + treatment.treatmentId
-            insertTask(
-                treatmentDbUrl,
-                arrival.taskName + "_" + appendName,
-                arrival.bed,
-                arrival.averageDuration.toInt()
-            )
+            val taskDependencies = treatment.second
 
             taskDependencies.forEach { taskDependency ->
-                val treatmentName = taskDependency.diagnosis + "_" + treatment.treatmentId
-                val task = taskService.getTaskByTaskName(taskDependency.task)
+                val treatmentName = taskDependency.treatmentName
+                val task = taskService.getTaskByTaskName(taskDependency.task.taskName)
                     ?: throw IllegalArgumentException("No task ${taskDependency.task} found")
                 insertTask(
                     treatmentDbUrl,
                     task.taskName + "_" + treatmentName,
-                    task.bed,
-                    task.averageDuration.toInt()
+                    taskDependency.monitoringCategory.category,
+                    taskDependency.averageDuration.toInt()
                 )
-                insertTaskDependency(
+                taskDependency.previousTask?.takeIf { it.isNotEmpty() }?.let  { insertTaskDependency(
                     treatmentDbUrl,
                     treatmentName,
-                    taskDependency.task + "_" + treatmentName,
-                    taskDependency.dependsOn + "_" + treatmentName
-                )
+                    task.taskName + "_" + treatmentName,
+                    it + "_" + treatmentName
+                ) }
             }
         }
 

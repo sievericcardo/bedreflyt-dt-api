@@ -9,12 +9,15 @@ import org.apache.jena.update.UpdateExecutionFactory
 import org.apache.jena.update.UpdateFactory
 import org.apache.jena.update.UpdateProcessor
 import org.apache.jena.update.UpdateRequest
+import org.springframework.cache.annotation.CacheEvict
+import org.springframework.cache.annotation.CachePut
+import org.springframework.cache.annotation.Cacheable
 import org.springframework.stereotype.Service
 
 @Service
 class TaskService (
-    private val replConfig: REPLConfig,
-    private val triplestoreProperties: TriplestoreProperties
+    replConfig: REPLConfig,
+    triplestoreProperties: TriplestoreProperties
 ) {
 
     private val tripleStore = triplestoreProperties.tripleStore
@@ -22,15 +25,18 @@ class TaskService (
     private val ttlPrefix = triplestoreProperties.ttlPrefix
     private val repl = replConfig.repl()
 
-    fun createTask(taskName: String, averageDuration: Double, bed: Int) : Boolean {
+    @CachePut("tasks", key = "#taskName")
+    fun createTask(taskName: String) : Boolean {
+        val name = taskName.replace(" ", "")
         val query = """
-            PREFIX : <$prefix>
+            PREFIX bedreflyt: <$prefix>
+            PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+            PREFIX owl: <http://www.w3.org/2002/07/owl#>
             
             INSERT DATA {
-                :task_$taskName a :Task ;
-                    :taskName "$taskName" ;
-                    :averageDuration $averageDuration ;
-                    :bed $bed .
+                bedreflyt:$name rdf:type owl:NamedIndividual , 
+                        <http://purl.org/net/p-plan#Step> ;
+                    bedreflyt:taskName "$taskName" .
             }
         """
 
@@ -46,6 +52,7 @@ class TaskService (
         }
     }
 
+    @Cacheable("tasks")
     fun getAllTasks() : List<Task>? {
         val tasks: MutableList<Task> = mutableListOf()
 
@@ -53,9 +60,7 @@ class TaskService (
             """
            SELECT DISTINCT ?taskName ?averageDuration ?bedCategory WHERE {
             ?obj a prog:Task ;
-                prog:Task_taskName ?taskName ;
-                prog:Task_durationAverage ?averageDuration ;
-                prog:Task_bed ?bedCategory .
+                prog:Task_taskName ?taskName .
         }"""
 
         val resultTasks: ResultSet = repl.interpreter!!.query(query)!!
@@ -67,23 +72,18 @@ class TaskService (
         while (resultTasks.hasNext()) {
             val solution: QuerySolution = resultTasks.next()
             val taskName = solution.get("?taskName").asLiteral().toString()
-            val averageDuration = solution.get("?averageDuration").asLiteral().toString().split("^^")[0].toDouble()
-            val bedCategory = solution.get("?bedCategory").asLiteral().toString().split("^^")[0].toInt()
-            tasks.add(Task(taskName, averageDuration, bedCategory))
+            tasks.add(Task(taskName))
         }
 
         return tasks
     }
 
+    @Cacheable("tasks", key = "#taskName")
     fun getTaskByTaskName(taskName: String) : Task? {
         val query = """
-            PREFIX : <$prefix>
-            
-            SELECT DISTINCT ?taskName ?averageDuration ?bed WHERE {
+            SELECT DISTINCT ?taskName WHERE {
                 ?obj a prog:Task ;
-                    prog:Task_taskName ?taskName ;
-                    prog:Task_durationAverage ?averageDuration ;
-                    prog:Task_bed ?bed .
+                    prog:Task_taskName ?taskName .
                 FILTER (?taskName = "$taskName")
             }
         """
@@ -95,33 +95,34 @@ class TaskService (
         }
 
         val solution: QuerySolution = resultTask.next()
-        val averageDuration = solution.get("?averageDuration").asLiteral().toString().split("^^")[0].toDouble()
-        val bed = solution.get("?bed").asLiteral().toString().split("^^")[0].toInt()
 
-        return Task(taskName, averageDuration, bed)
+        return Task(taskName)
     }
 
-    fun updateTask(task: Task, newAverageDuration: Double, newBed: Int) : Boolean {
+    @CacheEvict("tasks", key = "#task.taskName")
+    @CachePut("tasks", key = "#newTaskName")
+    fun updateTask(task: Task, newTaskName: String) : Boolean {
+        val oldName = task.taskName.replace(" ", "")
+        val newName = newTaskName.replace(" ", "")
         val query = """
-            PREFIX : <$prefix>
+            PREFIX bedreflyt: <$prefix>
+            PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+            PREFIX owl: <http://www.w3.org/2002/07/owl#>
             
             DELETE {
-                :task_${task.taskName} a :Task ;
-                    :taskName "${task.taskName}" ;
-                    :averageDuration ${task.averageDuration} ;
-                    :bed ${task.bed} .
+                bedreflyt:$oldName rdf:type owl:NamedIndividual , 
+                        <http://purl.org/net/p-plan#Step> ;
+                    bedreflyt:taskName "${task.taskName}" .
             }
             INSERT {
-                :task_${task.taskName} a :Task ;
-                    :taskName "${task.taskName}" ;
-                    :averageDuration $newAverageDuration ;
-                    :bed $newBed .
+                bedreflyt:$newName rdf:type owl:NamedIndividual , 
+                        <http://purl.org/net/p-plan#Step> ;
+                    bedreflyt:taskName "$newTaskName" .
             }
             WHERE {
-               :task_${task.taskName} a :Task ;
-                    :taskName "${task.taskName}" ;
-                    :averageDuration ${task.averageDuration} ;
-                    :bed ${task.bed} .
+               bedreflyt:$oldName rdf:type owl:NamedIndividual , 
+                        <http://purl.org/net/p-plan#Step> ;
+                    bedreflyt:taskName "${task.taskName}" .
             }
         """
 
@@ -137,21 +138,23 @@ class TaskService (
         }
     }
 
+    @CacheEvict("tasks", key = "#task.taskName")
     fun deleteTask(task: Task) : Boolean {
+        val name = task.taskName.replace(" ", "")
         val query = """
-            PREFIX : <$prefix>
+            PREFIX bedreflyt: <$prefix>
+            PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+            PREFIX owl: <http://www.w3.org/2002/07/owl#>
             
             DELETE {
-                :task_${task.taskName} a :Task ;
-                    :taskName "${task.taskName}" ;
-                    :averageDuration ${task.averageDuration} ;
-                    :bed ${task.bed} .
+                bedreflyt:$name rdf:type owl:NamedIndividual , 
+                        <http://purl.org/net/p-plan#Step> ;
+                    bedreflyt:taskName "${task.taskName}" .
             }
             WHERE {
-                :task_${task.taskName} a :Task ;
-                    :taskName "${task.taskName}" ;
-                    :averageDuration ${task.averageDuration} ;
-                    :bed ${task.bed} .
+                bedreflyt:$name rdf:type owl:NamedIndividual , 
+                        <http://purl.org/net/p-plan#Step> ;
+                    bedreflyt:taskName "${task.taskName}" .
             }
         """
 

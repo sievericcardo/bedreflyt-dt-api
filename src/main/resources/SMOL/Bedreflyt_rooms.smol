@@ -1,244 +1,109 @@
-class RoomModel extends KindModel()
+class RoomModel extends BaseModel()
 
     override Unit adaptAddition()
-        List<Room> newRooms = construct("
-            PREFIX ast: <http://www.smolang.org/bedreflyt#>
-            SELECT DISTINCT ?roomNumber ?roomNumberModel ?roomCategory ?capacity ?bathroom {
-                ?x a ast:Room ;
-                    ast:roomNumber ?roomNumber ;
-                    ast:roomNumberModel ?roomNumberModel ;
-                    ast:roomCategory ?roomCategory ;
-                    ast:capacity ?capacity ;
-                    ast:bathroom ?bathroom .
-                FILTER NOT EXISTS {
-                    ?y a prog:Room ;
-                        prog:Room_roomNumber ?roomNumber ;
-                        prog:Room_roomNumberModel ?roomNumberModel ;
-                        prog:Room_roomCategory ?roomCategory ;
-                        prog:Room_capacity ?capacity ;
-                        prog:Room_bathroom ?bathroom .
-                }
-            }");
+        List<TreatingRoom> newRooms = construct("
+        PREFIX : <http://www.smolang.org/bedreflyt/>
+        PREFIX brick: <https://brickschema.org/schema/Brick#>
+
+        SELECT DISTINCT ?roomNumber ?capacity ?treatingWard ?hospital ?monitoringCategory
+        WHERE {
+            ?room rdf:type <https://w3id.org/rec/building/TreatmentRoom> ;
+                :hasRoomNr ?roomNumber ;
+                :hasCapacityNrBeds ?capacity ;
+                :isAssignWard ?ward ;
+                :hasMonitoringStatus ?monitoringStatus .
+            ?ward a :Ward ;
+                :wardName ?wardName ;
+                brick:hasHospital ?hospitalWard .
+            ?hospitalWard a brick:Hospital ;
+                :hospitalName ?hospitalName .
+            ?monitoringStatus a :MonitoringCategory ;
+                :hasMonitoringCode ?monitoringCode.
+
+            ?hospital a prog:Hospital ;
+                prog:Hospital_hospitalName ?hospitalName .
+            ?treatingWard a prog:Ward ;
+                prog:Ward_wardName ?wardName .
+            ?monitoringCategory a prog:MonitoringCategory ;
+                prog:MonitoringCategory_category ?monitoringCode .
+        }");
 
         if newRooms != null then
-            print("RECONFIG> New Room(s) detected: repairing the model");
+            print("RECONFIG> Adding new Room(s)...");
 
             while newRooms != null do
-                Room newRoom = newRooms.content;
-                List<Room> lx = newRooms;
+                TreatingRoom newRoom = newRooms.content;
+                List<TreatingRoom> lx = newRooms;
                 newRooms = newRooms.next;
-                print("RECONFIG> New room detected: ");
-                print("          Room Number: " ++ intToString(newRoom.roomNumber));
-                print("          Room Number Model: " ++ intToString(newRoom.roomNumberModel));
-                print("          Room: " ++ intToString(newRoom.roomCategory));
-                print("          Capacity: " ++ intToString(newRoom.capacity));
-                print("          Bathroom: " ++ intToString(newRoom.bathroom));
-
+                
+                print("RECONFIG> Adding Room " ++ intToString(newRoom.roomNumber));
+                print("          Room Ward: " ++ newRoom.treatingWard.wardName);
+                print("          Room Hospital: " ++ newRoom.hospital.hospitalName);
                 destroy(lx);
             end
 
-            print("RECONFIG> Room(s) added");
+            print("RECONFIG> New Room(s) added");
         end
     end
 
     override Unit adaptRemoval()
-        List<Room> wrongRooms = access("
-            PREFIX ast: <http://www.smolang.org/bedreflyt#>
-            SELECT DISTINCT ?obj {
-                ?obj a prog:Room ;
-                    prog:Room_roomNumber ?roomNumber ;
-                    prog:Room_roomNumberModel ?roomNumberModel ;
-                    prog:Room_roomCategory ?roomCategory ;
-                    prog:Room_capacity ?capacity ;
-                    prog:Room_bathroom ?bathroom .
-                FILTER NOT EXISTS {
-                    ?y a ast:Room ;
-                        ast:roomNumber ?roomNumber .
-                }
-            }");
+        List<TreatingRoom> wrongRooms = access("
+        PREFIX : <http://www.smolang.org/bedreflyt/>
+        PREFIX brick: <https://brickschema.org/schema/Brick#>
+
+        SELECT DISTINCT ?obj {
+            ?obj a prog:TreatingRoom ;
+                prog:TreatingRoom_roomNumber ?roomNumber ;
+                prog:TreatingRoom_capacity ?capacity ;
+                prog:TreatingRoom_isAssignWard ?ward ;
+                prog:TreatingRoom_monitoringCategory ?monitoringStatus .
+            ?ward a prog:Ward ;
+                prog:Ward_wardName ?wardName ;
+                prog:Ward_hasHospital ?hospitalWard .
+            ?hospitalWard a prog:Hospital ;
+                prog:Hospital_hospitalName ?hospitalName .
+            ?monitoringStatus a prog:MonitoringCategory ;
+                prog:MonitoringCategory_category ?monitoringCode .
+
+            FILTER NOT EXISTS {
+                ?room rdf:type <https://w3id.org/rec/building/TreatmentRoom> ;
+                    :hasRoomNr ?roomNumber ;
+                    :hasCapacityNrBeds ?capacity ;
+                    :isAssignWard ?ward ;
+                    :hasMonitoringStatus ?monitoringStatus .
+                ?ward a :Ward ;
+                    :wardName ?wardName ;
+                    brick:hasHospital ?hospitalWard .
+                ?hospitalWard a brick:Hospital ;
+                    :hospitalName ?hospitalName .
+                ?monitoringStatus a :MonitoringCategory ;
+                    :hasMonitoringCode ?monitoringCode.
+            }
+        }");
 
         if wrongRooms != null then
-            print("RECONFIG> Misconfigured Room(s) detected: repairing the model");
+            print("RECONFIG> Removing wrong Room(s)...");
+
             while wrongRooms != null do
-                Room wrongRoom = wrongRooms.content;
-                List<Room> lx = wrongRooms;
+                TreatingRoom wrongRoom = wrongRooms.content;
+                List<TreatingRoom> lx = wrongRooms;
                 wrongRooms = wrongRooms.next;
-
-                print("RECONFIG> Misconfigured room distribution to remove: ");
-                print("          Room Number: " ++ intToString(wrongRoom.roomNumber));
-                print("          Room Number Model: " ++ intToString(wrongRoom.roomNumberModel));
-                print("          Room: " ++ intToString(wrongRoom.roomCategory));
-                print("          Capacity: " ++ intToString(wrongRoom.capacity));
-                print("          Bathroom: " ++ intToString(wrongRoom.bathroom));
-
+                
+                print("RECONFIG> Removing Room " ++ intToString(wrongRoom.roomNumber));
                 destroy(wrongRoom);
                 destroy(lx);
             end
 
-            destroy(wrongRooms);
-
-            print("RECONFIG> Room(s) removed");
+            print("RECONFIG> Wrong Room(s) removed");
         end
     end
 
     override Unit adaptDefect()
         print("RECONFIG> Checking for defects in the Room(s)");
-        this.checkRoomNumberModelChanged();
-        this.checkRoomCategoryChanged();
-        this.checkCapacityChanged();
-        this.checkBathroomChanged();
         print("RECONFIG> Defects checked for the Room(s)");
     end
 
-    Unit checkRoomNumberModelChanged()
-        List<RoomDefectRoomNumberModel> roomNumberModelDefects = construct("
-            PREFIX ast: <http://www.smolang.org/bedreflyt#>
-            SELECT DISTINCT ?obj ?roomNumberModelNew {
-                ?obj a prog:Room ;
-                    prog:Room_roomNumber ?roomNumber ;
-                    prog:Room_roomNumberModel ?roomNumberModel ;
-                    prog:Room_roomCategory ?room ;
-                    prog:Room_capacity ?capacity ;
-                    prog:Room_bathroom ?bathroom .
-                ?y a ast:Room ;
-                    ast:roomNumber ?roomNumber ;
-                    ast:roomNumberModel ?roomNumberModelNew ;
-                    ast:roomCategory ?room ;
-                    ast:capacity ?capacity ;
-                    ast:bathroom ?bathroom .
-                FILTER (?roomNumberModel != ?roomNumberModelNew)
-            }");
-
-        if roomNumberModelDefects != null then
-            print("RECONFIG> Misconfigured Room Number Model detected: repairing the model");
-            while roomNumberModelDefects != null do
-                RoomDefectRoomNumberModel roomNumberModelDefect = roomNumberModelDefects.content;
-                List<RoomDefectRoomNumberModel> lx = roomNumberModelDefects;
-                roomNumberModelDefects = roomNumberModelDefects.next;
-                destroy(lx);
-
-                print("RECONFIG> Misconfigured room number model: ");
-                print("          Old Room Number Model: " ++ intToString(roomNumberModelDefect.obj.roomNumber));
-                print("          New Room Number Model: " ++ intToString(roomNumberModelDefect.roomNumberModelNew));
-
-                roomNumberModelDefect.obj.roomNumberModel = roomNumberModelDefect.roomNumberModelNew;
-            end
-
-            print("RECONFIG> Room Number Model(s) changed");
-        end
-    end
-
-    Unit checkRoomCategoryChanged()
-        List<RoomDefectRoomCategory> roomDefects = construct("
-            PREFIX ast: <http://www.smolang.org/bedreflyt#>
-            SELECT DISTINCT ?obj ?roomNew {
-                ?obj a prog:Room ;
-                    prog:Room_roomNumber ?roomNumber ;
-                    prog:Room_roomNumberModel ?roomNumberModel ;
-                    prog:Room_roomCategory ?room ;
-                    prog:Room_capacity ?capacity ;
-                    prog:Room_bathroom ?bathroom .
-                ?y a ast:Room ;
-                    ast:roomNumber ?roomNumber ;
-                    ast:roomNumberModel ?roomNumberModel ;
-                    ast:roomCategory ?roomNew ;
-                    ast:capacity ?capacity ;
-                    ast:bathroom ?bathroom .
-                FILTER (?room != ?roomNew)
-            }");
-
-        if roomDefects != null then
-            print("RECONFIG> Misconfigured Room detected: repairing the model");
-            while roomDefects != null do
-                RoomDefectRoomCategory roomDefect = roomDefects.content;
-                List<RoomDefectRoomCategory> lx = roomDefects;
-                roomDefects = roomDefects.next;
-                destroy(lx);
-
-                print("RECONFIG> Misconfigured room: ");
-                print("          Old Room: " ++ intToString(roomDefect.obj.roomCategory));
-                print("          New Room: " ++ intToString(roomDefect.roomNew));
-
-                roomDefect.obj.roomCategory = roomDefect.roomNew;
-            end
-
-            print("RECONFIG> Room(s) changed");
-        end
-    end
-
-    Unit checkCapacityChanged()
-        List<RoomDefectCapacity> capacityDefects = construct("
-            PREFIX ast: <http://www.smolang.org/bedreflyt#>
-            SELECT DISTINCT ?obj ?capacityNew {
-                ?obj a prog:Room ;
-                    prog:Room_roomNumber ?roomNumber ;
-                    prog:Room_roomNumberModel ?roomNumberModel ;
-                    prog:Room_roomCategory ?room ;
-                    prog:Room_capacity ?capacity ;
-                    prog:Room_bathroom ?bathroom .
-                ?y a ast:Room ;
-                    ast:roomNumber ?roomNumber ;
-                    ast:roomNumberModel ?roomNumberModel ;
-                    ast:roomCategory ?room ;
-                    ast:capacity ?capacityNew ;
-                    ast:bathroom ?bathroom .
-                FILTER (?capacity != ?capacityNew)
-            }");
-
-        if capacityDefects != null then
-            print("RECONFIG> Misconfigured Capacity detected: repairing the model");
-            while capacityDefects != null do
-                RoomDefectCapacity capacityDefect = capacityDefects.content;
-                List<RoomDefectCapacity> lx = capacityDefects;
-                capacityDefects = capacityDefects.next;
-                destroy(lx);
-
-                print("RECONFIG> Misconfigured capacity: ");
-                print("          Capacity: " ++ intToString(capacityDefect.obj.capacity));
-                print("          Capacity: " ++ intToString(capacityDefect.capacityNew));
-
-                capacityDefect.obj.capacity = capacityDefect.capacityNew;
-            end
-
-            print("RECONFIG> Capacity(s) changed");
-        end
-    end
-
-    Unit checkBathroomChanged()
-        List<RoomDefectBathroom> bathroomDefects = construct("
-            PREFIX ast: <http://www.smolang.org/bedreflyt#>
-            SELECT DISTINCT ?obj ?bathroomNew {
-                ?obj a prog:Room ;
-                    prog:Room_roomNumber ?roomNumber ;
-                    prog:Room_roomNumberModel ?roomNumberModel ;
-                    prog:Room_roomCategory ?room ;
-                    prog:Room_capacity ?capacity ;
-                    prog:Room_bathroom ?bathroom .
-                ?y a ast:Room ;
-                    ast:roomNumber ?roomNumber ;
-                    ast:roomNumberModel ?roomNumberModel ;
-                    ast:roomCategory ?room ;
-                    ast:capacity ?capacity ;
-                    ast:bathroom ?bathroomNew .
-                FILTER (?bathroom != ?bathroomNew)
-            }");
-
-        if bathroomDefects != null then
-            print("RECONFIG> Misconfigured Bathroom detected: repairing the model");
-            while bathroomDefects != null do
-                RoomDefectBathroom bathroomDefect = bathroomDefects.content;
-                List<RoomDefectBathroom> lx = bathroomDefects;
-                bathroomDefects = bathroomDefects.next;
-                destroy(lx);
-
-                print("RECONFIG> Misconfigured bathroom: ");
-                print("          Old Bathroom: " ++ intToString(bathroomDefect.obj.bathroom));
-                print("          New Bathroom: " ++ intToString(bathroomDefect.bathroomNew));
-
-                bathroomDefect.obj.bathroom = bathroomDefect.bathroomNew;
-            end
-
-            print("RECONFIG> Bathroom(s) changed");
-        end
+    override Unit adaptRepair()
+        skip;
     end
 end
