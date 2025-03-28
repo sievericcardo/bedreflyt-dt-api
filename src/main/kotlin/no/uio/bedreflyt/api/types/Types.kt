@@ -5,7 +5,9 @@ import no.uio.bedreflyt.api.model.live.Patient
 data class SimulationRequest(
     val scenario: List<ScenarioRequest>,
     val mode: String,
-    val smtMode: String = "changes"
+    val smtMode: String = "changes",
+    val wardName: String,
+    val hospitalCode: String
 )
 
 data class RoomInfo(
@@ -67,7 +69,9 @@ data class MultiSimulationRequest(
     val scenario: List<ScenarioRequest>,
     val repetitions: Int = 10,
     val risk: Double = 0.5,
-    val smtMode: String = "changes"
+    val smtMode: String = "changes",
+    val wardName: String,
+    val hospitalCode: String
 )
 
 data class MultiSimulationResponse(

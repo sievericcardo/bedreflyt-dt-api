@@ -5,6 +5,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.responses.ApiResponses
 import jakarta.validation.Valid
 import no.uio.bedreflyt.api.config.EnvironmentConfig
+import no.uio.bedreflyt.api.config.REPLConfig
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.GetMapping
 import io.swagger.v3.oas.annotations.parameters.RequestBody as SwaggerRequestBody
@@ -21,7 +22,8 @@ import java.util.logging.Logger
 @RestController
 @RequestMapping("/api/v1/fuseki")
 class FusekiController (
-    private val environmentConfig: EnvironmentConfig
+    private val environmentConfig: EnvironmentConfig,
+    private val replConfig: REPLConfig
 ) {
 
     private val log : Logger = Logger.getLogger(FusekiController::class.java.name)
@@ -119,6 +121,14 @@ class FusekiController (
 
         val uploadResponse = makePostRequest(uploadUrl, uploadHeaders, ontologyData)
         println(uploadResponse)
+
+        val repl = replConfig.repl()
+        repl.interpreter!!.tripleManager.regenerateTripleStoreModel()
+        repl.interpreter!!.evalCall(
+            repl.interpreter!!.getObjectNames("AssetModel")[0],
+            "AssetModel",
+            "reconfigure"
+        )
 
         val path = "bedreflyt.ttl"
         modelFile.transferTo(File(path))

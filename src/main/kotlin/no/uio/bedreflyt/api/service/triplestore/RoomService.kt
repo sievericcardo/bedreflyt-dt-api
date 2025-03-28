@@ -174,6 +174,47 @@ class RoomService (
         return TreatmentRoom(roomNumber, capacity, ward, hospital, monitoringCategory)
     }
 
+    @Cacheable("rooms", key = "#roomNumber + '_' + #wardName + '_' + #hospitalCode")
+    fun getRoomsByWardHospital(wardName: String, hospitalCode: String) : List<TreatmentRoom>? {
+        val rooms = mutableListOf<TreatmentRoom>()
+        val query = """
+            SELECT DISTINCT ?capacity ?category WHERE {
+                ?obj a prog:TreatingRoom ;
+                    prog:TreatingRoom_roomNumber ?roomNumber ;
+                    prog:TreatingRoom_capacity ?capacity ;
+                    prog:TreatingRoom_treatingWard ?ward ;
+                    prog:TreatingRoom_hospital ?hospital ;
+                    prog:TreatingRoom_monitoringCategory ?monitoringCategory .
+                ?ward a prog:Ward ;
+                    prog:Ward_wardName "$wardName" .
+                ?hospital a prog:Hospital ;
+                    prog:Hospital_hospitalCode "$hospitalCode" .
+                ?monitoringCategory a prog:MonitoringCategory ;
+                    prog:MonitoringCategory_description ?category .
+            }
+        """.trimIndent()
+
+        val resultRooms: ResultSet = repl.interpreter!!.query(query)!!
+        if (!resultRooms.hasNext()) {
+            return null
+        }
+
+        while (resultRooms.hasNext()) {
+            val solution: QuerySolution = resultRooms.next()
+            val roomNumber = solution.get("?roomNumber").asLiteral().toString().split("^^")[0].toInt()
+            val capacity = solution.get("?capacity").asLiteral().toString().split("^^")[0].toInt()
+            val category = solution.get("?category").asLiteral().toString()
+
+            val ward = wardService.getWardByNameAndHospital(wardName, hospitalCode) ?: return null
+            val hospital = hospitalService.getHospitalByCode(hospitalCode) ?: return null
+            val monitoringCategory = monitoringCategoryService.getCategoryByDescription(category) ?: return null
+
+            rooms.add(TreatmentRoom(roomNumber, capacity, ward, hospital, monitoringCategory))
+        }
+
+        return rooms
+    }
+
     @CacheEvict("rooms", key = "#room.roomNumber + '_' + #room.ward.wardName + '_' + #room.hospital.hospitalCode")
     @CachePut("rooms", key = "#room.roomNumber + '_' + #newWard + '_' + #room.hospital.hospitalCode")
     fun updateRoom(room: TreatmentRoom, newCapacity: Int?, newWard: String?, newCategory: String?) : Boolean {

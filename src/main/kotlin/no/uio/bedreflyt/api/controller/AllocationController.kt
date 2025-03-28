@@ -12,6 +12,7 @@ import no.uio.bedreflyt.api.service.live.PatientAllocationService
 import no.uio.bedreflyt.api.service.live.PatientService
 import no.uio.bedreflyt.api.service.live.PatientTrajectoryService
 import no.uio.bedreflyt.api.service.simulation.DatabaseService
+import no.uio.bedreflyt.api.service.triplestore.WardService
 import no.uio.bedreflyt.api.utils.Simulator
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
@@ -34,7 +35,8 @@ class AllocationController (
     private val simulator: Simulator,
     private val patientAllocationService: PatientAllocationService,
     private val patientService: PatientService,
-    private val patientTrajectoryService: PatientTrajectoryService
+    private val patientTrajectoryService: PatientTrajectoryService,
+    private val wardService: WardService
 ) {
 
     private val log: Logger = Logger.getLogger(SimulationController::class.java.name)
@@ -96,7 +98,8 @@ class AllocationController (
         val bedreflytDB = tempDir.resolve("bedreflyt.db").toString()
         databaseService.createTables(bedreflytDB)
 
-        val rooms = databaseService.createAndPopulateRooms(bedreflytDB)
+        val ward = wardService.getWardByNameAndHospital(allocationRequest.wardName, allocationRequest.hospitalCode) ?: return ResponseEntity.badRequest().build()
+        val rooms = databaseService.createAndPopulateRooms(bedreflytDB, ward)
         val patients : MutableMap<String, Patient> = databaseService.createAndPopulatePatientTables(bedreflytDB, allocationRequest.scenario, allocationRequest.mode).toMutableMap()
         // Add the patients that are already in the trajectory
         val trajectories = patientTrajectoryService.findAll() ?: listOf()

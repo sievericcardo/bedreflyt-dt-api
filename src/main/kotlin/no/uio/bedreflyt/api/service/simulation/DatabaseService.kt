@@ -4,6 +4,7 @@ import no.uio.bedreflyt.api.model.live.Patient
 import no.uio.bedreflyt.api.model.live.PatientAllocation
 import no.uio.bedreflyt.api.model.simulation.Room
 import no.uio.bedreflyt.api.model.triplestore.Task
+import no.uio.bedreflyt.api.model.triplestore.Ward
 import no.uio.bedreflyt.api.service.live.PatientAllocationService
 import no.uio.bedreflyt.api.service.live.PatientService
 import no.uio.bedreflyt.api.service.triplestore.*
@@ -137,7 +138,7 @@ class DatabaseService (
         jdbcTemplate.execute(createRoomDistributionTable)
     }
 
-    fun createAndPopulateRooms(roomDbUrl: String): List<Room> {
+    fun createAndPopulateRooms(roomDbUrl: String, ward: Ward): List<Room> {
         val categories = monitoringCategoryService.getAllCategories()
 
         categories?.let {
@@ -146,7 +147,7 @@ class DatabaseService (
             }
         } ?: throw IllegalArgumentException("No rooms found")
 
-        val rooms = roomService.getAllRooms()
+        val rooms = roomService.getRoomsByWardHospital(ward.wardName, ward.wardHospital.hospitalCode)
             ?: throw IllegalArgumentException("No room distributions found")
         val simulationRoom = mutableListOf<Room>()
 
