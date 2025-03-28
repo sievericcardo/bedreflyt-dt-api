@@ -4,6 +4,7 @@ import io.swagger.annotations.ApiParam
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.responses.ApiResponses
+import jakarta.validation.Valid
 import no.uio.bedreflyt.api.model.live.Patient
 import no.uio.bedreflyt.api.service.live.PatientService
 import no.uio.bedreflyt.api.types.PatientRequest
@@ -33,7 +34,7 @@ class PatientController (
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
     @PostMapping(produces = ["application/json"])
-    fun createPatient(@SwaggerRequestBody(description = "Request to add a new patient") @RequestBody patientRequest: PatientRequest) : ResponseEntity<String> {
+    fun createPatient(@SwaggerRequestBody(description = "Request to add a new patient") @Valid @RequestBody patientRequest: PatientRequest) : ResponseEntity<String> {
         log.info("Creating patient $patientRequest")
         val formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss")
 
@@ -60,7 +61,7 @@ class PatientController (
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
     @GetMapping("/{patientId}", produces = ["application/json"])
-    fun getPatient(@ApiParam(value = "Request to get a patient by patientId", required = true) @PathVariable patientId: String) : ResponseEntity<Patient> {
+    fun getPatient(@ApiParam(value = "Request to get a patient by patientId", required = true) @Valid @PathVariable patientId: String) : ResponseEntity<Patient> {
         log.info("Getting patient")
 
         if (patientId.isEmpty()) {
@@ -97,8 +98,8 @@ class PatientController (
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
     @PatchMapping("/{patientId}", produces = ["application/json"])
-    fun updatePatient(@ApiParam(value = "Patient id to update", required = true) @PathVariable patientId: String,
-                      @SwaggerRequestBody(description = "Request to update a patient") @RequestBody patientRequest: UpdatePatientRequest) : ResponseEntity<Patient> {
+    fun updatePatient(@ApiParam(value = "Patient id to update", required = true) @Valid @PathVariable patientId: String,
+                      @SwaggerRequestBody(description = "Request to update a patient") @Valid @RequestBody patientRequest: UpdatePatientRequest) : ResponseEntity<Patient> {
         log.info("Updating patient")
 
         if (patientId.isEmpty()) {
@@ -127,7 +128,7 @@ class PatientController (
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
     @DeleteMapping("/{patientId}", produces = ["application/json"])
-    fun deletePatient(@ApiParam(value = "Request to delete a patient", required = true) @PathVariable patientId: String) : ResponseEntity<String> {
+    fun deletePatient(@ApiParam(value = "Request to delete a patient", required = true) @Valid @PathVariable patientId: String) : ResponseEntity<String> {
         log.info("Deleting patient")
 
         if (patientId.isEmpty()) {

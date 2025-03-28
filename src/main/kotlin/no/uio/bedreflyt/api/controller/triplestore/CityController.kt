@@ -6,6 +6,7 @@ import org.springframework.web.bind.annotation.RestController
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.responses.ApiResponses
+import jakarta.validation.Valid
 import no.uio.bedreflyt.api.config.EnvironmentConfig
 import no.uio.bedreflyt.api.config.REPLConfig
 import no.uio.bedreflyt.api.model.triplestore.City
@@ -43,7 +44,7 @@ class CityController (
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
     @PostMapping(produces= ["application/json"])
-    fun createCity(@SwaggerRequestBody(description = "Request to add a new city") @RequestBody cityRequest: CityRequest) : ResponseEntity<City> {
+    fun createCity(@SwaggerRequestBody(description = "Request to add a new city") @Valid @RequestBody cityRequest: CityRequest) : ResponseEntity<City> {
         log.info("Creating city $cityRequest")
 
         if (!cityService.createCity(cityRequest)) {
@@ -80,7 +81,7 @@ class CityController (
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
     @GetMapping("/{cityName}", produces= ["application/json"])
-    fun retrieveCityByName(@ApiParam(value = "City name", required = true) @PathVariable cityName: String) : ResponseEntity<City> {
+    fun retrieveCityByName(@ApiParam(value = "City name", required = true) @Valid @PathVariable cityName: String) : ResponseEntity<City> {
         log.info("Retrieving city $cityName")
 
         val city = cityService.getCityByName(cityName) ?: return ResponseEntity.badRequest().build()
@@ -98,7 +99,7 @@ class CityController (
     ])
     @PatchMapping("/{cityName}", produces= ["application/json"])
     fun updateCity(@ApiParam(value = "City name", required = true) @PathVariable cityName: String,
-                   @SwaggerRequestBody(description = "Request to update a city") @RequestBody cityRequest: UpdateCityRequest) : ResponseEntity<City> {
+                   @SwaggerRequestBody(description = "Request to update a city") @Valid  @RequestBody cityRequest: UpdateCityRequest) : ResponseEntity<City> {
         log.info("Updating city $cityRequest")
 
         if(cityService.getCityByName(cityName) == null) {
@@ -124,7 +125,7 @@ class CityController (
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
     @DeleteMapping("/{cityName}", produces= ["application/json"])
-    fun deleteCity(@ApiParam(value = "City name", required = true) @PathVariable cityName: String) : ResponseEntity<String> {
+    fun deleteCity(@ApiParam(value = "City name", required = true) @Valid @PathVariable cityName: String) : ResponseEntity<String> {
         log.info("Deleting city $cityName")
 
         if(cityService.getCityByName(cityName) == null) {

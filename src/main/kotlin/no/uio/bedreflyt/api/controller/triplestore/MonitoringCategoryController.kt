@@ -4,6 +4,7 @@ import io.swagger.annotations.ApiParam
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.responses.ApiResponses
+import jakarta.validation.Valid
 import no.uio.bedreflyt.api.config.EnvironmentConfig
 import no.uio.bedreflyt.api.config.REPLConfig
 import no.uio.bedreflyt.api.model.triplestore.MonitoringCategory
@@ -50,7 +51,7 @@ class MonitoringCategoryController (
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
     @PostMapping(produces= ["application/json"])
-    fun addMonitoringCategory(@SwaggerRequestBody(description = "Monitory category to add") @RequestBody request: MonitoringCategoryRequest) : ResponseEntity<MonitoringCategory> {
+    fun addMonitoringCategory(@SwaggerRequestBody(description = "Monitory category to add") @Valid @RequestBody request: MonitoringCategoryRequest) : ResponseEntity<MonitoringCategory> {
         log.info("Adding monitoring category")
 
         if(!monitoringCategoryService.createCategory(request)) {
@@ -85,7 +86,7 @@ class MonitoringCategoryController (
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
     @GetMapping("/{monitoringCategory}", produces= ["application/json"])
-    fun getMonitoringCategory(@ApiParam(value = "Category", required = true) @PathVariable monitoringCategory: Int) : ResponseEntity<MonitoringCategory> {
+    fun getMonitoringCategory(@ApiParam(value = "Category", required = true) @Valid @PathVariable monitoringCategory: Int) : ResponseEntity<MonitoringCategory> {
         log.info("Getting monitoring category $monitoringCategory")
 
         val category = monitoringCategoryService.getCategoryByCategory(monitoringCategory) ?: return ResponseEntity.notFound().build()
@@ -101,8 +102,8 @@ class MonitoringCategoryController (
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
     @PatchMapping("/{monitoringCategory}", produces= ["application/json"])
-    fun updateMonitoringCategory(@ApiParam(value = "Category", required = true) @PathVariable monitoringCategory: Int,
-                           @SwaggerRequestBody(description = "Request to update a monitoring category") @RequestBody request: UpdateMonitoringCategoryRequest) : ResponseEntity<MonitoringCategory> {
+    fun updateMonitoringCategory(@ApiParam(value = "Category", required = true) @Valid @PathVariable monitoringCategory: Int,
+                           @SwaggerRequestBody(description = "Request to update a monitoring category") @Valid @RequestBody request: UpdateMonitoringCategoryRequest) : ResponseEntity<MonitoringCategory> {
         log.info("Updating monitoring category $monitoringCategory")
 
         val category = monitoringCategoryService.getCategoryByCategory(monitoringCategory) ?: return ResponseEntity.notFound().build()
@@ -125,7 +126,7 @@ class MonitoringCategoryController (
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
     @DeleteMapping("/{monitoringCategory}", produces= ["application/json"])
-    fun deleteMonitoringCategory(@ApiParam(value = "Category", required = true) @PathVariable monitoringCategory: Int) : ResponseEntity<String> {
+    fun deleteMonitoringCategory(@ApiParam(value = "Category", required = true) @Valid @PathVariable monitoringCategory: Int) : ResponseEntity<String> {
         log.info("Deleting monitoring category $monitoringCategory")
 
         val category = monitoringCategoryService.getCategoryByCategory(monitoringCategory) ?: return ResponseEntity.badRequest().body("Error: the category could not be found.")

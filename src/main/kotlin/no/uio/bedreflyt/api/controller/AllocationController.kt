@@ -3,6 +3,7 @@ package no.uio.bedreflyt.api.controller
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.responses.ApiResponses
+import jakarta.validation.Valid
 import no.uio.bedreflyt.api.model.live.Patient
 import no.uio.bedreflyt.api.model.live.PatientAllocation
 import no.uio.bedreflyt.api.model.live.PatientTrajectory
@@ -52,7 +53,7 @@ class AllocationController (
         ]
     )
     @PostMapping("/allocate")
-    fun allocateRooms(@SwaggerRequestBody(description = "Request to allocate rooms for patients") @RequestBody allocationRequest: AllocationRequest): ResponseEntity<AllocationResponse> {
+    fun allocateRooms(@SwaggerRequestBody(description = "Request to allocate rooms for patients") @Valid @RequestBody allocationRequest: AllocationRequest): ResponseEntity<AllocationResponse> {
         log.info("Allocating rooms for ${allocationRequest.scenario.size} patients")
 
         // Remove expired trajectories

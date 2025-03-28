@@ -4,6 +4,7 @@ import io.swagger.annotations.ApiParam
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.responses.ApiResponses
+import jakarta.validation.Valid
 import io.swagger.v3.oas.annotations.parameters.RequestBody as SwaggerRequestBody
 import no.uio.bedreflyt.api.config.REPLConfig
 import no.uio.bedreflyt.api.config.TriplestoreProperties
@@ -44,7 +45,7 @@ class TreatmentController (
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
     @PostMapping(produces= ["application/json"])
-    fun createTreatment(@SwaggerRequestBody(description = "Request to create a new treatment") @RequestBody request: TreatmentRequest) : ResponseEntity<Treatment> {
+    fun createTreatment(@SwaggerRequestBody(description = "Request to create a new treatment") @Valid @RequestBody request: TreatmentRequest) : ResponseEntity<Treatment> {
         log.info("Creating treatment $request")
 
         val diagnosis = diagnosisService.getDiagnosisByName(request.diagnosis) ?: return ResponseEntity.badRequest().build()
@@ -82,7 +83,7 @@ class TreatmentController (
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
     @GetMapping("/{treatmentName}", produces= ["application/json"])
-    fun getTreatment(@ApiParam(value = "Treatment name", required = true) @PathVariable treatmentName: String) : ResponseEntity<Treatment> {
+    fun getTreatment(@ApiParam(value = "Treatment name", required = true) @Valid @PathVariable treatmentName: String) : ResponseEntity<Treatment> {
         log.info("Getting treatment $treatmentName")
 
         val treatment = treatmentService.getTreatmentsByTreatmentName(treatmentName) ?: return ResponseEntity.badRequest().build()
@@ -98,8 +99,8 @@ class TreatmentController (
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
     @PatchMapping("/{treatmentName}", produces= ["application/json"])
-    fun updateTreatment(@ApiParam(value = "Treatment name", required = true) @PathVariable treatmentName: String,
-                        @SwaggerRequestBody(description = "Request to update a treatment") @RequestBody request: UpdateTreatmentRequest) : ResponseEntity<Treatment> {
+    fun updateTreatment(@ApiParam(value = "Treatment name", required = true) @Valid @PathVariable treatmentName: String,
+                        @SwaggerRequestBody(description = "Request to update a treatment") @Valid @RequestBody request: UpdateTreatmentRequest) : ResponseEntity<Treatment> {
         log.info("Updating treatment $treatmentName")
 
         return ResponseEntity.badRequest().build()
@@ -114,7 +115,7 @@ class TreatmentController (
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
     @DeleteMapping("/{treatmentName}", produces= ["application/json"])
-    fun deleteTreatment(@ApiParam(value = "Treatment name", required = true) @PathVariable treatmentName: String) : ResponseEntity<String> {
+    fun deleteTreatment(@ApiParam(value = "Treatment name", required = true) @Valid @PathVariable treatmentName: String) : ResponseEntity<String> {
         log.info("Deleting treatment $treatmentName")
 
         if (treatmentService.getTreatmentsByTreatmentName(treatmentName) == null) {

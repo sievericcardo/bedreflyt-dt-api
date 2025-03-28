@@ -6,6 +6,7 @@ import org.springframework.web.bind.annotation.RestController
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.responses.ApiResponses
+import jakarta.validation.Valid
 import no.uio.bedreflyt.api.config.EnvironmentConfig
 import no.uio.bedreflyt.api.config.REPLConfig
 import no.uio.bedreflyt.api.model.triplestore.Ward
@@ -45,7 +46,7 @@ class WardController (
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
     @PostMapping(produces= ["application/json"])
-    fun createWard(@SwaggerRequestBody(description = "Request to add a new ward") @RequestBody wardRequest: WardRequest) : ResponseEntity<Ward> {
+    fun createWard(@SwaggerRequestBody(description = "Request to add a new ward") @Valid @RequestBody wardRequest: WardRequest) : ResponseEntity<Ward> {
         log.info("Creating ward $wardRequest")
 
         val hospital = hospitalService.getHospitalByCode(wardRequest.wardHospitalName) ?: return ResponseEntity.badRequest().build()
@@ -83,8 +84,8 @@ class WardController (
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
     @GetMapping("/{wardName}/{hospitalCode}", produces= ["application/json"])
-    fun retrieveWard(@ApiParam(value = "Ward name", required = true) @PathVariable wardName: String,
-                     @ApiParam(value = "Hospital code for the ward", required = true) @PathVariable hospitalCode: String) : ResponseEntity<Ward> {
+    fun retrieveWard(@ApiParam(value = "Ward name", required = true) @Valid @PathVariable wardName: String,
+                     @ApiParam(value = "Hospital code for the ward", required = true) @Valid @PathVariable hospitalCode: String) : ResponseEntity<Ward> {
         log.info("Retrieving ward $wardName in hospital $hospitalCode")
 
         val ward = wardService.getWardByNameAndHospital(wardName, hospitalCode) ?: return ResponseEntity.badRequest().build()
@@ -129,8 +130,8 @@ class WardController (
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
     @DeleteMapping("/{wardName}/{hospitalCode}", produces= ["application/json"])
-    fun deleteWard(@ApiParam(value = "Ward name", required = true) @PathVariable wardName: String,
-                   @ApiParam(value = "Hospital code for the ward", required = true) @PathVariable hospitalCode: String) : ResponseEntity<String> {
+    fun deleteWard(@ApiParam(value = "Ward name", required = true) @Valid @PathVariable wardName: String,
+                   @ApiParam(value = "Hospital code for the ward", required = true) @Valid @PathVariable hospitalCode: String) : ResponseEntity<String> {
         log.info("Deleting ward $wardName in hospital $hospitalCode")
 
         val ward = wardService.getWardByNameAndHospital(wardName, hospitalCode) ?: return ResponseEntity.notFound().build()

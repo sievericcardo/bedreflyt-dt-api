@@ -6,6 +6,7 @@ import org.springframework.web.bind.annotation.RestController
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.responses.ApiResponses
+import jakarta.validation.Valid
 import no.uio.bedreflyt.api.config.EnvironmentConfig
 import no.uio.bedreflyt.api.config.REPLConfig
 import no.uio.bedreflyt.api.model.triplestore.Floor
@@ -43,7 +44,7 @@ class FloorController (
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
     @PostMapping(produces= ["application/json"])
-    fun createFloor(@SwaggerRequestBody(description = "Request to add a new floor") @RequestBody floorRequest: FloorRequest) : ResponseEntity<Floor> {
+    fun createFloor(@SwaggerRequestBody(description = "Request to add a new floor") @Valid @RequestBody floorRequest: FloorRequest) : ResponseEntity<Floor> {
         log.info("Creating floor $floorRequest")
 
         if (!floorService.createFloor(floorRequest)) {
@@ -80,7 +81,7 @@ class FloorController (
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
     @GetMapping("/{floorNumber}", produces= ["application/json"])
-    fun retrieveFloor(@ApiParam(value = "Floor number", required = true) @PathVariable floorNumber: Int) : ResponseEntity<Floor> {
+    fun retrieveFloor(@ApiParam(value = "Floor number", required = true) @Valid @PathVariable floorNumber: Int) : ResponseEntity<Floor> {
         log.info("Retrieving floor $floorNumber")
 
         val floor = floorService.getFloorByNumber(floorNumber) ?: return ResponseEntity.badRequest().build()
@@ -97,8 +98,8 @@ class FloorController (
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
     @PatchMapping("/{floorNumber}", produces= ["application/json"])
-    fun updateFloor(@ApiParam(value = "Floor number", required = true) @PathVariable floorNumber: Int,
-                    @SwaggerRequestBody(description = "Request to update a floor") @RequestBody updateFloorRequest: UpdateFloorRequest) : ResponseEntity<Floor> {
+    fun updateFloor(@ApiParam(value = "Floor number", required = true) @Valid @PathVariable floorNumber: Int,
+                    @SwaggerRequestBody(description = "Request to update a floor") @Valid @RequestBody updateFloorRequest: UpdateFloorRequest) : ResponseEntity<Floor> {
         log.info("Updating floor $updateFloorRequest")
 
         if (floorService.getFloorByNumber(floorNumber) == null) {
@@ -123,7 +124,7 @@ class FloorController (
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
     @DeleteMapping("/{floorNumber}", produces= ["application/json"])
-    fun deleteFloor(@ApiParam(value = "Floor number", required = true) @PathVariable floorNumber: Int) : ResponseEntity<String> {
+    fun deleteFloor(@ApiParam(value = "Floor number", required = true) @Valid @PathVariable floorNumber: Int) : ResponseEntity<String> {
         log.info("Deleting floor $floorNumber")
 
         if (floorService.getFloorByNumber(floorNumber) == null) {

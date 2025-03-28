@@ -4,6 +4,7 @@ import io.swagger.annotations.ApiParam
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.responses.ApiResponses
+import jakarta.validation.Valid
 import no.uio.bedreflyt.api.config.EnvironmentConfig
 import no.uio.bedreflyt.api.config.REPLConfig
 import no.uio.bedreflyt.api.model.triplestore.Room
@@ -46,7 +47,7 @@ class RoomController (
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
     @PostMapping(produces= ["application/json"])
-    fun createRoom (@SwaggerRequestBody(description = "Request to add a new room") @RequestBody roomRequest: RoomRequest) : ResponseEntity<TreatmentRoom> {
+    fun createRoom (@SwaggerRequestBody(description = "Request to add a new room") @Valid @RequestBody roomRequest: RoomRequest) : ResponseEntity<TreatmentRoom> {
         log.info("Creating room $roomRequest")
 
         val ward = wardService.getWardByNameAndHospital(roomRequest.ward, roomRequest.hospital) ?: return ResponseEntity.badRequest().build()
@@ -87,9 +88,9 @@ class RoomController (
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
     @GetMapping("/{roomNumber}/{wardName}/{hospitalCode}", produces= ["application/json"])
-    fun retrieveRoom(@ApiParam(value = "Room number", required = true) @PathVariable roomNumber: Int,
-                     @ApiParam(value = "Ward name", required = true) @PathVariable wardName: String,
-                     @ApiParam(value = "Hospital code", required = true) @PathVariable hospitalCode: String) : ResponseEntity<TreatmentRoom> {
+    fun retrieveRoom(@ApiParam(value = "Room number", required = true) @Valid @PathVariable roomNumber: Int,
+                     @ApiParam(value = "Ward name", required = true) @Valid @PathVariable wardName: String,
+                     @ApiParam(value = "Hospital code", required = true) @Valid @PathVariable hospitalCode: String) : ResponseEntity<TreatmentRoom> {
         log.info("Retrieving room $roomNumber in ward $wardName")
 
         val room = roomService.getRoomByRoomNumberWardHospital(roomNumber, wardName, hospitalCode) ?: return ResponseEntity.badRequest().build()
@@ -106,10 +107,10 @@ class RoomController (
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
     @PatchMapping("/{roomNumber}/{wardName}/{hospitalCode}", produces= ["application/json"])
-    fun updateRoom(@ApiParam(value = "Room number", required = true) @PathVariable roomNumber: Int,
-                   @ApiParam(value = "Ward name", required = true) @PathVariable wardName: String,
-                   @ApiParam(value = "Hospital code", required = true) @PathVariable hospitalCode: String,
-                   @SwaggerRequestBody(description = "Request to update a room") @RequestBody updateRoomRequest: UpdateRoomRequest) : ResponseEntity<TreatmentRoom> {
+    fun updateRoom(@ApiParam(value = "Room number", required = true) @Valid @PathVariable roomNumber: Int,
+                   @ApiParam(value = "Ward name", required = true) @Valid @PathVariable wardName: String,
+                   @ApiParam(value = "Hospital code", required = true) @Valid @PathVariable hospitalCode: String,
+                   @SwaggerRequestBody(description = "Request to update a room") @Valid @RequestBody updateRoomRequest: UpdateRoomRequest) : ResponseEntity<TreatmentRoom> {
         log.info("Updating room $updateRoomRequest")
 
         val room = roomService.getRoomByRoomNumberWardHospital(roomNumber, wardName, hospitalCode) ?: return ResponseEntity.notFound().build()
@@ -137,9 +138,9 @@ class RoomController (
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
     @DeleteMapping("/{roomNumber}/{wardName}/{hospitalCode}", produces= ["application/json"])
-    fun deleteRoom(@ApiParam(value = "Room number", required = true) @PathVariable roomNumber: Int,
-                   @ApiParam(value = "Ward name", required = true) @PathVariable wardName: String,
-                   @ApiParam(value = "Hospital code", required = true) @PathVariable hospitalCode: String) : ResponseEntity<String> {
+    fun deleteRoom(@ApiParam(value = "Room number", required = true) @Valid @PathVariable roomNumber: Int,
+                   @ApiParam(value = "Ward name", required = true) @Valid @PathVariable wardName: String,
+                   @ApiParam(value = "Hospital code", required = true) @Valid @PathVariable hospitalCode: String) : ResponseEntity<String> {
         log.info("Deleting room $roomNumber in ward $wardName")
 
         val room = roomService.getRoomByRoomNumberWardHospital(roomNumber, wardName, hospitalCode) ?: return ResponseEntity.notFound().build()

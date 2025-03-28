@@ -4,6 +4,7 @@ import io.swagger.annotations.ApiParam
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.responses.ApiResponses
+import jakarta.validation.Valid
 import no.uio.bedreflyt.api.model.live.PatientAllocation
 import io.swagger.v3.oas.annotations.parameters.RequestBody as SwaggerRequestBody
 import no.uio.bedreflyt.api.service.live.PatientAllocationService
@@ -34,7 +35,7 @@ class PatientAllocationController (
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
     @PostMapping(produces = ["application/json"])
-    fun createPatientAllocation(@SwaggerRequestBody(description = "Request to add a new patient allocation") @RequestBody request: PatientAllocationRequest) : ResponseEntity<String> {
+    fun createPatientAllocation(@SwaggerRequestBody(description = "Request to add a new patient allocation") @Valid @RequestBody request: PatientAllocationRequest) : ResponseEntity<String> {
         log.info("Creating patient allocation $request")
 
         val patient = patientService.findByPatientId(request.patientId) ?: return ResponseEntity.badRequest().body("Patient not found")
@@ -82,7 +83,7 @@ class PatientAllocationController (
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
     @GetMapping("/{patientId}", produces = ["application/json"])
-    fun getPatientAllocation(@ApiParam(value = "Request to get a patient allocation by patientId", required = true) @PathVariable patientId: String) : ResponseEntity<PatientAllocation> {
+    fun getPatientAllocation(@ApiParam(value = "Request to get a patient allocation by patientId", required = true) @Valid @PathVariable patientId: String) : ResponseEntity<PatientAllocation> {
         log.info("Getting patient allocation")
 
         if (patientId.isEmpty()) {
@@ -104,8 +105,8 @@ class PatientAllocationController (
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
     @PatchMapping("/{patientId}", produces = ["application/json"])
-    fun updatePatientAllocation(@ApiParam(value = "Patient id to be update") @PathVariable patientId: String,
-                                @SwaggerRequestBody(description = "Request to update a patient allocation") @RequestBody updatedPatientAllocation: UpdatePatientAllocationRequest) : ResponseEntity<PatientAllocation> {
+    fun updatePatientAllocation(@ApiParam(value = "Patient id to be update") @Valid @PathVariable patientId: String,
+                                @SwaggerRequestBody(description = "Request to update a patient allocation") @Valid @RequestBody updatedPatientAllocation: UpdatePatientAllocationRequest) : ResponseEntity<PatientAllocation> {
         log.info("Updating patient allocation")
 
         val patient = patientService.findByPatientId(patientId) ?: return ResponseEntity.notFound().build()
@@ -137,7 +138,7 @@ class PatientAllocationController (
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
     @DeleteMapping("/{patientId}", produces = ["application/json"])
-    fun deletePatientAllocation(@ApiParam(value = "Patient id to be deleted", required = true) @PathVariable patientId: String) : ResponseEntity<String> {
+    fun deletePatientAllocation(@ApiParam(value = "Patient id to be deleted", required = true) @Valid @PathVariable patientId: String) : ResponseEntity<String> {
         log.info("Deleting patient allocation")
 
         val patient = patientService.findByPatientId(patientId) ?: return ResponseEntity.notFound().build()

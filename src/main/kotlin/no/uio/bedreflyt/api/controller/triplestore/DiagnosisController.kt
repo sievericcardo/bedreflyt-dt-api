@@ -4,6 +4,7 @@ import io.swagger.annotations.ApiParam
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.responses.ApiResponses
+import jakarta.validation.Valid
 import no.uio.bedreflyt.api.config.EnvironmentConfig
 import no.uio.bedreflyt.api.config.REPLConfig
 import no.uio.bedreflyt.api.model.triplestore.Diagnosis
@@ -43,7 +44,7 @@ class DiagnosisController (
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
     @PostMapping(produces= ["application/json"])
-    fun createDiagnosis (@SwaggerRequestBody(description = "Request to add a new patient") @RequestBody diagnosisRequest: DiagnosisRequest) : ResponseEntity<String> {
+    fun createDiagnosis (@SwaggerRequestBody(description = "Request to add a new patient") @Valid @RequestBody diagnosisRequest: DiagnosisRequest) : ResponseEntity<String> {
         log.info("Creating diagnosis $diagnosisRequest")
 
         if (!diagnosisService.createDiagnosis(diagnosisRequest.diagnosisName)) {
@@ -79,7 +80,7 @@ class DiagnosisController (
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
     @GetMapping("/{diagnosisCode}", produces= ["application/json"])
-    fun retrieveDiagnosisByCode(@ApiParam(value = "Diagnosis code", required = true) @PathVariable diagnosisCode: String) : ResponseEntity<Diagnosis> {
+    fun retrieveDiagnosisByCode(@ApiParam(value = "Diagnosis code", required = true) @Valid @PathVariable diagnosisCode: String) : ResponseEntity<Diagnosis> {
         log.info("Retrieving diagnosis $diagnosisCode")
 
         val diagnosis = diagnosisService.getDiagnosisByName(diagnosisCode) ?: return ResponseEntity.badRequest().build()
@@ -96,7 +97,7 @@ class DiagnosisController (
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
     @PatchMapping("/{diagnosisCode}", produces= ["application/json"])
-    fun updateDiagnosis(@ApiParam(value = "Diagnosis code", required = true) @PathVariable diagnosisCode: String,
+    fun updateDiagnosis(@ApiParam(value = "Diagnosis code", required = true) @Valid @PathVariable diagnosisCode: String,
                         @SwaggerRequestBody(description = "Request to update a diagnosis") @RequestBody updateDiagnosisRequest: UpdateDiagnosisRequest) : ResponseEntity<Diagnosis> {
         log.info("Updating diagnosis $updateDiagnosisRequest")
 
@@ -122,7 +123,7 @@ class DiagnosisController (
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
     @DeleteMapping("/{diagnosisCode}", produces= ["application/json"])
-    fun deleteDiagnosis(@ApiParam(value = "Diagnosis code", required = true) @PathVariable diagnosisCode: String) : ResponseEntity<String> {
+    fun deleteDiagnosis(@ApiParam(value = "Diagnosis code", required = true) @Valid @PathVariable diagnosisCode: String) : ResponseEntity<String> {
         log.info("Deleting diagnosis $diagnosisCode")
 
         if(diagnosisCode.isEmpty()) {

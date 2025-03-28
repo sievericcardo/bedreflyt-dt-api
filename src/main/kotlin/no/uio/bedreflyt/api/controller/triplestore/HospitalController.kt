@@ -6,6 +6,7 @@ import org.springframework.web.bind.annotation.RestController
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.responses.ApiResponses
+import jakarta.validation.Valid
 import no.uio.bedreflyt.api.config.EnvironmentConfig
 import no.uio.bedreflyt.api.config.REPLConfig
 import no.uio.bedreflyt.api.model.triplestore.Hospital
@@ -45,7 +46,7 @@ class HospitalController (
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
     @PostMapping(produces= ["application/json"])
-    fun createHospital(@SwaggerRequestBody(description = "Request to add a new hospital") @RequestBody hospitalRequest: HospitalRequest) : ResponseEntity<Hospital> {
+    fun createHospital(@SwaggerRequestBody(description = "Request to add a new hospital") @Valid @RequestBody hospitalRequest: HospitalRequest) : ResponseEntity<Hospital> {
         log.info("Creating hospital $hospitalRequest")
 
         if (!hospitalService.createHospital(hospitalRequest)) {
@@ -83,7 +84,7 @@ class HospitalController (
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
     @GetMapping("/{hospitalCode}", produces= ["application/json"])
-    fun retrieveHospitalByCode(@ApiParam(value = "Hospital code", required = true) @PathVariable hospitalCode: String) : ResponseEntity<Hospital> {
+    fun retrieveHospitalByCode(@ApiParam(value = "Hospital code", required = true) @Valid @PathVariable hospitalCode: String) : ResponseEntity<Hospital> {
         log.info("Retrieving hospital $hospitalCode")
 
         val hospital = hospitalService.getHospitalByCode(hospitalCode) ?: return ResponseEntity.badRequest().build()
@@ -100,8 +101,8 @@ class HospitalController (
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
     @PatchMapping("/{hospitalCode}", produces= ["application/json"])
-    fun updateHospital(@ApiParam(value = "Hospital code", required = true) @PathVariable hospitalCode: String,
-                       @SwaggerRequestBody(description = "Request to update a hospital") @RequestBody updateHospitalRequest: UpdateHospitalRequest) : ResponseEntity<Hospital> {
+    fun updateHospital(@ApiParam(value = "Hospital code", required = true) @Valid @PathVariable hospitalCode: String,
+                       @SwaggerRequestBody(description = "Request to update a hospital") @Valid @RequestBody updateHospitalRequest: UpdateHospitalRequest) : ResponseEntity<Hospital> {
         log.info("Updating hospital $updateHospitalRequest")
 
         val hospital = hospitalService.getHospitalByCode(hospitalCode) ?: return ResponseEntity.notFound().build()
@@ -124,7 +125,7 @@ class HospitalController (
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
     @DeleteMapping("/{hospitalCode}", produces= ["application/json"])
-    fun deleteHospital(@ApiParam(value = "Hospital code", required = true) @PathVariable hospitalCode: String) : ResponseEntity<String> {
+    fun deleteHospital(@ApiParam(value = "Hospital code", required = true) @Valid @PathVariable hospitalCode: String) : ResponseEntity<String> {
         log.info("Deleting hospital $hospitalCode")
 
         if(hospitalService.getHospitalByCode(hospitalCode) == null) {

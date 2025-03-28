@@ -4,6 +4,7 @@ import io.swagger.annotations.ApiParam
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.responses.ApiResponses
+import jakarta.validation.Valid
 import no.uio.bedreflyt.api.config.EnvironmentConfig
 import no.uio.bedreflyt.api.config.REPLConfig
 import no.uio.bedreflyt.api.model.triplestore.Task
@@ -50,7 +51,7 @@ class TaskController (
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
     @PostMapping(produces= ["application/json"])
-    fun createTask(@SwaggerRequestBody(description = "Request to add a new task") @RequestBody taskRequest: TaskRequest) : ResponseEntity<Task> {
+    fun createTask(@SwaggerRequestBody(description = "Request to add a new task") @Valid @RequestBody taskRequest: TaskRequest) : ResponseEntity<Task> {
         log.info("Creating task $taskRequest")
 
         if(!taskService.createTask(taskRequest.taskName)) {
@@ -86,7 +87,7 @@ class TaskController (
         ApiResponse(responseCode = "404", description = "Task not found")
     ])
     @GetMapping("/{taskName}", produces= ["application/json"])
-    fun retrieveTask(@ApiParam(value = "Task name", required = true) @PathVariable taskName: String) : ResponseEntity<Task> {
+    fun retrieveTask(@ApiParam(value = "Task name", required = true) @Valid @PathVariable taskName: String) : ResponseEntity<Task> {
         log.info("Retrieving task $taskName")
 
         val task = taskService.getTaskByTaskName(taskName) ?: return ResponseEntity.notFound().build()
@@ -103,8 +104,8 @@ class TaskController (
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
     @PatchMapping("/{taskName}", produces= ["application/json"])
-    fun updateTask(@ApiParam(value = "Task name", required = true) @PathVariable taskName: String,
-                   @SwaggerRequestBody(description = "Request to update a task") @RequestBody updateTaskRequest: UpdateTaskRequest) : ResponseEntity<Task> {
+    fun updateTask(@ApiParam(value = "Task name", required = true) @Valid @PathVariable taskName: String,
+                   @SwaggerRequestBody(description = "Request to update a task") @Valid @RequestBody updateTaskRequest: UpdateTaskRequest) : ResponseEntity<Task> {
         log.info("Updating task $updateTaskRequest")
 
         val task = taskService.getTaskByTaskName(taskName) ?: return ResponseEntity.notFound().build()
@@ -128,7 +129,7 @@ class TaskController (
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
     @DeleteMapping("/{taskName}", produces= ["application/json"])
-    fun deleteTask(@ApiParam(value = "Task name", required = true) @PathVariable taskName: String) : ResponseEntity<String> {
+    fun deleteTask(@ApiParam(value = "Task name", required = true) @Valid @PathVariable taskName: String) : ResponseEntity<String> {
         log.info("Deleting task $taskName")
 
         val task = taskService.getTaskByTaskName(taskName) ?: return ResponseEntity.notFound().build()

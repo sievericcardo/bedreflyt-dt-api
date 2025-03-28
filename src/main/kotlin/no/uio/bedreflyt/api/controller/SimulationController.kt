@@ -3,6 +3,7 @@ package no.uio.bedreflyt.api.controller
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.responses.ApiResponses
+import jakarta.validation.Valid
 import no.uio.bedreflyt.api.model.live.Patient
 import no.uio.bedreflyt.api.model.live.PatientAllocation
 import no.uio.bedreflyt.api.service.live.PatientAllocationService
@@ -44,7 +45,7 @@ class SimulationController(
         ]
     )
     @PostMapping("/simulate")
-    fun simulateSmolScenario(@SwaggerRequestBody(description = "Request to execute a simulation for room allocation") @RequestBody simulationRequest: SimulationRequest): ResponseEntity<SimulationResponse> {
+    fun simulateSmolScenario(@SwaggerRequestBody(description = "Request to execute a simulation for room allocation") @Valid @RequestBody simulationRequest: SimulationRequest): ResponseEntity<SimulationResponse> {
         log.info("Simulating scenario with ${simulationRequest.scenario.size} requests")
 
         // Create a temporary directory
@@ -80,7 +81,7 @@ class SimulationController(
     @PostMapping("/simulate-global")
     fun allocateGlobal(
         @SwaggerRequestBody(description = "Simulate a scenario, but return global solution")
-        @RequestBody simulationRequest: SimulationRequest
+        @Valid @RequestBody simulationRequest: SimulationRequest
     ): ResponseEntity<String> {
         //ResponseEntity<List<SimulationResponse>> {
 
@@ -109,7 +110,7 @@ class SimulationController(
     }
 
     @PostMapping("/simulate-many")
-    fun simulateAll(@io.swagger.v3.oas.annotations.parameters.RequestBody(description = "Request to execute n simulations") @org.springframework.web.bind.annotation.RequestBody simulationRequest: MultiSimulationRequest): ResponseEntity<List<SimulationResponse>> {
+    fun simulateAll(@io.swagger.v3.oas.annotations.parameters.RequestBody(description = "Request to execute n simulations") @Valid @RequestBody simulationRequest: MultiSimulationRequest): ResponseEntity<List<SimulationResponse>> {
         log.info("Simulating ${simulationRequest.repetitions} scenarios with ${simulationRequest.scenario.size} requests")
 
         // Create a temporary directory
