@@ -18,6 +18,10 @@ open class PatientAllocationService (
         return patientAllocationRepository.findByPatientId(patientId)
     }
 
+    open fun findByWardNameAndHospitalCode(wardName: String, hospitalCode: String): List<PatientAllocation>? {
+        return patientAllocationRepository.findByWardNameAndHospitalCode(wardName, hospitalCode)
+    }
+
     open fun savePatientAllocation(patientAllocation: PatientAllocation): PatientAllocation {
         return patientAllocationRepository.save(patientAllocation)
     }

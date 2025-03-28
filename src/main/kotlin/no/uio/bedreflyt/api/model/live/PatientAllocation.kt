@@ -39,6 +39,12 @@ class PatientAllocation (
     @Column(name = "contagious")
     var contagious : Boolean = false,
 
+    @Column(name = "ward_name")
+    var wardName : String = "",
+
+    @Column(name = "hospital_code")
+    var hospitalCode : String = "",
+
     @Column(name = "room_number")
     var roomNumber : Int = -1,
 )
