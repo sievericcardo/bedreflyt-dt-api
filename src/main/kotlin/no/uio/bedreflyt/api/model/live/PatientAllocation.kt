@@ -47,4 +47,49 @@ class PatientAllocation (
 
     @Column(name = "room_number")
     var roomNumber : Int = -1,
-)
+) {
+    constructor() : this(
+        null,
+        Patient(),
+        false,
+        "",
+        "",
+        0,
+        0,
+        0,
+        0,
+        false,
+        "",
+        "",
+        -1
+    )
+
+    constructor (
+        patientId: Patient,
+        acute: Boolean,
+        diagnosisCode: String,
+        diagnosisName: String,
+        acuteCategory: Int,
+        careCategory: Int,
+        monitoringCategory: Int,
+        careId: Int,
+        contagious: Boolean,
+        wardName: String,
+        hospitalCode: String,
+        roomNumber: Int
+    ) : this(
+        null,
+        patientId,
+        acute,
+        diagnosisCode,
+        diagnosisName,
+        acuteCategory,
+        careCategory,
+        monitoringCategory,
+        careId,
+        contagious,
+        wardName,
+        hospitalCode,
+        roomNumber
+    )
+}

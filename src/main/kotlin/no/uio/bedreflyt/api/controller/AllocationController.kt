@@ -72,24 +72,21 @@ class AllocationController (
             val patientAllocation = patientAllocationService.findByPatientId(patient.first)
 
             // If the patient already has an allocation, we won't continue with the allocation
-            if (patientAllocation != null) {
-                return ResponseEntity.badRequest().build()
+            if (patientAllocation == null) {
+                val newPatientAllocation = PatientAllocation(
+                    patientId = patient.first,
+                    acute = false, // we will need to change this with proper information from the scenario
+                    diagnosisCode = patient.second,
+                    diagnosisName = patient.second, // we will need a proper naming for this
+                    acuteCategory = 0, // we will need to change this with proper information from the scenario
+                    careCategory = 0, // we will need to change this with proper information from the scenario
+                    monitoringCategory = 0, // we will need to change this with proper information from the scenario
+                    careId = 0, // we will need to change this with proper information from the scenario
+                    contagious = false, // we will need to change this with proper information from the scenario
+                    roomNumber = -1
+                )
+                patientAllocationService.savePatientAllocation(newPatientAllocation)
             }
-
-            // If the patient is not in the database, we create the allocation object
-            val newPatientAllocation = PatientAllocation(
-                patientId = patient.first,
-                acute = false, // we will need to change this with proper information from the scenario
-                diagnosisCode = patient.second,
-                diagnosisName = patient.second, // we will need a proper naming for this
-                acuteCategory = 0, // we will need to change this with proper information from the scenario
-                careCategory = 0, // we will need to change this with proper information from the scenario
-                monitoringCategory = 0, // we will need to change this with proper information from the scenario
-                careId = 0, // we will need to change this with proper information from the scenario
-                contagious = false, // we will need to change this with proper information from the scenario
-                roomNumber = -1
-            )
-            patientAllocationService.savePatientAllocation(newPatientAllocation)
         }
 
         // Create a temporary directory
@@ -121,6 +118,7 @@ class AllocationController (
         val simulationNeeds: MutableList<DailyNeeds> = simulator.computeDailyNeeds(tempDir)?.toMutableList() ?: throw Exception("Could not compute daily needs")
         // Add the elements from the trajectory to the simulation needs
         trajectories.forEach { trajectory ->
+            log.info("Will be adding ${trajectory.getBatchDay()}")
             simulationNeeds[trajectory.getBatchDay()].add(Pair(trajectory.patientId, trajectory.need))
         }
 

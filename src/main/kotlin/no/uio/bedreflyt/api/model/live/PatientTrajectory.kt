@@ -22,11 +22,29 @@ class PatientTrajectory (
     @Column(name = "daily_need")
     var need: Int
 ) {
+    constructor() : this(
+        null,
+        Patient(),
+        LocalDate.now(),
+        0
+    )
+
+    constructor (
+        patientId: Patient,
+        date: LocalDate,
+        need: Int
+    ) : this(
+        null,
+        patientId,
+        date,
+        need
+    )
+
     fun setDate(dayOffset: Int) : LocalDate {
         return LocalDate.now().plusDays(dayOffset.toLong())
     }
 
     fun getBatchDay() : Int {
-        return ChronoUnit.DAYS.between(date, LocalDate.now()).toInt()
+        return ChronoUnit.DAYS.between(LocalDate.now(), date).toInt()
     }
 }

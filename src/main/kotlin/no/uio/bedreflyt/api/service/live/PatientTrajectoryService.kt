@@ -31,7 +31,7 @@ open class PatientTrajectoryService (
     }
 
     open fun deleteExpiredTrajectory() {
-        val trajectories = patientTrajectoryRepository.findAll()
+        val trajectories = findAll() ?: emptyList()
         // for each check if the date is expired
         trajectories.forEach { trajectory ->
             if (trajectory.date.isBefore(LocalDate.now())) {
