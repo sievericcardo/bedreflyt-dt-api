@@ -67,7 +67,6 @@ class SimulationController(
 
         log.info("Tables populated, invoking ABS with ${simulationRequest.scenario.size} requests")
 
-//        val sim = simulator.simulate(patients, roomDistributions, tempDir, simulationRequest.smtMode)
         val simulationNeeds = simulator.computeDailyNeeds(tempDir) ?: throw Exception("Could not compute daily needs")
         val sim = simulator.simulate(simulationNeeds, patients, allocations, rooms, tempDir, simulationRequest.smtMode)
 

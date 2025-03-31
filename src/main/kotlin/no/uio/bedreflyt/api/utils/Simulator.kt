@@ -37,6 +37,8 @@ class Simulator (
 ) {
 
     private val log: Logger = Logger.getLogger(Simulator::class.java.name)
+    private val roomMap: MutableMap<Int, Int> = mutableMapOf()
+    private val indexRoomMap : MutableMap<Int, Int> = mutableMapOf()
 
     private fun processDailyNeeds(needs: String) : SimulationNeeds {
         val information = needs.split("------").filter { it.isNotEmpty() } // EB - split data over ------
@@ -122,7 +124,7 @@ class Simulator (
                 val gender = if (roomInfoMap["gender"] as String == "True") "Male" else "Female"
 
                 mapOf(
-                    "${roomNumber.toInt()}" to RoomInfo(patients, gender)
+                    "${roomMap[roomNumber.toInt()]}" to RoomInfo(patients, gender)
                 )
             }
         }
@@ -242,7 +244,7 @@ class Simulator (
                 // Insert patient data
                 allPatients.forEach { patient ->
                     patients[patient.patientId]?.let {
-                        allocations[patient]!!.roomNumber = patientRoom
+                        allocations[patient]!!.roomNumber = indexRoomMap[patientRoom]!!
                     }
                 }
             }
@@ -258,6 +260,8 @@ class Simulator (
         smtMode: String
     ): SimulationResponse {
         val scenarios = mutableListOf<List<Map<SingleRoom, RoomInfo>>>()
+        rooms.forEachIndexed { index, room -> roomMap[index] = room.roomNumber }
+        roomMap.forEach { (key, value) -> indexRoomMap[value] = key }
         try {
             var totalChanges = 0
             needs.forEach { group ->
@@ -273,6 +277,7 @@ class Simulator (
                 scenarios.add(solveData as List<Map<SingleRoom, RoomInfo>>)
                 log.info(solveData.toString())
             }
+
             return SimulationResponse(scenarios, totalChanges)
         } catch (e: Exception) {
             "Error executing Solver: ${e.message}"
@@ -286,7 +291,6 @@ class Simulator (
         rooms: List<Room>,
         smtMode: String
     ): String? {
-//            List<SolverResponse> {
         val capacities = rooms.map { it.capacity ?: 0 }
         val roomCategories: List<Long> = rooms.map { it.roomCategory ?: 0 }
         val genders = mutableMapOf<String, Boolean>()
@@ -299,12 +303,6 @@ class Simulator (
             }.reduce { acc, map -> acc + map }
         }
 
-//        for (day in patientsSimulated) {
-//            for (patient in day) {
-//                genders[patient.patientId] = patient.gender == "Male"
-//                infectious[patient.patientId] = patientAllocationService.findByPatientId(patient)!!.contagious
-//            }
-//        }
         patientsSimulated.forEach { day ->
             day.forEach { patientDistance ->
                 genders[patientDistance.first.patientId] = patientDistance.first.gender == "Male"
