@@ -10,20 +10,18 @@ import no.uio.bedreflyt.api.config.REPLConfig
 import no.uio.bedreflyt.api.model.triplestore.Room
 import no.uio.bedreflyt.api.model.triplestore.TreatmentRoom
 import no.uio.bedreflyt.api.service.triplestore.*
-import org.springframework.http.ResponseEntity
-import io.swagger.v3.oas.annotations.parameters.RequestBody as SwaggerRequestBody
-import java.io.File
-import java.util.logging.Logger
 import no.uio.bedreflyt.api.types.RoomRequest
 import no.uio.bedreflyt.api.types.UpdateRoomRequest
+import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
+import java.util.logging.Logger
+import io.swagger.v3.oas.annotations.parameters.RequestBody as SwaggerRequestBody
 
 @RestController
 @RequestMapping("/api/v1/fuseki/rooms")
-class RoomController (
+class RoomController(
     private val replConfig: REPLConfig,
-    private val environmentConfig: EnvironmentConfig,
-    private val triplestoreService: TriplestoreService,
+    environmentConfig: EnvironmentConfig,
     private val roomService: RoomService,
     private val wardService: WardService,
     private val hospitalService: HospitalService,
@@ -31,12 +29,6 @@ class RoomController (
 ) {
 
     private val log : Logger = Logger.getLogger(RoomController::class.java.name)
-    private val host = environmentConfig.getOrDefault("TRIPLESTORE_URL", "localhost")
-    private val dataStore = environmentConfig.getOrDefault("TRIPLESTORE_DATASET", "Bedreflyt")
-    private val tripleStore = "http://$host:3030/$dataStore"
-    private val prefix = environmentConfig.getOrDefault("DOMAIN_PREFIX", "http://www.smolang.org/bedreflyt#")
-    private val ttlPrefix = if (prefix.isNotEmpty()) prefix.dropLast(1) else prefix
-    private val repl = replConfig.repl()
 
     @Operation(summary = "Add a room distribution")
     @ApiResponses(value = [

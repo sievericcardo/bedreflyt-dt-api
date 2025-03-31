@@ -5,35 +5,24 @@ import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.responses.ApiResponses
 import jakarta.validation.Valid
-import no.uio.bedreflyt.api.config.EnvironmentConfig
 import no.uio.bedreflyt.api.config.REPLConfig
 import no.uio.bedreflyt.api.model.triplestore.Diagnosis
 import no.uio.bedreflyt.api.service.triplestore.DiagnosisService
-import no.uio.bedreflyt.api.service.triplestore.TriplestoreService
-import org.springframework.http.ResponseEntity
-import io.swagger.v3.oas.annotations.parameters.RequestBody as SwaggerRequestBody
-import java.io.File
-import java.util.logging.Logger
 import no.uio.bedreflyt.api.types.DiagnosisRequest
 import no.uio.bedreflyt.api.types.UpdateDiagnosisRequest
+import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
+import java.util.logging.Logger
+import io.swagger.v3.oas.annotations.parameters.RequestBody as SwaggerRequestBody
 
 @RestController
 @RequestMapping("/api/v1/fuseki/diagnosis")
 class DiagnosisController (
     private val replConfig: REPLConfig,
-    private val environmentConfig: EnvironmentConfig,
-    private val triplestoreService: TriplestoreService,
     private val diagnosisService: DiagnosisService
 ) {
 
     private val log : Logger = Logger.getLogger(DiagnosisController::class.java.name)
-    private val host = environmentConfig.getOrDefault("TRIPLESTORE_URL", "localhost")
-    private val dataStore = environmentConfig.getOrDefault("TRIPLESTORE_DATASET", "Bedreflyt")
-    private val tripleStore = "http://$host:3030/$dataStore"
-    private val prefix = environmentConfig.getOrDefault("DOMAIN_PREFIX", "http://www.smolang.org/bedreflyt#")
-    private val ttlPrefix = if (prefix.isNotEmpty()) prefix.dropLast(1) else prefix
-    private val repl = replConfig.repl()
 
     @Operation(summary = "Add a new diagnosis")
     @ApiResponses(value = [
