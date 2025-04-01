@@ -95,6 +95,46 @@ class WardService (
         return wards
     }
 
+    @Cacheable
+    fun getAllWardsExcept(wardName: String, hospitalCode: String) : List<Ward>? {
+        val wards = mutableListOf<Ward>()
+
+        val query = """
+            SELECT DISTINCT ?wardName ?wardCode ?hospitalCode ?floorNumber WHERE {
+                ?ward a prog:Ward ;
+                    prog:Ward_wardName ?wardName ;
+                    prog:Ward_wardCode ?wardCode ;
+                    prog:Ward_wardHospital ?wardHospital ;
+                    prog:Ward_wardFloor ?wardFloor .
+                ?wardHospital a prog:Hospital ;
+                    prog:Hospital_hospitalCode ?hospitalCode .
+                ?wardFloor a prog:Floor ;
+                    prog:Floor_floorNumber ?floorNumber .
+                FILTER (?hospitalCode != "$hospitalCode" && ?wardName != "$wardName")
+            }
+        """.trimIndent()
+
+        val resultSet: ResultSet = repl.interpreter!!.query(query)!!
+        if(!resultSet.hasNext()) {
+            return null
+        }
+
+        while (resultSet.hasNext()) {
+            val result: QuerySolution = resultSet.next()
+            val wardNameNew = result.get("wardName").toString()
+            val wardCode = result.get("wardCode")?.toString()
+            val hospitalName = result.get("hospitalCode").toString()
+            val floorNumber = result.get("floorNumber").asLiteral().toString().split("^^")[0].toInt()
+
+            val hospital = hospitalService.getHospitalByCode(hospitalName) ?: continue
+            val floor = floorService.getFloorByNumber(floorNumber) ?: continue
+
+            wards.add(Ward(wardNameNew, wardCode, hospital, floor))
+        }
+
+        return wards
+    }
+
     @Cacheable("wards", key = "#wardName + _ + #wardHospital")
     fun getWardByNameAndHospital (wardName: String, wardHospital: String) : Ward? {
         val query = """

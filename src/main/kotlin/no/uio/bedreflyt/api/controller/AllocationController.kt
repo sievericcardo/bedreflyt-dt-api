@@ -7,11 +7,13 @@ import jakarta.validation.Valid
 import no.uio.bedreflyt.api.model.live.Patient
 import no.uio.bedreflyt.api.model.live.PatientAllocation
 import no.uio.bedreflyt.api.model.live.PatientTrajectory
+import no.uio.bedreflyt.api.model.simulation.Room
 import io.swagger.v3.oas.annotations.parameters.RequestBody as SwaggerRequestBody
 import no.uio.bedreflyt.api.service.live.PatientAllocationService
 import no.uio.bedreflyt.api.service.live.PatientService
 import no.uio.bedreflyt.api.service.live.PatientTrajectoryService
 import no.uio.bedreflyt.api.service.simulation.DatabaseService
+import no.uio.bedreflyt.api.service.triplestore.RoomService
 import no.uio.bedreflyt.api.service.triplestore.WardService
 import no.uio.bedreflyt.api.utils.Simulator
 import org.springframework.web.bind.annotation.RequestMapping
@@ -36,7 +38,8 @@ class AllocationController (
     private val patientAllocationService: PatientAllocationService,
     private val patientService: PatientService,
     private val patientTrajectoryService: PatientTrajectoryService,
-    private val wardService: WardService
+    private val wardService: WardService,
+    private val roomService: RoomService
 ) {
 
     private val log: Logger = Logger.getLogger(SimulationController::class.java.name)
@@ -131,7 +134,26 @@ class AllocationController (
             }
         }
 
-        val allocationResponse = simulator.simulate(simulationNeeds, patients, allocations, rooms, tempDir, allocationRequest.mode)
-        return ResponseEntity.ok(allocationResponse)
+        var allocationResponse = simulator.simulate(simulationNeeds, patients, allocations, rooms, tempDir, allocationRequest.mode)
+        if (allocationResponse.allocations.isEmpty()) {
+            val otherWards = wardService.getAllWardsExcept(allocationRequest.wardName, allocationRequest.hospitalCode)!!
+            for (otherWard in otherWards) {
+                val otherRooms = roomService.getRoomsByWardHospital(ward.wardName, ward.wardHospital.hospitalCode)!!
+                val allocationRoom = mutableListOf<Room>()
+                otherRooms.forEach { otherRoom ->
+                    allocationRoom.add(Room(otherRoom.roomNumber, otherRoom.roomNumber, otherRoom.monitoringCategory.category.toLong(), otherRoom.capacity, false))
+                }
+                allocationResponse = simulator.simulate(simulationNeeds, patients, allocations, allocationRoom, tempDir, allocationRequest.mode)
+                if (allocationResponse.allocations.isNotEmpty()) {
+                    break
+                }
+            }
+        }
+
+        return if (allocationResponse.allocations.isNotEmpty()) {
+            ResponseEntity.ok(allocationResponse)
+        } else {
+            ResponseEntity.badRequest().build()
+        }
     }
 }

@@ -24,7 +24,7 @@ class PatientAllocationController (
     private val patientAllocationService : PatientAllocationService
 ) {
 
-    private val log : Logger = Logger.getLogger(HomeController::class.java.name)
+    private val log : Logger = Logger.getLogger(PatientAllocationController::class.java.name)
 
     @Operation(summary = "Create a new patient allocation")
     @ApiResponses(value = [
