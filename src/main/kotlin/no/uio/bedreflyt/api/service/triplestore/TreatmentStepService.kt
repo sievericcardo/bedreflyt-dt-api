@@ -24,10 +24,11 @@ class TreatmentStepService(
     @Cacheable("treatment-steps")
     fun getTreatmentStep(stepName: String, treatmentName: String): TreatmentStep? {
         val query = """
-        SELECT ?previousTask ?nextTask ?monitoringCategory ?staffLoad ?averageDuration WHERE {
+        SELECT ?previousTask ?nextTask ?stepNumber ?monitoringCategory ?staffLoad ?averageDuration WHERE {
             ?step a prog:TreatmentStep ;
                 prog:TreatmentStep_treatmentName "$treatmentName" ;
                 prog:TreatmentStep_task ?taskObj ;
+                prog:TreatmentStep_stepNumber ?stepNumber ;
                 prog:TreatmentStep_monitoringCategory ?monitoringCategoryObj ;
                 prog:TreatmentStep_staffLoad ?staffLoad ;
                 prog:TreatmentStep_averageDuration ?averageDuration ;
@@ -40,6 +41,7 @@ class TreatmentStepService(
             ?monitoringCategoryObj a prog:MonitoringCategory ;
                 prog:MonitoringCategory_description ?monitoringCategory .
         }
+        ORDER BY ?stepNumber
     """.trimIndent()
 
         log.info("Query: $query")
@@ -51,6 +53,7 @@ class TreatmentStepService(
 
         val result = resultSet.next()
         val monitoringCategory = result.get("monitoringCategory").toString()
+        val stepNumber = result.get("stepNumber").asLiteral().toString().split("^^")[0].toInt()
         val category = monitoringCategoryService.getCategoryByDescription(monitoringCategory) ?: return null
         val task = taskService.getTaskByTaskName(stepName) ?: return null
 
@@ -65,6 +68,7 @@ class TreatmentStepService(
             treatmentName = treatmentName,
             monitoringCategory = category,
             task = task,
+            stepNumber = stepNumber,
             staffLoad = staffLoad,
             averageDuration = averageDuration,
             previousTask = previousTaskName,
@@ -77,10 +81,11 @@ class TreatmentStepService(
         val steps = mutableListOf<TreatmentStep>()
 
         val query = """
-        SELECT DISTINCT ?treatmentName ?previousTask ?nextTask ?monitoringCategory ?task ?staffLoad ?averageDuration WHERE {
+        SELECT DISTINCT ?treatmentName ?previousTask ?nextTask ?stepNumber ?monitoringCategory ?task ?staffLoad ?averageDuration WHERE {
             ?step a prog:TreatmentStep ;
                 prog:TreatmentStep_treatmentName ?treatmentName ;
                 prog:TreatmentStep_task ?taskObj ;
+                prog:TreatmentStep_stepNumber ?stepNumber ;
                 prog:TreatmentStep_monitoringCategory ?monitoringCategoryObj ;
                 prog:TreatmentStep_staffLoad ?staffLoad ;
                 prog:TreatmentStep_averageDuration ?averageDuration ;
@@ -93,6 +98,7 @@ class TreatmentStepService(
             ?monitoringCategoryObj a prog:MonitoringCategory ;
                 prog:MonitoringCategory_description ?monitoringCategory .
         }
+        ORDER BY ?stepNumber
     """.trimIndent()
 
         val resultSet: ResultSet = repl.interpreter!!.query(query)!!
@@ -104,6 +110,7 @@ class TreatmentStepService(
             val result = resultSet.next()
             val treatmentName = result.get("treatmentName").toString()
             val monitoringCategory = result.get("monitoringCategory").toString()
+            val stepNumber = result.get("stepNumber").asLiteral().toString().split("^^")[0].toInt()
             val category = monitoringCategoryService.getCategoryByDescription(monitoringCategory) ?: continue
 
             val taskObj = result.get("task").toString()
@@ -121,6 +128,7 @@ class TreatmentStepService(
                     treatmentName = treatmentName,
                     monitoringCategory = category,
                     task = task,
+                    stepNumber = stepNumber,
                     staffLoad = staffLoad,
                     averageDuration = averageDuration,
                     previousTask = previousTaskName,
@@ -138,10 +146,11 @@ class TreatmentStepService(
         val processedSteps = mutableSetOf<String>()
 
         val query = """
-        SELECT DISTINCT ?previousTask ?nextTask ?monitoringCategory ?task ?staffLoad ?averageDuration WHERE {
+        SELECT DISTINCT ?previousTask ?nextTask ?stepNumber ?monitoringCategory ?task ?staffLoad ?averageDuration WHERE {
             ?step a prog:TreatmentStep ;
                 prog:TreatmentStep_treatmentName "$treatmentName" ;
                 prog:TreatmentStep_task ?taskObj ;
+                prog:TreatmentStep_stepNumber ?stepNumber ;
                 prog:TreatmentStep_monitoringCategory ?monitoringCategoryObj ;
                 prog:TreatmentStep_staffLoad ?staffLoad ;
                 prog:TreatmentStep_averageDuration ?averageDuration ;
@@ -154,6 +163,7 @@ class TreatmentStepService(
             ?monitoringCategoryObj a prog:MonitoringCategory ;
                 prog:MonitoringCategory_description ?monitoringCategory .
         }
+        ORDER BY ?stepNumber
     """.trimIndent()
 
         val resultSet: ResultSet = repl.interpreter!!.query(query)!!
@@ -172,6 +182,7 @@ class TreatmentStepService(
             processedSteps.add(taskObj)
 
             val monitoringCategory = result.get("monitoringCategory").toString()
+            val stepNumber = result.get("stepNumber").asLiteral().toString().split("^^")[0].toInt()
             val category = monitoringCategoryService.getCategoryByDescription(monitoringCategory) ?: continue
 
             val task = taskService.getTaskByTaskName(taskObj) ?: continue
@@ -186,6 +197,7 @@ class TreatmentStepService(
                     treatmentName = treatmentName,
                     monitoringCategory = category,
                     task = task,
+                    stepNumber = stepNumber,
                     staffLoad = staffLoad,
                     averageDuration = averageDuration,
                     previousTask = previousTaskName,

@@ -5,11 +5,12 @@ class TreatmentStepModel extends BaseModel ()
         PREFIX time: <http://www.w3.org/2006/time#>
         PREFIX pko: <https://w3id.org/pko#>
 
-        SELECT DISTINCT ?treatmentName ?task ?monitoringCategory ?staffLoad ?averageDuration ?nextTask ?previousTask
+        SELECT DISTINCT ?treatmentName ?task ?stepNumber ?monitoringCategory ?staffLoad ?averageDuration ?nextTask ?previousTask
         WHERE {
             ?taskDep a :TreatmentStep ;
                 :hasNurseBurden ?staffLoad ;
                 time:hours ?averageDuration ;
+                pko:stepNumber ?stepNumber ;
                 :hasMonitoringStatus ?monitoringStatus ;
                 :stepOfTreatment ?treatment ;
                 :hasTask ?taskObj .
@@ -55,6 +56,9 @@ class TreatmentStepModel extends BaseModel ()
                 print("RECONFIG> Adding task dependency " ++ newTaskDep.task.taskName ++ " for treatment " ++ newTaskDep.treatmentName);
                 print("          Staff load: " ++ doubleToString(newTaskDep.staffLoad));
                 print("          Average duration: " ++ doubleToString(newTaskDep.averageDuration));
+                print("          Previous task: " ++ newTaskDep.previousTask);
+                print("          Next task: " ++ newTaskDep.nextTask);
+                print("          Step nr: " ++ intToString(newTaskDep.stepNumber));
 
                 destroy(lx);
             end

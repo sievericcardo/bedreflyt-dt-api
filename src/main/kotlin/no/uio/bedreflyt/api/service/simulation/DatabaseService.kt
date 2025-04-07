@@ -4,6 +4,7 @@ import no.uio.bedreflyt.api.model.live.Patient
 import no.uio.bedreflyt.api.model.live.PatientAllocation
 import no.uio.bedreflyt.api.model.simulation.Room
 import no.uio.bedreflyt.api.model.triplestore.Task
+import no.uio.bedreflyt.api.model.triplestore.TreatmentStep
 import no.uio.bedreflyt.api.model.triplestore.Ward
 import no.uio.bedreflyt.api.service.live.PatientAllocationService
 import no.uio.bedreflyt.api.service.live.PatientService
@@ -218,23 +219,25 @@ class DatabaseService (
 
         val treatments = treatmentService.getAllTreatments() ?: throw IllegalArgumentException("No treatments found")
         treatments.forEach { treatment ->
+//            val taskDependencies = sortTaskDependencies(treatment.second)
             val taskDependencies = treatment.second
 
-            taskDependencies.forEach { taskDependency ->
+            taskDependencies.forEachIndexed { index, taskDependency ->
                 val treatmentName = taskDependency.treatmentName
                 val task = taskService.getTaskByTaskName(taskDependency.task.taskName)
                     ?: throw IllegalArgumentException("No task ${taskDependency.task} found")
                 insertTask(
                     treatmentDbUrl,
-                    task.taskName + "_" + treatmentName,
+                    task.taskName + "_" + treatmentName +  "_" + index,
                     taskDependency.monitoringCategory.category,
                     taskDependency.averageDuration.toInt()
                 )
+                val prev = index -1
                 taskDependency.previousTask?.takeIf { it.isNotEmpty() }?.let  { insertTaskDependency(
                     treatmentDbUrl,
                     treatmentName,
-                    task.taskName + "_" + treatmentName,
-                    it + "_" + treatmentName
+                    task.taskName + "_" + treatmentName + "_" + index,
+                    it + "_" + treatmentName + "_" + prev
                 ) }
             }
         }

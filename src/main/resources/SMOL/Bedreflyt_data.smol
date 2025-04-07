@@ -33,6 +33,7 @@ end
 class TreatmentStep extends Twin (
     String treatmentName,
     Task task,
+    Int stepNumber,
     String previousTask,
     String nextTask,
     MonitoringCategory monitoringCategory,
@@ -47,8 +48,8 @@ class Treatment extends Twin (
     Diagnosis diagnosis,
     Double frequency,
     Double weight,
-    String firstTask,
-    String lastTask
+    TreatmentStep firstTask,
+    TreatmentStep lastTask
 )
 end
 
