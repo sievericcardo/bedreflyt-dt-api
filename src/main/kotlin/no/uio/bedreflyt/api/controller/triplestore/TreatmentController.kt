@@ -7,6 +7,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses
 import jakarta.validation.Valid
 import no.uio.bedreflyt.api.config.REPLConfig
 import no.uio.bedreflyt.api.model.triplestore.Treatment
+import no.uio.bedreflyt.api.model.triplestore.TreatmentStep
 import no.uio.bedreflyt.api.service.triplestore.DiagnosisService
 import no.uio.bedreflyt.api.service.triplestore.TreatmentService
 import no.uio.bedreflyt.api.types.TreatmentRequest
@@ -63,6 +64,21 @@ class TreatmentController (
         val treatments = treatmentService.getAllTreatments() ?: return ResponseEntity.noContent().build()
         val treatmentList = treatments.map { it.first }
         return ResponseEntity.ok(treatmentList)
+    }
+
+    @Operation(summary = "Get all treatments")
+    @ApiResponses(value = [
+        ApiResponse(responseCode = "200", description = "All treatments returned"),
+        ApiResponse(responseCode = "401", description = "Unauthorized"),
+        ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
+        ApiResponse(responseCode = "500", description = "Internal server error")
+    ])
+    @GetMapping("/all", produces= ["application/json"])
+    fun getAllTreatmentsWithSteps() : ResponseEntity<List<Pair<Treatment, List<TreatmentStep>>>> {
+        log.info("Getting all treatments")
+
+        val treatments = treatmentService.getAllTreatments() ?: return ResponseEntity.noContent().build()
+        return ResponseEntity.ok(treatments)
     }
 
     @Operation(summary = "Get a treatment")
