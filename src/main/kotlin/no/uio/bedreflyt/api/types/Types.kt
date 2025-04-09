@@ -44,7 +44,9 @@ data class SolverRequest(
     val previous: List<Int>,
     // options are c[hanges] to minimize number of room changes or
     // m[ax] to minimize maximum number of patients per room
-    val mode: String
+    val mode: String,
+    val penalties: List<Int> = listOf(),
+    val contagious_allowed : List<Boolean> = listOf(),
 )
 
 data class GlobalSolverRequest(
