@@ -143,7 +143,6 @@ class TreatmentStepService(
     @Cacheable("treatment-steps", key = "#treatmentName")
     fun getTreatmentStepsByTreatmentName(treatmentName: String) : List<TreatmentStep>? {
         val steps = mutableListOf<TreatmentStep>()
-        val processedSteps = mutableSetOf<String>()
 
         val query = """
         SELECT DISTINCT ?previousTask ?nextTask ?stepNumber ?monitoringCategory ?task ?staffLoad ?averageDuration WHERE {
@@ -175,17 +174,11 @@ class TreatmentStepService(
             val result = resultSet.next()
             val taskObj = result.get("task").toString()
 
-            if (processedSteps.contains(taskObj)) {
-                continue
-            }
-
-            processedSteps.add(taskObj)
-
             val monitoringCategory = result.get("monitoringCategory").toString()
             val stepNumber = result.get("stepNumber").asLiteral().toString().split("^^")[0].toInt()
-            val category = monitoringCategoryService.getCategoryByDescription(monitoringCategory) ?: continue
+            val category = monitoringCategoryService.getCategoryByDescription(monitoringCategory) ?: throw Exception("Monitoring category not found: $monitoringCategory")
 
-            val task = taskService.getTaskByTaskName(taskObj) ?: continue
+            val task = taskService.getTaskByTaskName(taskObj) ?: throw Exception("Task not found: $taskObj")
 
             val staffLoad = result.get("staffLoad").asLiteral().toString().split("^^")[0].toDouble()
             val averageDuration = result.get("averageDuration").asLiteral().toString().split("^^")[0].toDouble()
