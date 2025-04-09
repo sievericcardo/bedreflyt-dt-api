@@ -6,6 +6,7 @@ import no.uio.bedreflyt.api.config.EnvironmentConfig
 import no.uio.bedreflyt.api.model.live.Patient
 import no.uio.bedreflyt.api.model.live.PatientAllocation
 import no.uio.bedreflyt.api.model.simulation.Room
+import no.uio.bedreflyt.api.model.triplestore.TreatmentRoom
 import no.uio.bedreflyt.api.service.live.PatientAllocationService
 import no.uio.bedreflyt.api.service.live.PatientService
 import no.uio.bedreflyt.api.types.RoomInfo
@@ -178,12 +179,14 @@ class Simulator (
         dailyNeeds: DailyNeeds,
         patientsSimulated: Map<String, Patient>, // All patients that are simulated
         allocations: Map<Patient, PatientAllocation>,
-        rooms: List<Room>,
+        rooms: List<TreatmentRoom>,
         smtMode: String
     ): SolverResponse {
         val numberOfRooms = rooms.size
         val capacities = rooms.map { it.capacity ?: 0 }
-        val roomCategories: List<Long> = rooms.map { it.roomCategory ?: 0 }
+        val roomCategories: List<Long> = rooms.map { it.monitoringCategory.category.toLong() ?: 0 }
+        val penalties: List<Int> = rooms.map { if (it.monitoringCategory.description != "Korridor") 0 else 100 }
+        val allowContagious : List<Boolean> = rooms.map { it.monitoringCategory.description != "Korridor" }
         var patientNumbers = 0
         val genders = mutableListOf<Boolean>()
         val contagious = mutableListOf<Boolean>()
@@ -219,7 +222,9 @@ class Simulator (
             contagious,
             patientDistances,
             previous,
-            smtMode
+            smtMode,
+            penalties,
+            allowContagious
         )
 
         log.info("Invoking solver with  ${solverRequest.no_rooms} rooms, ${solverRequest.no_patients} patients in mode ${solverRequest.mode}")
@@ -255,7 +260,7 @@ class Simulator (
         needs: SimulationNeeds,
         patients: Map<String, Patient>,
         allocations: Map<Patient, PatientAllocation>,
-        rooms: List<Room>,
+        rooms: List<TreatmentRoom>,
         tempDir: Path,
         smtMode: String
     ): SimulationResponse {
@@ -288,13 +293,15 @@ class Simulator (
 
     private fun invokeGlobal(
         patientsSimulated: SimulationNeeds,
-        rooms: List<Room>,
+        rooms: List<TreatmentRoom>,
         smtMode: String
     ): String? {
         val capacities = rooms.map { it.capacity ?: 0 }
-        val roomCategories: List<Long> = rooms.map { it.roomCategory ?: 0 }
+        val roomCategories: List<Long> = rooms.map { it.monitoringCategory.category.toLong() ?: 0 }
         val genders = mutableMapOf<String, Boolean>()
         val infectious = mutableMapOf<String, Boolean>()
+        val penalties = mutableListOf<MutableMap<String, Int>>()
+        val contegiousUse = mutableListOf<MutableMap<String, Int>>()
         val patientCategories: List<Map<String, Int>> = patientsSimulated.map { day ->
             day.map { patientDistance ->
                 val patientId = patientDistance.first.patientId
@@ -356,7 +363,7 @@ class Simulator (
     fun globalSolution(
         needs: SimulationNeeds,
         patients: Map<String, Patient>,
-        rooms: List<Room>,
+        rooms: List<TreatmentRoom>,
         tempDir: Path,
         smtMode: String
     ): String {
