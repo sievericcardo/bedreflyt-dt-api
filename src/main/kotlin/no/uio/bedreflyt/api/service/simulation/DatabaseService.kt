@@ -222,21 +222,21 @@ class DatabaseService (
 //            val taskDependencies = sortTaskDependencies(treatment.second)
             val taskDependencies = treatment.second
 
-            taskDependencies.forEachIndexed { index, taskDependency ->
+            taskDependencies.forEach { taskDependency ->
                 val treatmentName = taskDependency.treatmentName
                 val task = taskService.getTaskByTaskName(taskDependency.task.taskName)
                     ?: throw IllegalArgumentException("No task ${taskDependency.task} found")
                 insertTask(
                     treatmentDbUrl,
-                    task.taskName + "_" + treatmentName +  "_" + index,
+                    task.taskName + "_" + treatmentName +  "_" + taskDependency.stepNumber,
                     taskDependency.monitoringCategory.category,
                     taskDependency.averageDuration.toInt()
                 )
-                val prev = index -1
+                val prev = taskDependency.stepNumber - 1
                 taskDependency.previousTask?.takeIf { it.isNotEmpty() }?.let  { insertTaskDependency(
                     treatmentDbUrl,
                     treatmentName,
-                    task.taskName + "_" + treatmentName + "_" + index,
+                    task.taskName + "_" + treatmentName + "_" + taskDependency.stepNumber,
                     it + "_" + treatmentName + "_" + prev
                 ) }
             }
