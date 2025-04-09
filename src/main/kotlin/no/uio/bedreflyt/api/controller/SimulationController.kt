@@ -25,7 +25,8 @@ import kotlin.random.Random
 class SimulationController(
     private val databaseService: DatabaseService,
     private val simulator: Simulator,
-    private val wardService: WardService
+    private val wardService: WardService,
+    private val roomService: RoomService
 ) {
 
     private val log: Logger = Logger.getLogger(SimulationController::class.java.name)
@@ -54,7 +55,8 @@ class SimulationController(
         databaseService.createTables(bedreflytDB)
 
         val ward = wardService.getWardByNameAndHospital(simulationRequest.wardName, simulationRequest.hospitalCode) ?: return ResponseEntity.badRequest().build()
-        val rooms = databaseService.createAndPopulateRooms(bedreflytDB, ward)
+        databaseService.createAndPopulateRooms(bedreflytDB, ward)
+        val rooms = roomService.getAllRooms() ?: return ResponseEntity.badRequest().build()
         val patients : Map<String, Patient> = databaseService.createAndPopulatePatientTables(bedreflytDB, simulationRequest.scenario, simulationRequest.mode)
         val allocations : MutableMap<Patient, PatientAllocation> = mutableMapOf()
         patients.forEach { (_, patient) ->
@@ -92,7 +94,8 @@ class SimulationController(
         databaseService.createTables(bedreflytDB)
         val ward = wardService.getWardByNameAndHospital(simulationRequest.wardName, simulationRequest.hospitalCode) ?: return ResponseEntity.badRequest().build()
 
-        val roomDistributions = databaseService.createAndPopulateRooms(bedreflytDB, ward)
+        databaseService.createAndPopulateRooms(bedreflytDB, ward)
+        val rooms = roomService.getAllRooms() ?: return ResponseEntity.badRequest().build()
         val patients = databaseService.createAndPopulatePatientTables(bedreflytDB, simulationRequest.scenario, simulationRequest.mode)
         databaseService.createAndPopulateTreatmentTables(bedreflytDB)
         databaseService.createTreatmentView(bedreflytDB)
@@ -101,7 +104,7 @@ class SimulationController(
 
         val needs = simulator.computeDailyNeeds(tempDir) ?: throw Exception("Could not compute daily needs")
 
-        val sim = simulator.globalSolution(needs, patients, roomDistributions, tempDir, simulationRequest.smtMode)
+        val sim = simulator.globalSolution(needs, patients, rooms, tempDir, simulationRequest.smtMode)
         Files.walk(tempDir)
             .sorted(Comparator.reverseOrder())
             .forEach(Files::delete)
@@ -119,7 +122,8 @@ class SimulationController(
         val bedreflytDB = tempDir.resolve("bedreflyt.db").toString()
         databaseService.createTables(bedreflytDB)
         val ward = wardService.getWardByNameAndHospital(simulationRequest.wardName, simulationRequest.hospitalCode) ?: return ResponseEntity.badRequest().build()
-        val rooms = databaseService.createAndPopulateRooms(bedreflytDB, ward)
+        databaseService.createAndPopulateRooms(bedreflytDB, ward)
+        val rooms = roomService.getAllRooms() ?: return ResponseEntity.badRequest().build()
         databaseService.createAndPopulateTreatmentTables(bedreflytDB)
         databaseService.createTreatmentView(bedreflytDB)
 
