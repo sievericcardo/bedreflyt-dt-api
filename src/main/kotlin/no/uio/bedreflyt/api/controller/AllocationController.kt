@@ -8,6 +8,7 @@ import no.uio.bedreflyt.api.model.live.Patient
 import no.uio.bedreflyt.api.model.live.PatientAllocation
 import no.uio.bedreflyt.api.model.live.PatientTrajectory
 import no.uio.bedreflyt.api.model.simulation.Room
+import no.uio.bedreflyt.api.model.triplestore.TreatmentRoom
 import io.swagger.v3.oas.annotations.parameters.RequestBody as SwaggerRequestBody
 import no.uio.bedreflyt.api.service.live.PatientAllocationService
 import no.uio.bedreflyt.api.service.live.PatientService
@@ -99,7 +100,8 @@ class AllocationController (
         databaseService.createTables(bedreflytDB)
 
         val ward = wardService.getWardByNameAndHospital(allocationRequest.wardName, allocationRequest.hospitalCode) ?: return ResponseEntity.badRequest().build()
-        val rooms = databaseService.createAndPopulateRooms(bedreflytDB, ward)
+        databaseService.createAndPopulateRooms(bedreflytDB, ward)
+        val rooms = roomService.getAllRooms() ?: return ResponseEntity.badRequest().build()
         val patients : MutableMap<String, Patient> = databaseService.createAndPopulatePatientTables(bedreflytDB, allocationRequest.scenario, allocationRequest.mode).toMutableMap()
         // Add the patients that are already in the trajectory
         val trajectories = patientTrajectoryService.findAll() ?: listOf()
@@ -134,14 +136,14 @@ class AllocationController (
             }
         }
 
-        var allocationResponse = simulator.simulate(simulationNeeds, patients, allocations, rooms, tempDir, allocationRequest.mode)
+        var allocationResponse = simulator.simulate(simulationNeeds, patients, allocations, rooms, tempDir, allocationRequest.smtMode)
         if (allocationResponse.allocations.isEmpty()) {
             val otherWards = wardService.getAllWardsExcept(allocationRequest.wardName, allocationRequest.hospitalCode)!!
             for (otherWard in otherWards) {
-                val otherRooms = roomService.getRoomsByWardHospital(ward.wardName, ward.wardHospital.hospitalCode)!!
-                val allocationRoom = mutableListOf<Room>()
+                val otherRooms = roomService.getRoomsByWardHospital(otherWard.wardName, otherWard.wardHospital.hospitalCode)!!
+                val allocationRoom = mutableListOf<TreatmentRoom>()
                 otherRooms.forEach { otherRoom ->
-                    allocationRoom.add(Room(otherRoom.roomNumber, otherRoom.roomNumber, otherRoom.monitoringCategory.category.toLong(), otherRoom.capacity, false))
+                    allocationRoom.add(TreatmentRoom(otherRoom.roomNumber, otherRoom.capacity, otherWard, otherWard.wardHospital, otherRoom.monitoringCategory))
                 }
                 allocationResponse = simulator.simulate(simulationNeeds, patients, allocations, allocationRoom, tempDir, allocationRequest.mode)
                 if (allocationResponse.allocations.isNotEmpty()) {
