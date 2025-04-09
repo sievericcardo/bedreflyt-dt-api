@@ -43,7 +43,8 @@ class TreatmentStepModel extends BaseModel ()
                 :taskName ?taskName .
             ?task a prog:Task ;
                 prog:Task_taskName ?taskName .
-        }");
+        }
+        ORDER BY ?treatmentName ?stepNumber");
         
         if newTaskDeps != null then
             print("RECONFIG> Adding new task dependencies...");
