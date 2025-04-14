@@ -5,36 +5,30 @@ import com.fasterxml.jackson.module.kotlin.readValue
 import no.uio.bedreflyt.api.config.EnvironmentConfig
 import no.uio.bedreflyt.api.model.live.Patient
 import no.uio.bedreflyt.api.model.live.PatientAllocation
-import no.uio.bedreflyt.api.model.simulation.Room
 import no.uio.bedreflyt.api.model.triplestore.TreatmentRoom
 import no.uio.bedreflyt.api.service.live.PatientAllocationService
 import no.uio.bedreflyt.api.service.live.PatientService
-import no.uio.bedreflyt.api.types.RoomInfo
-import no.uio.bedreflyt.api.types.SolverRequest
-import no.uio.bedreflyt.api.types.SolverResponse
-import org.springframework.http.HttpEntity
-import org.springframework.http.HttpHeaders
-import org.springframework.http.MediaType
-import org.springframework.web.client.RestTemplate
+import no.uio.bedreflyt.api.service.triplestore.RoomService
+import no.uio.bedreflyt.api.types.*
+import org.springframework.stereotype.Service
 import java.io.BufferedReader
 import java.io.InputStreamReader
+import java.io.OutputStreamWriter
+import java.net.HttpURLConnection
+import java.net.URI
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
 import java.nio.file.StandardCopyOption
-import java.util.logging.Logger
 import java.util.logging.Level
-import no.uio.bedreflyt.api.types.*
-import org.springframework.stereotype.Service
-import java.io.OutputStreamWriter
-import java.net.HttpURLConnection
-import java.net.URI
+import java.util.logging.Logger
 
 @Service
 class Simulator (
     private val environmentConfig: EnvironmentConfig,
     private val patientService: PatientService,
-    private val patientAllocationService: PatientAllocationService
+    private val patientAllocationService: PatientAllocationService,
+    private val roomService: RoomService
 ) {
 
     private val log: Logger = Logger.getLogger(Simulator::class.java.name)
@@ -113,7 +107,7 @@ class Simulator (
         }
     }
 
-    private fun processSolverOutput(patientMap: Map<Int, Patient>, allocations: List<Map<String, Any>>) : List<Allocation> {
+    private fun processSolverOutput(patientMap: Map<Int, Patient>, allocations: List<Map<String, Any>>, rooms: List<TreatmentRoom>) : List<Allocation> {
         return allocations.flatMap { roomData ->
             roomData.map { (roomNumber, roomInfo) ->
                 val roomInfoMap = roomInfo as Map<String, Any>
@@ -124,8 +118,11 @@ class Simulator (
                 }
                 val gender = if (roomInfoMap["gender"] as String == "True") "Male" else "Female"
 
+                val treatmentRoom = rooms.find { it.roomNumber == roomNumber.toInt() }
+                    ?: throw IllegalArgumentException("Room with number $roomNumber not found in the provided rooms list")
+
                 mapOf(
-                    "${roomMap[roomNumber.toInt()]}" to RoomInfo(patients, gender)
+                    treatmentRoom to RoomInfo(patients, gender)
                 )
             }
         }
@@ -134,6 +131,7 @@ class Simulator (
     private fun invokeSolver(
         solverRequest: SolverRequest,
         patientMap: Map<Int, Patient>, // Map of patient based on the order that is passed to the solver
+        rooms: List<TreatmentRoom>
     ) : SolverResponse {
         val solverEndpoint = environmentConfig.getOrDefault("SOLVER_ENDPOINT", "localhost")
         val solverUrl = "http://$solverEndpoint:8000/api/solve"
@@ -152,13 +150,13 @@ class Simulator (
 
         if (connection.responseCode != 200) {
             log.warning("Solver returned status code ${connection.responseCode}")
-            return SolverResponse(listOf(mapOf("error" to null)), -1)
+            return SolverResponse(listOf(), -1)
         }
 
         val response = connection.inputStream.bufferedReader().use { it.readText() }
 
         if (response.contains("Model is unsat")) {
-            return SolverResponse(listOf(mapOf("error" to null)), -1)
+            return SolverResponse(listOf(), -1)
         }
 
         val mapper = jacksonObjectMapper()
@@ -169,7 +167,7 @@ class Simulator (
         val allocations = responseMap["allocations"] as List<Map<String, Any>>
 
         // Transform the allocations into the desired structure
-        val transformedData: List<Allocation> = processSolverOutput(patientMap, allocations)
+        val transformedData: List<Allocation> = processSolverOutput(patientMap, allocations, rooms)
 
         // Return the transformed data along with the changes
         return SolverResponse(transformedData, changes)
@@ -230,22 +228,22 @@ class Simulator (
         log.info("Invoking solver with  ${solverRequest.no_rooms} rooms, ${solverRequest.no_patients} patients in mode ${solverRequest.mode}")
 
         return if (patientNumbers > 0) {
-            invokeSolver(solverRequest, patientMap)
+            invokeSolver(solverRequest, patientMap, rooms)
         } else {
-            SolverResponse(listOf(mapOf("warning" to null)), -1)
+            SolverResponse(listOf(), -1)
         }
     }
 
     private fun processPatientMap(patients: Map<String, Patient>, allocations: Map<Patient, PatientAllocation>, solveData: List<Allocation>) {
         solveData.forEach { roomData ->
-            roomData.forEach { (roomNumber, roomInfo) ->
+            roomData.forEach { (room, roomInfo) ->
                 if (roomInfo == null) {
-                    log.warning("No room info for $roomNumber in $roomData")
+                    log.warning("No room info for ${room.roomNumber} in $roomData")
                     throw Exception("No room info")
                 }
                 val allPatients = roomInfo.patients
                 // We use strings to index the map. Convert it to int
-                val patientRoom = roomNumber.toInt()
+                val patientRoom = room.roomNumber
                 // Insert patient data
                 allPatients.forEach { patient ->
                     patients[patient.patientId]?.let {
@@ -264,7 +262,7 @@ class Simulator (
         tempDir: Path,
         smtMode: String
     ): SimulationResponse {
-        val scenarios = mutableListOf<List<Map<SingleRoom, RoomInfo>>>()
+        val scenarios = mutableListOf<List<Map<TreatmentRoom, RoomInfo>>>()
         rooms.forEachIndexed { index, room -> roomMap[index] = room.roomNumber }
         roomMap.forEach { (key, value) -> indexRoomMap[value] = key }
         try {
@@ -276,10 +274,10 @@ class Simulator (
                 if (response.changes != -1) {totalChanges += response.changes}
                 val solveData = response.allocations
                 // We ignore the day that had an unsat model
-                if (solveData.isNotEmpty() && !solveData[0].containsKey("error") && !solveData[0].containsKey("warning")) {
+                if (solveData.isNotEmpty()) {
                     processPatientMap(patients, allocations, solveData)
                 }
-                scenarios.add(solveData as List<Map<SingleRoom, RoomInfo>>)
+                scenarios.add(solveData as List<Map<TreatmentRoom, RoomInfo>>)
                 log.info(solveData.toString())
             }
 
@@ -287,7 +285,7 @@ class Simulator (
         } catch (e: Exception) {
             "Error executing Solver: ${e.message}"
             log.log(Level.SEVERE, "Error executing solver", e)
-            return SimulationResponse(listOf(listOf(mapOf("error" to null))), -1)
+            return SimulationResponse(listOf(), -1)
         }
     }
 

@@ -166,6 +166,16 @@ class AllocationController (
         }
 
         return if (allocationResponse.allocations.isNotEmpty()) {
+            // if the allocation is not empty, we will save the first allocation to the database
+            allocationResponse.allocations[0].forEach { allocation ->
+                allocation.forEach { (room, roomInfo) ->
+                    val patientAllocation = allocations[roomInfo?.patients?.get(0)]
+                    if (patientAllocation != null) {
+                        patientAllocation.roomNumber = room.roomNumber
+                        patientAllocationService.updatePatientAllocation(patientAllocation)
+                    }
+                }
+            }
             ResponseEntity.ok(allocationResponse)
         } else {
             ResponseEntity.badRequest().build()
