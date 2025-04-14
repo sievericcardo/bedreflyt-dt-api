@@ -108,12 +108,24 @@ class TreatmentService(
         val query = """            
         SELECT DISTINCT ?treatmentName ?diagnosis ?frequency ?weight ?firstTaskName ?lastTaskName WHERE {
             ?treatment a prog:Treatment ;
-                prog:Treatment_firstTask ?firstTaskName ;
-                prog:Treatment_lastTask ?lastTaskName ;
+                prog:Treatment_firstTask ?firstStep ;
+                prog:Treatment_lastTask ?lastStep ;
                 prog:Treatment_treatmentName ?treatmentName ;
                 prog:Treatment_diagnosis ?diagnosisObj ;
                 prog:Treatment_frequency ?frequency ;
                 prog:Treatment_weight ?weight .
+                
+           ?firstStep a prog:TreatmentStep ;
+                prog:TreatmentStep_treatmentName ?treatmentName ;
+                prog:TreatmentStep_task ?firstTaskObj .
+           ?firstTaskObj a prog:Task ;
+                prog:Task_taskName ?firstTaskName .
+                
+           ?lastStep a prog:TreatmentStep ;
+                prog:TreatmentStep_treatmentName ?treatmentName ;
+                prog:TreatmentStep_task ?lastTaskObj .
+           ?lastTaskObj a prog:Task ;
+                prog:Task_taskName ?lastTaskName .
                 
            ?diagnosisObj a prog:Diagnosis ;
                 prog:Diagnosis_diagnosisCode ?diagnosis .
