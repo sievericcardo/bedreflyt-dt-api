@@ -2,6 +2,7 @@ package no.uio.bedreflyt.api.model.live
 
 import jakarta.persistence.*
 import java.time.LocalDate
+import java.time.LocalDateTime
 import java.time.temporal.ChronoUnit
 
 @Entity
@@ -17,7 +18,7 @@ class PatientTrajectory (
     var patientId : Patient,
 
     @Column(name = "trajectory_date")
-    var date: LocalDate,
+    var date: LocalDateTime,
 
     @Column(name = "daily_need")
     var need: Int
@@ -25,13 +26,13 @@ class PatientTrajectory (
     constructor() : this(
         null,
         Patient(),
-        LocalDate.now(),
+        LocalDateTime.now(),
         0
     )
 
     constructor (
         patientId: Patient,
-        date: LocalDate,
+        date: LocalDateTime,
         need: Int
     ) : this(
         null,
@@ -40,11 +41,15 @@ class PatientTrajectory (
         need
     )
 
-    fun setDate(dayOffset: Int) : LocalDate {
-        return LocalDate.now().plusDays(dayOffset.toLong())
+    fun setDate(offset: Int) : LocalDateTime {
+        return LocalDateTime.now().plusHours(offset.toLong())
     }
 
     fun getBatchDay() : Int {
         return ChronoUnit.DAYS.between(LocalDate.now(), date).toInt()
+    }
+
+    fun getBatchHour(): Int {
+        return ChronoUnit.HOURS.between(LocalDate.now().atStartOfDay(), date.toLocalDate().atStartOfDay()).toInt()
     }
 }
