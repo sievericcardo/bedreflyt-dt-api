@@ -6,27 +6,17 @@ class TreatmentModel extends BaseModel()
         PREFIX : <http://www.smolang.org/bedreflyt/>
         PREFIX pko: <https://w3id.org/pko#>
 
-        SELECT ?treatmentName ?diagnosis ?frequency ?weight ?firstTask ?lastTask
+        SELECT ?treatmentName ?diagnosis ?frequency ?weight
         WHERE {
             ?treatment a pko:Procedure ;
                 :procedureName ?treatmentName ;
                 :hasFrequency ?frequency ;
                 :hasWeight ?weight ;
-                :isTreatmentProcOf ?diagnosisContent ;
-                pko:hasFirstStep ?firstStep ;
-                :hasFinalStep ?finalStep .
+                :isTreatmentProcOf ?diagnosisContent .
             ?diagnosisContent a :Diagnosis ;
                 :diagnosisCode ?diagnosisCode .
             ?diagnosis a prog:Diagnosis ;
                 prog:Diagnosis_diagnosisCode ?diagnosisCode .
-            ?firstStep a :TreatmentStep ;
-                :hasTask ?firstTaskObj .
-            ?firstTaskObj rdf:type <http://purl.org/net/p-plan#Step> ;
-                :taskName ?firstTask .
-            ?finalStep a :TreatmentStep ;
-                :hasTask ?lastTaskObj .
-            ?lastTaskObj rdf:type <http://purl.org/net/p-plan#Step> ;
-                :taskName ?lastTask .
             FILTER NOT EXISTS {
                 ?obj a prog:Treatment ;
                     prog:Treatment_treatmentName ?treatmentName .
@@ -41,12 +31,15 @@ class TreatmentModel extends BaseModel()
                 List<Treatment> lx = newTreatments;
                 newTreatments = newTreatments.next;
 
+                newTreatment.firstTask = newTreatment.getFirstStep();
+                newTreatment.lastTask = newTreatment.getLastStep();
+
                 print("RECONFIG> Adding treatment " ++ newTreatment.treatmentName);
                 print("          Frequency: " ++ doubleToString(newTreatment.frequency));
                 print("          Weight: " ++ doubleToString(newTreatment.weight));
                 print("          Diagnosis: " ++ newTreatment.diagnosis.diagnosisCode);
-                print("          First task: " ++ newTreatment.firstTask);
-                print("          Last task: " ++ newTreatment.lastTask);
+                print("          First task: " ++ newTreatment.firstTask.taskName);
+                print("          Last task: " ++ newTreatment.lastTask.taskName);
                 destroy(lx);
             end
             print("RECONFIG> New treatments added");
