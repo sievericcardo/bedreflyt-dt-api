@@ -38,8 +38,8 @@ class TreatmentModel extends BaseModel()
                 print("          Frequency: " ++ doubleToString(newTreatment.frequency));
                 print("          Weight: " ++ doubleToString(newTreatment.weight));
                 print("          Diagnosis: " ++ newTreatment.diagnosis.diagnosisCode);
-                print("          First task: " ++ newTreatment.firstTask.taskName);
-                print("          Last task: " ++ newTreatment.lastTask.taskName);
+                print("          First task: " ++ newTreatment.firstTask.task.taskName);
+                print("          Last task: " ++ newTreatment.lastTask.task.taskName);
                 destroy(lx);
             end
             print("RECONFIG> New treatments added");
