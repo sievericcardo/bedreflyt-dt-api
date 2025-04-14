@@ -29,6 +29,7 @@ import org.springframework.web.bind.annotation.RequestBody
 import java.nio.file.Files
 import java.nio.file.Path
 import java.time.LocalDate
+import java.time.LocalDateTime
 import java.util.*
 
 @RestController
@@ -121,16 +122,28 @@ class AllocationController (
         log.info("Tables populated, invoking ABS with ${allocationRequest.scenario.size} requests")
 
         val simulationNeeds: MutableList<DailyNeeds> = simulator.computeDailyNeeds(tempDir)?.toMutableList() ?: throw Exception("Could not compute daily needs")
-        // Add the elements from the trajectory to the simulation needs
+//        // Add the elements from the trajectory to the simulation needs
         trajectories.forEach { trajectory ->
             log.info("Will be adding ${trajectory.getBatchDay()}")
             simulationNeeds[trajectory.getBatchDay()].add(Pair(trajectory.patientId, trajectory.need))
         }
 
+        trajectories.forEach { trajectory ->
+            val batchDay = trajectory.getBatchDay()
+            if (batchDay >= simulationNeeds.size) {
+                // Expand the list to accommodate the new index
+                while (simulationNeeds.size <= batchDay) {
+                    simulationNeeds.add(mutableListOf())
+                }
+            }
+            log.info("Will be adding $batchDay")
+            simulationNeeds[batchDay].add(Pair(trajectory.patientId, trajectory.need))
+        }
+
         // Add all the simulation needs for each day into the trajectory table
         simulationNeeds.forEachIndexed { index, dailyNeeds ->
             dailyNeeds.forEach { (patient, need) ->
-                val trajectory = PatientTrajectory(patientId = patient, date = LocalDate.now(), need = need)
+                val trajectory = PatientTrajectory(patientId = patient, date = LocalDateTime.now(), need = need)
                 trajectory.date = trajectory.setDate(index)
                 patientTrajectoryService.savePatientTrajectory(trajectory)
             }
