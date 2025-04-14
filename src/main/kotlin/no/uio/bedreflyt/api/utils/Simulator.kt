@@ -118,7 +118,7 @@ class Simulator (
                 }
                 val gender = if (roomInfoMap["gender"] as String == "True") "Male" else "Female"
 
-                val treatmentRoom = rooms.find { it.roomNumber == roomNumber.toInt() }
+                val treatmentRoom = rooms.find { it.roomNumber == roomMap[roomNumber.toInt()] }
                     ?: throw IllegalArgumentException("Room with number $roomNumber not found in the provided rooms list")
 
                 mapOf(
