@@ -122,7 +122,7 @@ class Simulator (
                     ?: throw IllegalArgumentException("Room with number $roomNumber not found in the provided rooms list")
 
                 mapOf(
-                    treatmentRoom to RoomInfo(patients, gender)
+                    WardRoom(treatmentRoom.roomNumber, treatmentRoom.treatmentWard.wardName, treatmentRoom.treatmentWard.wardHospital.hospitalCode) to RoomInfo(patients, gender)
                 )
             }
         }
@@ -262,7 +262,7 @@ class Simulator (
         tempDir: Path,
         smtMode: String
     ): SimulationResponse {
-        val scenarios = mutableListOf<List<Map<TreatmentRoom, RoomInfo>>>()
+        val scenarios = mutableListOf<List<Map<WardRoom, RoomInfo>>>()
         rooms.forEachIndexed { index, room -> roomMap[index] = room.roomNumber }
         roomMap.forEach { (key, value) -> indexRoomMap[value] = key }
         try {
@@ -277,7 +277,7 @@ class Simulator (
                 if (solveData.isNotEmpty()) {
                     processPatientMap(patients, allocations, solveData)
                 }
-                scenarios.add(solveData as List<Map<TreatmentRoom, RoomInfo>>)
+                scenarios.add(solveData as List<Map<WardRoom, RoomInfo>>)
                 log.info(solveData.toString())
             }
 

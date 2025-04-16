@@ -1,7 +1,6 @@
 package no.uio.bedreflyt.api.types
 
 import no.uio.bedreflyt.api.model.live.Patient
-import no.uio.bedreflyt.api.model.triplestore.TreatmentRoom
 
 data class SimulationRequest(
     val scenario: List<ScenarioRequest>,
@@ -11,12 +10,18 @@ data class SimulationRequest(
     val hospitalCode: String
 )
 
+data class WardRoom(
+    val roomNumber: Int,
+    val wardName: String,
+    val hospitalCode: String
+)
+
 data class RoomInfo(
     val patients: List<Patient>,
     val gender: String
 )
 
-typealias Allocation = Map<TreatmentRoom, RoomInfo?>
+typealias Allocation = Map<WardRoom, RoomInfo?>
 typealias DailyNeeds = MutableList<Pair<Patient, Int>>
 typealias SimulationNeeds = List<DailyNeeds>
 typealias AllocationRequest = SimulationRequest
