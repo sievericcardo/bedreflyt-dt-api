@@ -122,12 +122,6 @@ class AllocationController (
         log.info("Tables populated, invoking ABS with ${allocationRequest.scenario.size} requests")
 
         val simulationNeeds: MutableList<DailyNeeds> = simulator.computeDailyNeeds(tempDir)?.toMutableList() ?: throw Exception("Could not compute daily needs")
-//        // Add the elements from the trajectory to the simulation needs
-        trajectories.forEach { trajectory ->
-            log.info("Will be adding ${trajectory.getBatchDay()}")
-            simulationNeeds[trajectory.getBatchDay()].add(Pair(trajectory.patientId, trajectory.need))
-        }
-
         trajectories.forEach { trajectory ->
             val batchDay = trajectory.getBatchDay()
             if (batchDay >= simulationNeeds.size) {
@@ -137,7 +131,9 @@ class AllocationController (
                 }
             }
             log.info("Will be adding $batchDay")
-            simulationNeeds[batchDay].add(Pair(trajectory.patientId, trajectory.need))
+            if (!simulationNeeds[batchDay].any { it.first == trajectory.patientId }) {
+                simulationNeeds[batchDay].add(Pair(trajectory.patientId, trajectory.need))
+            }
         }
 
         // Add all the simulation needs for each day into the trajectory table
