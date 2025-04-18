@@ -9,6 +9,7 @@ import no.uio.bedreflyt.api.model.live.PatientAllocation
 import io.swagger.v3.oas.annotations.parameters.RequestBody as SwaggerRequestBody
 import no.uio.bedreflyt.api.service.live.PatientAllocationService
 import no.uio.bedreflyt.api.service.live.PatientService
+import no.uio.bedreflyt.api.service.live.PatientTrajectoryService
 import no.uio.bedreflyt.api.types.PatientAllocationRequest
 import no.uio.bedreflyt.api.types.UpdatePatientAllocationRequest
 import org.springframework.http.ResponseEntity
@@ -21,7 +22,8 @@ import java.util.logging.Logger
 @RequestMapping("/api/v1/patient-allocations")
 class PatientAllocationController (
     private val patientService : PatientService,
-    private val patientAllocationService : PatientAllocationService
+    private val patientAllocationService : PatientAllocationService,
+    private val patientTrajectoryService: PatientTrajectoryService
 ) {
 
     private val log : Logger = Logger.getLogger(PatientAllocationController::class.java.name)
@@ -185,6 +187,15 @@ class PatientAllocationController (
 
         for (allocation in allocations) {
             patientAllocationService.deletePatientAllocation(allocation)
+        }
+
+        val trajectories = patientTrajectoryService.findAll() ?: return ResponseEntity.ok("Patient allocation deleted")
+        if (trajectories.isEmpty()) {
+            return ResponseEntity.ok("Patient allocation deleted")
+        }
+
+        for (trajectory in trajectories) {
+            patientTrajectoryService.deletePatientTrajectory(trajectory)
         }
 
         return ResponseEntity.ok("Patient allocation deleted")
