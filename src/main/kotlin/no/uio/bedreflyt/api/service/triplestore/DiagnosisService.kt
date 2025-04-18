@@ -9,16 +9,21 @@ import org.apache.jena.update.UpdateExecutionFactory
 import org.apache.jena.update.UpdateFactory
 import org.apache.jena.update.UpdateProcessor
 import org.apache.jena.update.UpdateRequest
+import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.cache.CacheManager
 import org.springframework.cache.annotation.CacheEvict
 import org.springframework.cache.annotation.CachePut
 import org.springframework.cache.annotation.Cacheable
 import org.springframework.stereotype.Service
 
 @Service
-class DiagnosisService (
+open class DiagnosisService (
     replConfig: REPLConfig,
     triplestoreProperties: TriplestoreProperties
 ) {
+
+    @Autowired
+    private lateinit var cacheManager: CacheManager
 
     private val tripleStore = triplestoreProperties.tripleStore
     private val prefix = triplestoreProperties.prefix
@@ -26,7 +31,7 @@ class DiagnosisService (
     private val repl = replConfig.repl()
 
     @CachePut("diagnosis", key = "#diagnosisName")
-    fun createDiagnosis(diagnosisName: String) : Boolean {
+    open fun createDiagnosis(diagnosisName: String) : Diagnosis? {
         val query = """
             PREFIX bedreflyt: <$prefix>
             
@@ -41,14 +46,14 @@ class DiagnosisService (
 
         try {
             updateProcessor.execute()
-            return true
+            return Diagnosis(diagnosisName)
         } catch (e: Exception) {
-            return false
+            return null
         }
     }
 
     @Cacheable("diagnosis")
-    fun getAllDiagnosis(): List<Diagnosis>? {
+    open fun getAllDiagnosis(): List<Diagnosis>? {
         val diagnosis: MutableList<Diagnosis> = mutableListOf()
 
         val query = """
@@ -73,7 +78,7 @@ class DiagnosisService (
     }
 
     @Cacheable("diagnosis", key = "#diagnosis")
-    fun getDiagnosisByName(diagnosis: String) : Diagnosis? {
+    open fun getDiagnosisByName(diagnosis: String) : Diagnosis? {
         val query = """
             SELECT DISTINCT ?diagnosis WHERE {
                 ?obj a prog:Diagnosis ;
@@ -93,7 +98,7 @@ class DiagnosisService (
 
     @CacheEvict("diagnosis", key = "#diagnosisName")
     @CachePut("diagnosis", key = "#newDiagnosisName")
-    fun updateDiagnosis(oldDiagnosisName: String, newDiagnosisName: String) : Boolean {
+    open fun updateDiagnosis(oldDiagnosisName: String, newDiagnosisName: String) : Diagnosis? {
         val query = """
             PREFIX bedreflyt: <$prefix>
             
@@ -119,14 +124,14 @@ class DiagnosisService (
 
         try {
             updateProcessor.execute()
-            return true
+            return Diagnosis(newDiagnosisName)
         } catch (e: Exception) {
-            return false
+            return null
         }
     }
 
     @CacheEvict("diagnosis", key = "#diagnosisName")
-    fun deleteDiagnosis(diagnosisName: String) : Boolean {
+    open fun deleteDiagnosis(diagnosisName: String) : Boolean {
         val query = """
             PREFIX bedreflyt: <$prefix>
             

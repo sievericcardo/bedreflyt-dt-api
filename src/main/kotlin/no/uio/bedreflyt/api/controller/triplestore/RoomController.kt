@@ -45,13 +45,10 @@ class RoomController(
         val ward = wardService.getWardByNameAndHospital(roomRequest.ward, roomRequest.hospital) ?: return ResponseEntity.badRequest().build()
         val hospital = hospitalService.getHospitalByCode(roomRequest.hospital) ?: return ResponseEntity.badRequest().build()
         val monitoringCategory = monitoringCategoryService.getCategoryByDescription(roomRequest.categoryDescription) ?: return ResponseEntity.badRequest().build()
-
-        if (!roomService.createRoom(roomRequest)) {
-            return ResponseEntity.badRequest().build()
-        }
+        val newRoom = roomService.createRoom(roomRequest) ?: return ResponseEntity.badRequest().build()
         replConfig.regenerateSingleModel().invoke("rooms")
 
-        return ResponseEntity.ok(TreatmentRoom(roomRequest.roomNumber, roomRequest.capacity, ward, hospital, monitoringCategory))
+        return ResponseEntity.ok(newRoom)
     }
 
     @Operation(summary = "Get all rooms")
@@ -110,15 +107,10 @@ class RoomController(
         val ward = updateRoomRequest.newWard ?: room.treatmentWard.wardName
         val category = updateRoomRequest.newCategoryDescription ?: room.monitoringCategory.description
 
-        val newWard = wardService.getWardByNameAndHospital(ward, room.hospital.hospitalCode) ?: return ResponseEntity.badRequest().build()
-        val newCategory = monitoringCategoryService.getCategoryByDescription(category) ?: return ResponseEntity.badRequest().build()
-
-        if (!roomService.updateRoom(room, capacity, ward, category)) {
-            return ResponseEntity.badRequest().build()
-        }
+        val updatedRoom = roomService.updateRoom(room, capacity, ward, category) ?: return ResponseEntity.notFound().build()
         replConfig.regenerateSingleModel().invoke("rooms")
 
-        return ResponseEntity.ok(TreatmentRoom(room.roomNumber,capacity, newWard, room.hospital, newCategory))
+        return ResponseEntity.ok(updatedRoom)
     }
 
     @Operation(summary = "Delete a room")

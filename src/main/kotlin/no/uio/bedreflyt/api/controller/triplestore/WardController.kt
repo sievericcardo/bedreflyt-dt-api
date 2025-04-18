@@ -43,12 +43,10 @@ class WardController (
 
         val hospital = hospitalService.getHospitalByCode(wardRequest.wardHospitalName) ?: return ResponseEntity.badRequest().build()
         val floor = floorService.getFloorByNumber(wardRequest.wardFloorNumber) ?: return ResponseEntity.badRequest().build()
-        if (!wardService.createWard(wardRequest, hospital.hospitalName)) {
-            return ResponseEntity.badRequest().build()
-        }
+        val newWard = wardService.getWardByNameAndHospital(wardRequest.wardName, hospital.hospitalName)
         replConfig.regenerateSingleModel().invoke("wards")
 
-        return ResponseEntity.ok(Ward(wardRequest.wardName, wardRequest.wardCode, hospital, floor))
+        return ResponseEntity.ok(newWard)
     }
 
     @Operation(summary = "Get all wards")
@@ -100,17 +98,15 @@ class WardController (
 
         val ward = wardService.getWardByNameAndHospital(wardName, hospitalCode) ?: return ResponseEntity.notFound().build()
         val hospital = hospitalService.getHospitalByCode(hospitalCode) ?: return ResponseEntity.notFound().build()
-        request.newWardFloorNumber?.let {
+        val updatedWard = request.newWardFloorNumber?.let {
             floorService.getFloorByNumber(it) ?: return ResponseEntity.notFound().build()
-            if (!wardService.updateWard(ward, it)) {
-                return ResponseEntity.badRequest().build()
-            }
+            wardService.updateWard(ward, it) ?: return ResponseEntity.badRequest().build()
         } ?: return ResponseEntity.noContent().build()
         replConfig.regenerateSingleModel().invoke("wards")
 
         val floor = floorService.getFloorByNumber(request.newWardFloorNumber) ?: return ResponseEntity.badRequest().build()
 
-        return ResponseEntity.ok(Ward(ward.wardName, ward.wardCode, hospital, floor))
+        return ResponseEntity.ok(updatedWard)
     }
 
     @Operation(summary = "Delete a ward")

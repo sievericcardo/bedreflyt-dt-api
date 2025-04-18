@@ -37,12 +37,10 @@ class FloorController (
     fun createFloor(@SwaggerRequestBody(description = "Request to add a new floor") @Valid @RequestBody floorRequest: FloorRequest) : ResponseEntity<Floor> {
         log.info("Creating floor $floorRequest")
 
-        if (!floorService.createFloor(floorRequest)) {
-            return ResponseEntity.badRequest().build()
-        }
+        val newFloor = floorService.createFloor(floorRequest) ?: return ResponseEntity.badRequest().build()
         replConfig.regenerateSingleModel().invoke("floors")
 
-        return ResponseEntity.ok(Floor(floorRequest.floorNumber))
+        return ResponseEntity.ok(newFloor)
     }
 
     @Operation(summary = "Get all floors")
@@ -95,14 +93,12 @@ class FloorController (
         if (floorService.getFloorByNumber(floorNumber) == null) {
             return ResponseEntity.notFound().build()
         }
-        updateFloorRequest.newFloorNumber?.let {
-            if (!floorService.updateFloor(floorNumber, it)) {
-                return ResponseEntity.badRequest().build()
-            }
+        val updatedFloor = updateFloorRequest.newFloorNumber?.let {
+            floorService.updateFloor(floorNumber, it) ?: return ResponseEntity.badRequest().build()
         } ?: return ResponseEntity.noContent().build()
         replConfig.regenerateSingleModel().invoke("floors")
 
-        return ResponseEntity.ok(Floor(updateFloorRequest.newFloorNumber))
+        return ResponseEntity.ok(updatedFloor)
     }
 
     @Operation(summary = "Delete a floor")

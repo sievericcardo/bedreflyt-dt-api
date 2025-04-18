@@ -33,15 +33,13 @@ class DiagnosisController (
         ApiResponse(responseCode = "500", description = "Internal server error")
     ])
     @PostMapping(produces= ["application/json"])
-    fun createDiagnosis (@SwaggerRequestBody(description = "Request to add a new patient") @Valid @RequestBody diagnosisRequest: DiagnosisRequest) : ResponseEntity<String> {
+    fun createDiagnosis (@SwaggerRequestBody(description = "Request to add a new patient") @Valid @RequestBody diagnosisRequest: DiagnosisRequest) : ResponseEntity<Diagnosis> {
         log.info("Creating diagnosis $diagnosisRequest")
 
-        if (!diagnosisService.createDiagnosis(diagnosisRequest.diagnosisName)) {
-            return ResponseEntity.badRequest().body("Diagnosis already exists")
-        }
+        val newDiagnosis = diagnosisService.createDiagnosis(diagnosisRequest.diagnosisName) ?: return ResponseEntity.badRequest().build()
         replConfig.regenerateSingleModel().invoke("diagnoses")
 
-        return ResponseEntity.ok("Diagnosis added")
+        return ResponseEntity.ok(newDiagnosis)
     }
 
     @Operation(summary = "Retrieve the diagnosis")
@@ -93,14 +91,12 @@ class DiagnosisController (
         if(diagnosisService.getDiagnosisByName(diagnosisCode) == null) {
             return ResponseEntity.notFound().build()
         }
-        updateDiagnosisRequest.newDiagnosisName?.let {
-            if(!diagnosisService.updateDiagnosis(diagnosisCode, it)) {
-                return ResponseEntity.badRequest().build()
-            }
+        val updatedDiagnosis = updateDiagnosisRequest.newDiagnosisName?.let {
+            diagnosisService.updateDiagnosis(diagnosisCode, it) ?: return ResponseEntity.badRequest().build()
         } ?: return ResponseEntity.noContent().build()
         replConfig.regenerateSingleModel().invoke("diagnoses")
 
-        return ResponseEntity.ok(Diagnosis(updateDiagnosisRequest.newDiagnosisName))
+        return ResponseEntity.ok(updatedDiagnosis)
     }
 
     @Operation(summary = "Delete a diagnosis")

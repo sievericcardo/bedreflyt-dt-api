@@ -10,6 +10,8 @@ import org.apache.jena.update.UpdateExecutionFactory
 import org.apache.jena.update.UpdateFactory
 import org.apache.jena.update.UpdateProcessor
 import org.apache.jena.update.UpdateRequest
+import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.cache.CacheManager
 import org.springframework.cache.annotation.CacheEvict
 import org.springframework.cache.annotation.CachePut
 import org.springframework.cache.annotation.Cacheable
@@ -17,10 +19,13 @@ import org.springframework.stereotype.Service
 import java.util.logging.Logger
 
 @Service
-class CityService (
+open class CityService (
     replConfig: REPLConfig,
     triplestoreProperties: TriplestoreProperties,
 ) {
+
+    @Autowired
+    private lateinit var cacheManager: CacheManager
 
     private val tripleStore = triplestoreProperties.tripleStore
     private val prefix = triplestoreProperties.prefix
@@ -28,8 +33,8 @@ class CityService (
     private val repl = replConfig.repl()
     private val log: Logger = Logger.getLogger(CityService::class.java.name)
 
-    @CachePut("cities", key = "#request.cityName")
-    fun createCity(request: CityRequest) : Boolean {
+    @Cacheable("cities")
+    open fun createCity(request: CityRequest) : City? {
         val name = request.cityName.split(" ").joinToString("_")
         val query = """
             PREFIX bedreflyt: <$prefix>
@@ -46,14 +51,14 @@ class CityService (
 
         try {
             updateProcessor.execute()
-            return true
+            return City(request.cityName)
         } catch (e: Exception) {
-            return false
+            return null
         }
     }
 
     @Cacheable("cities")
-    fun getAllCities() : List<City>? {
+    open fun getAllCities() : List<City>? {
         val cities = mutableListOf<City>()
 
         val query =
@@ -77,8 +82,8 @@ class CityService (
         return cities
     }
 
-    @Cacheable("cities", key = "#cityName")
-    fun getCityByName(cityName: String) : City? {
+    @Cacheable("cities")
+    open fun getCityByName(cityName: String) : City? {
         log.info("Retrieving city $cityName")
         val query = """
             SELECT DISTINCT ?cityName WHERE {
@@ -98,9 +103,9 @@ class CityService (
         return City(name)
     }
 
-    @CacheEvict("cities", key = "#cityName")
-    @CachePut("cities", key = "#newCityName")
-    fun updateCity(cityName: String, newCityName: String) : Boolean {
+    @CacheEvict("cities", allEntries = true)
+    @CachePut("cities")
+    open fun updateCity(cityName: String, newCityName: String) : City? {
         val name = cityName.split(" ").joinToString("_")
         val newName = newCityName.split(" ").joinToString("_")
         val query = """
@@ -126,14 +131,14 @@ class CityService (
 
         try {
             updateProcessor.execute()
-            return true
+            return City(newCityName)
         } catch (e: Exception) {
-            return false
+            return null
         }
     }
 
     @CacheEvict("cities", key = "#cityName")
-    fun deleteCity(cityName: String) : Boolean {
+    open fun deleteCity(cityName: String) : Boolean {
         val name = cityName.split(" ").joinToString("_")
         val query = """
             PREFIX bedreflyt: <$prefix>

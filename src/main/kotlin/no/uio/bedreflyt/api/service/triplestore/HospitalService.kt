@@ -10,17 +10,22 @@ import org.apache.jena.update.UpdateExecutionFactory
 import org.apache.jena.update.UpdateFactory
 import org.apache.jena.update.UpdateProcessor
 import org.apache.jena.update.UpdateRequest
+import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.cache.CacheManager
 import org.springframework.cache.annotation.CacheEvict
 import org.springframework.cache.annotation.CachePut
 import org.springframework.cache.annotation.Cacheable
 import org.springframework.stereotype.Service
 
 @Service
-class HospitalService (
+open class HospitalService (
     replConfig: REPLConfig,
     triplestoreProperties: TriplestoreProperties,
     private val cityService: CityService
 ) {
+
+    @Autowired
+    private lateinit var cacheManager: CacheManager
 
     private val tripleStore = triplestoreProperties.tripleStore
     private val prefix = triplestoreProperties.prefix
@@ -28,7 +33,7 @@ class HospitalService (
     private val repl = replConfig.repl()
 
     @CachePut("hospitals", key = "#request.hospitalCode")
-    fun createHospital(request: HospitalRequest) : Boolean {
+    open fun createHospital(request: HospitalRequest) : Hospital? {
         val name = request.hospitalName.split(" ").joinToString("")
         val query = """
             PREFIX bedreflyt: <$prefix>
@@ -48,14 +53,14 @@ class HospitalService (
 
         try {
             updateProcessor.execute()
-            return true
+            return Hospital(request.hospitalName, request.hospitalCode, cityService.getCityByName(request.city)!!)
         } catch (e: Exception) {
-            return false
+            return null
         }
     }
 
     @Cacheable("hospitals")
-    fun getAllHospitals() : List<Hospital>? {
+    open fun getAllHospitals() : List<Hospital>? {
         val hospitals = mutableListOf<Hospital>()
 
         val query =
@@ -89,7 +94,7 @@ class HospitalService (
     }
 
     @Cacheable("hospitals", key = "#hospitalCode")
-    fun getHospitalByCode (hospitalCode: String) : Hospital? {
+    open fun getHospitalByCode (hospitalCode: String) : Hospital? {
         val query = """
             SELECT DISTINCT ?hospitalName ?cityName WHERE {
                 ?hospital a prog:Hospital ;
@@ -116,7 +121,7 @@ class HospitalService (
 
     @CacheEvict("hospitals", key = "#hospitalCode")
     @CachePut("hospitals", key = "#newHospitalName")
-    fun updateHospital (hospital: Hospital, newHospitalName: String) : Boolean {
+    open fun updateHospital (hospital: Hospital, newHospitalName: String) : Hospital? {
         val oldName = hospital.hospitalName.split(" ").joinToString("")
         val newName = newHospitalName.split(" ").joinToString("")
 
@@ -150,14 +155,14 @@ class HospitalService (
 
         try {
             updateProcessor.execute()
-            return true
+            return Hospital(newHospitalName, hospital.hospitalCode, hospital.hospitalCity)
         } catch (e: Exception) {
-            return false
+            return null
         }
     }
 
     @CacheEvict("hospitals", key = "#hospitalCode")
-    fun deleteHospital (hospitalCode: String) : Boolean {
+    open fun deleteHospital (hospitalCode: String) : Boolean {
         val query = """
             PREFIX bedreflyt: <$prefix>
             PREFIX brick: <https://brickschema.org/schema/Brick#>

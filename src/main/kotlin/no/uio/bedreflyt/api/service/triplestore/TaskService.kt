@@ -9,16 +9,21 @@ import org.apache.jena.update.UpdateExecutionFactory
 import org.apache.jena.update.UpdateFactory
 import org.apache.jena.update.UpdateProcessor
 import org.apache.jena.update.UpdateRequest
+import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.cache.CacheManager
 import org.springframework.cache.annotation.CacheEvict
 import org.springframework.cache.annotation.CachePut
 import org.springframework.cache.annotation.Cacheable
 import org.springframework.stereotype.Service
 
 @Service
-class TaskService (
+open class TaskService (
     replConfig: REPLConfig,
     triplestoreProperties: TriplestoreProperties
 ) {
+
+    @Autowired
+    private lateinit var cacheManager: CacheManager
 
     private val tripleStore = triplestoreProperties.tripleStore
     private val prefix = triplestoreProperties.prefix
@@ -26,7 +31,7 @@ class TaskService (
     private val repl = replConfig.repl()
 
     @CachePut("tasks", key = "#taskName")
-    fun createTask(taskName: String) : Boolean {
+    open fun createTask(taskName: String) : Task? {
         val name = taskName.replace(" ", "")
         val query = """
             PREFIX bedreflyt: <$prefix>
@@ -46,14 +51,14 @@ class TaskService (
 
         try {
             updateProcessor.execute()
-            return true
+            return Task(taskName)
         } catch (e: Exception) {
-            return false
+            return null
         }
     }
 
     @Cacheable("tasks")
-    fun getAllTasks() : List<Task>? {
+    open fun getAllTasks() : List<Task>? {
         val tasks: MutableList<Task> = mutableListOf()
 
         val query =
@@ -79,7 +84,7 @@ class TaskService (
     }
 
     @Cacheable("tasks", key = "#taskName")
-    fun getTaskByTaskName(taskName: String) : Task? {
+    open fun getTaskByTaskName(taskName: String) : Task? {
         val query = """
             SELECT DISTINCT ?taskName WHERE {
                 ?obj a prog:Task ;
@@ -101,7 +106,7 @@ class TaskService (
 
     @CacheEvict("tasks", key = "#task.taskName")
     @CachePut("tasks", key = "#newTaskName")
-    fun updateTask(task: Task, newTaskName: String) : Boolean {
+    open fun updateTask(task: Task, newTaskName: String) : Task? {
         val oldName = task.taskName.replace(" ", "")
         val newName = newTaskName.replace(" ", "")
         val query = """
@@ -132,14 +137,14 @@ class TaskService (
 
         try {
             updateProcessor.execute()
-            return true
+            return Task(newTaskName)
         } catch (e: Exception) {
-            return false
+            return null
         }
     }
 
     @CacheEvict("tasks", key = "#task.taskName")
-    fun deleteTask(task: Task) : Boolean {
+    open fun deleteTask(task: Task) : Boolean {
         val name = task.taskName.replace(" ", "")
         val query = """
             PREFIX bedreflyt: <$prefix>

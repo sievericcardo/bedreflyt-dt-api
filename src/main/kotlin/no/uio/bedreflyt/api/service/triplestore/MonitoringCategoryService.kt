@@ -10,16 +10,21 @@ import org.apache.jena.update.UpdateExecutionFactory
 import org.apache.jena.update.UpdateFactory
 import org.apache.jena.update.UpdateProcessor
 import org.apache.jena.update.UpdateRequest
+import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.cache.CacheManager
 import org.springframework.cache.annotation.CacheEvict
 import org.springframework.cache.annotation.CachePut
 import org.springframework.cache.annotation.Cacheable
 import org.springframework.stereotype.Service
 
 @Service
-class MonitoringCategoryService (
+open class MonitoringCategoryService (
     replConfig: REPLConfig,
     triplestoreProperties: TriplestoreProperties
 ) {
+
+    @Autowired
+    private lateinit var cacheManager: CacheManager
 
     private val tripleStore = triplestoreProperties.tripleStore
     private val prefix = triplestoreProperties.prefix
@@ -27,7 +32,7 @@ class MonitoringCategoryService (
     private val repl = replConfig.repl()
 
     @CachePut("monitoringCategories", key = "#monitoringCategoryRequest.description")
-    fun createCategory(monitoringCategoryRequest: MonitoringCategoryRequest): Boolean {
+    open fun createCategory(monitoringCategoryRequest: MonitoringCategoryRequest): MonitoringCategory? {
         val name = monitoringCategoryRequest.description.split(" ").joinToString("")
 
         val query = """
@@ -46,14 +51,14 @@ class MonitoringCategoryService (
 
         try {
             updateProcessor.execute()
-            return true
+            return MonitoringCategory(monitoringCategoryRequest.category, monitoringCategoryRequest.description)
         } catch (e: Exception) {
-            return false
+            return null
         }
     }
 
     @Cacheable("monitoringCategories")
-    fun getAllCategories() : List<MonitoringCategory>? {
+    open fun getAllCategories() : List<MonitoringCategory>? {
         val categories = mutableListOf<MonitoringCategory>()
 
         val query =
@@ -81,7 +86,7 @@ class MonitoringCategoryService (
     }
 
     @Cacheable("monitoringCategories", key = "#category")
-    fun getCategoryByCategory(category: Int) : MonitoringCategory? {
+    open fun getCategoryByCategory(category: Int) : MonitoringCategory? {
         val query =
             """
                SELECT DISTINCT ?description WHERE {
@@ -102,7 +107,7 @@ class MonitoringCategoryService (
     }
 
     @Cacheable("monitoringCategories", key = "#description")
-    fun getCategoryByDescription(description: String) : MonitoringCategory? {
+    open fun getCategoryByDescription(description: String) : MonitoringCategory? {
         val query =
             """
                SELECT DISTINCT ?category WHERE {
@@ -124,7 +129,7 @@ class MonitoringCategoryService (
 
     @CacheEvict("monitoringCategories", key = "#monitoringCategory.description")
     @CachePut("monitoringCategories", key = "#newDescription")
-    fun updateCategory(monitoringCategory: MonitoringCategory, newDescription: String) : Boolean {
+    open fun updateCategory(monitoringCategory: MonitoringCategory, newDescription: String) : MonitoringCategory? {
         val oldName = monitoringCategory.description.split(" ").joinToString("")
         val newName = newDescription.split(" ").joinToString("")
 
@@ -154,14 +159,14 @@ class MonitoringCategoryService (
 
         try {
             updateProcessor.execute()
-            return true
+            return MonitoringCategory(monitoringCategory.category, newDescription)
         } catch (e: Exception) {
-            return false
+            return null
         }
     }
 
     @CacheEvict("monitoringCategories", key = "#monitoringCategory.description")
-    fun deleteCategory(monitoringCategory: MonitoringCategory) : Boolean {
+    open fun deleteCategory(monitoringCategory: MonitoringCategory) : Boolean {
         val name = monitoringCategory.description.split(" ").joinToString("")
 
         val query = """

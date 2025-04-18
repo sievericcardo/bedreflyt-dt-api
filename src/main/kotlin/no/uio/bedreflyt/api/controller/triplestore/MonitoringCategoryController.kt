@@ -37,12 +37,10 @@ class MonitoringCategoryController (
     fun addMonitoringCategory(@SwaggerRequestBody(description = "Monitory category to add") @Valid @RequestBody request: MonitoringCategoryRequest) : ResponseEntity<MonitoringCategory> {
         log.info("Adding monitoring category")
 
-        if(!monitoringCategoryService.createCategory(request)) {
-            return ResponseEntity.badRequest().build()
-        }
+        val newMonitoringCategory = monitoringCategoryService.createCategory(request) ?: return ResponseEntity.badRequest().build()
         replConfig.regenerateSingleModel().invoke("monitoring categories")
 
-        return ResponseEntity.ok(MonitoringCategory(request.category, request.description))
+        return ResponseEntity.ok(newMonitoringCategory)
     }
 
     @Operation(summary = "Get all monitoring categories")
@@ -92,12 +90,10 @@ class MonitoringCategoryController (
         val category = monitoringCategoryService.getCategoryByCategory(monitoringCategory) ?: return ResponseEntity.notFound().build()
         val desc = request.newDescription ?: category.description
 
-        if(!monitoringCategoryService.updateCategory(category, desc)) {
-            return ResponseEntity.badRequest().build()
-        }
+        val updatedCategory = monitoringCategoryService.updateCategory(category, desc) ?: return ResponseEntity.badRequest().build()
         replConfig.regenerateSingleModel().invoke("monitoring categories")
 
-        return ResponseEntity.ok(MonitoringCategory(monitoringCategory, desc))
+        return ResponseEntity.ok(updatedCategory)
     }
 
     @Operation(summary = "Delete a monitoring category")

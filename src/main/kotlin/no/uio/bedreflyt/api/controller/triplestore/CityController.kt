@@ -47,12 +47,10 @@ class CityController (
     fun createCity(@SwaggerRequestBody(description = "Request to add a new city") @Valid @RequestBody cityRequest: CityRequest) : ResponseEntity<City> {
         log.info("Creating city $cityRequest")
 
-        if (!cityService.createCity(cityRequest)) {
-            return ResponseEntity.badRequest().build()
-        }
+        val newCity = cityService.createCity(cityRequest) ?: return ResponseEntity.badRequest().build()
         replConfig.regenerateSingleModel().invoke("cities")
 
-        return ResponseEntity.ok(City(cityRequest.cityName))
+        return ResponseEntity.ok(newCity)
     }
 
     @Operation(summary = "Get all cities")
@@ -105,15 +103,13 @@ class CityController (
         if(cityService.getCityByName(cityName) == null) {
             return ResponseEntity.notFound().build()
         }
-        cityRequest.newCityName?.let {
+        val updatedCity = cityRequest.newCityName?.let {
             log.info("New city name: $it")
-            if (!cityService.updateCity(cityName, it)) {
-                return ResponseEntity.badRequest().build()
-            }
+            cityService.updateCity(cityName, it) ?: return ResponseEntity.badRequest().build()
         } ?: return ResponseEntity.noContent().build()
         replConfig.regenerateSingleModel().invoke("cities")
 
-        return ResponseEntity.ok(City(cityRequest.newCityName))
+        return ResponseEntity.ok(updatedCity)
     }
 
     @Operation(summary = "Delete a city")

@@ -39,13 +39,11 @@ class HospitalController (
     fun createHospital(@SwaggerRequestBody(description = "Request to add a new hospital") @Valid @RequestBody hospitalRequest: HospitalRequest) : ResponseEntity<Hospital> {
         log.info("Creating hospital $hospitalRequest")
 
-        if (!hospitalService.createHospital(hospitalRequest)) {
-            return ResponseEntity.badRequest().build()
-        }
+        val newHospital = hospitalService.createHospital(hospitalRequest) ?: return ResponseEntity.badRequest().build()
         replConfig.regenerateSingleModel().invoke("hospitals")
         val city = cityService.getCityByName(hospitalRequest.city)
 
-        return ResponseEntity.ok(Hospital(hospitalRequest.hospitalName, hospitalRequest.hospitalCode, city!!))
+        return ResponseEntity.ok(newHospital)
     }
 
     @Operation(summary = "Get all hospitals")
@@ -96,14 +94,12 @@ class HospitalController (
         log.info("Updating hospital $updateHospitalRequest")
 
         val hospital = hospitalService.getHospitalByCode(hospitalCode) ?: return ResponseEntity.notFound().build()
-        updateHospitalRequest.newHospitalName?.let {
-            if (!hospitalService.updateHospital(hospital, it)) {
-                return ResponseEntity.badRequest().build()
-            }
+        val updatedHospital = updateHospitalRequest.newHospitalName?.let {
+            hospitalService.updateHospital(hospital, it) ?: return ResponseEntity.badRequest().build()
         } ?: return ResponseEntity.noContent().build()
         replConfig.regenerateSingleModel().invoke("hospitals")
 
-        return ResponseEntity.ok(Hospital(updateHospitalRequest.newHospitalName, hospital.hospitalCode, hospital.hospitalCity))
+        return ResponseEntity.ok(updatedHospital)
     }
 
     @Operation(summary = "Delete a hospital")

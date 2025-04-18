@@ -11,16 +11,21 @@ import org.apache.jena.update.UpdateExecutionFactory
 import org.apache.jena.update.UpdateFactory
 import org.apache.jena.update.UpdateProcessor
 import org.apache.jena.update.UpdateRequest
+import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.cache.CacheManager
 import org.springframework.cache.annotation.CacheEvict
 import org.springframework.cache.annotation.CachePut
 import org.springframework.cache.annotation.Cacheable
 import org.springframework.stereotype.Service
 
 @Service
-class FloorService (
+open class FloorService (
     replConfig: REPLConfig,
     triplestoreProperties: TriplestoreProperties,
 ) {
+
+    @Autowired
+    private lateinit var cacheManager: CacheManager
 
     private val tripleStore = triplestoreProperties.tripleStore
     private val prefix = triplestoreProperties.prefix
@@ -28,7 +33,7 @@ class FloorService (
     private val repl = replConfig.repl()
 
     @CachePut("floors", key = "#request.floorNumber")
-    fun createFloor(request: FloorRequest) : Boolean {
+    open fun createFloor(request: FloorRequest) : Floor? {
         val query = """
             PREFIX bedreflyt: <$prefix>
             PREFIX brick: <https://brickschema.org/schema/Brick#>
@@ -45,14 +50,14 @@ class FloorService (
 
         try {
             updateProcessor.execute()
-            return true
+            return Floor(request.floorNumber)
         } catch (e: Exception) {
-            return false
+            return null
         }
     }
 
     @Cacheable("floors")
-    fun getAllFloors() : List<Floor>? {
+    open fun getAllFloors() : List<Floor>? {
         val floors = mutableListOf<Floor>()
 
         val query =
@@ -77,7 +82,7 @@ class FloorService (
     }
 
     @Cacheable("floors", key = "#number")
-    fun getFloorByNumber (number: Int) : Floor? {
+    open fun getFloorByNumber (number: Int) : Floor? {
         val query = """
             SELECT DISTINCT ?floorNumber WHERE {
                 ?floor a prog:Floor ;
@@ -104,7 +109,7 @@ class FloorService (
 
     @CacheEvict("floors", key = "#request.floorNumber")
     @CachePut("floors", key = "#request.newFloorNumber")
-    fun updateFloor(oldFloorNumber: Int, newFloorNumber: Int) : Boolean {
+    open fun updateFloor(oldFloorNumber: Int, newFloorNumber: Int) : Floor? {
         val query = """
             PREFIX bedreflyt: <$prefix>
             PREFIX brick: <https://brickschema.org/schema/Brick#>
@@ -129,14 +134,14 @@ class FloorService (
 
         try {
             updateProcessor.execute()
-            return true
+            return Floor(newFloorNumber)
         } catch (e: Exception) {
-            return false
+            return null
         }
     }
 
     @CacheEvict("floors", key = "#request.floorNumber")
-    fun deleteFloor(floorNumber: Int) : Boolean {
+    open fun deleteFloor(floorNumber: Int) : Boolean {
         val query = """
             PREFIX bedreflyt: <$prefix>
             PREFIX brick: <https://brickschema.org/schema/Brick#>

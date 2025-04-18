@@ -37,12 +37,10 @@ class TaskController (
     fun createTask(@SwaggerRequestBody(description = "Request to add a new task") @Valid @RequestBody taskRequest: TaskRequest) : ResponseEntity<Task> {
         log.info("Creating task $taskRequest")
 
-        if(!taskService.createTask(taskRequest.taskName)) {
-            return ResponseEntity.badRequest().build()
-        }
+        val newTask = taskService.createTask(taskRequest.taskName) ?: return ResponseEntity.badRequest().build()
         replConfig.regenerateSingleModel().invoke("tasks")
 
-        return ResponseEntity.ok(Task(taskRequest.taskName))
+        return ResponseEntity.ok(newTask)
     }
 
     @Operation(summary = "Retrieve all tasks")
@@ -92,15 +90,13 @@ class TaskController (
         log.info("Updating task $updateTaskRequest")
 
         val task = taskService.getTaskByTaskName(taskName) ?: return ResponseEntity.notFound().build()
-        updateTaskRequest.newTaskName?.let {
-            if(!taskService.updateTask(task, it)) {
-                return ResponseEntity.badRequest().build()
-            }
+        val updatedTask = updateTaskRequest.newTaskName?.let {
+            taskService.updateTask(task, it) ?: return ResponseEntity.badRequest().build()
         } ?: return ResponseEntity.noContent().build()
 
         replConfig.regenerateSingleModel().invoke("tasks")
 
-        return ResponseEntity.ok(Task(updateTaskRequest.newTaskName))
+        return ResponseEntity.ok(updatedTask)
     }
 
     @Operation(summary = "Delete a task")

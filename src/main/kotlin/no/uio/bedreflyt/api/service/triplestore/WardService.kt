@@ -8,26 +8,31 @@ import org.apache.jena.query.QuerySolution
 import org.apache.jena.query.ResultSet
 import org.apache.jena.update.UpdateExecutionFactory
 import org.apache.jena.update.UpdateFactory
+import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.cache.CacheManager
 import org.springframework.cache.annotation.CacheEvict
 import org.springframework.cache.annotation.CachePut
 import org.springframework.cache.annotation.Cacheable
 import org.springframework.stereotype.Service
 
 @Service
-class WardService (
+open class WardService (
     replConfig: REPLConfig,
     triplestoreProperties: TriplestoreProperties,
     private val hospitalService: HospitalService,
     private val floorService: FloorService
 ) {
 
+    @Autowired
+    private lateinit var cacheManager: CacheManager
+
     private val tripleStore = triplestoreProperties.tripleStore
     private val prefix = triplestoreProperties.prefix
     private val ttlPrefix = triplestoreProperties.ttlPrefix
     private val repl = replConfig.repl()
 
-    @CachePut("wards", key = "#request.wardName + _ + #request.wardHospitalName")
-    fun createWard (request: WardRequest, hospitalName: String) : Boolean {
+    @CachePut("wards", key = "#request.wardName + '_' + #request.wardHospitalName")
+    open fun createWard (request: WardRequest, hospitalName: String) : Ward? {
         val wardCodeLine = request.wardCode?.let { "bedreflyt:wardCode $it ;" } ?: ""
         val name = request.wardName.split(" ").joinToString("")
 
@@ -50,14 +55,14 @@ class WardService (
 
         try {
             updateProcessor.execute()
-            return true
+            return Ward(request.wardName, request.wardCode, hospitalService.getHospitalByCode(hospitalName)!!, floorService.getFloorByNumber(request.wardFloorNumber)!!)
         } catch (e: Exception) {
-            return false
+            return null
         }
     }
 
     @Cacheable("wards")
-    fun getAllWards() : List<Ward>? {
+    open fun getAllWards() : List<Ward>? {
         val wards = mutableListOf<Ward>()
 
         val query =
@@ -96,7 +101,7 @@ class WardService (
     }
 
     @Cacheable
-    fun getAllWardsExcept(wardName: String, hospitalCode: String) : List<Ward>? {
+    open fun getAllWardsExcept(wardName: String, hospitalCode: String) : List<Ward>? {
         val wards = mutableListOf<Ward>()
 
         val query = """
@@ -135,8 +140,8 @@ class WardService (
         return wards
     }
 
-    @Cacheable("wards", key = "#wardName + _ + #wardHospital")
-    fun getWardByNameAndHospital (wardName: String, wardHospital: String) : Ward? {
+    @Cacheable("wards", key = "#wardName + '_' + #wardHospital")
+    open fun getWardByNameAndHospital (wardName: String, wardHospital: String) : Ward? {
         val query = """
             SELECT DISTINCT ?wardName ?wardCode ?hospitalCode ?floorNumber WHERE {
                 ?ward a prog:Ward ;
@@ -166,9 +171,9 @@ class WardService (
         return Ward(wardName, wardCode, hospital, floor)
     }
 
-    @CacheEvict("wards", key = "#ward.wardName + _ + #ward.wardHospital.hospitalCode")
-    @CachePut("wards", key = "#ward.wardName + _ + #ward.wardHospital.hospitalCode")
-    fun updateWard (ward: Ward,  newFloorNumber: Int) : Boolean {
+    @CacheEvict("wards", key = "#ward.wardName + '_' + #ward.wardHospital.hospitalCode")
+    @CachePut("wards", key = "#ward.wardName + '_' + #ward.wardHospital.hospitalCode")
+    open fun updateWard (ward: Ward,  newFloorNumber: Int) : Ward? {
         val name = ward.wardName.split(" ").joinToString("")
 
         val query = """
@@ -201,14 +206,14 @@ class WardService (
 
         try {
             updateProcessor.execute()
-            return true
+            return Ward(ward.wardName, ward.wardCode, hospitalService.getHospitalByCode(ward.wardHospital.hospitalCode)!!, floorService.getFloorByNumber(newFloorNumber)!!)
         } catch (e: Exception) {
-            return false
+            return null
         }
     }
 
-    @CacheEvict("wards", key = "#ward.wardName + _ + #ward.wardHospital.hospitalCode")
-    fun deleteWard (ward: Ward) : Boolean {
+    @CacheEvict("wards", allEntries = true)
+    open fun deleteWard (ward: Ward) : Boolean {
         val name = ward.wardName.split(" ").joinToString("")
 
         val query = """
