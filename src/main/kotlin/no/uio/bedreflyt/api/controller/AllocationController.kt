@@ -167,10 +167,14 @@ class AllocationController (
                 allocation.forEach { (room, roomInfo) ->
                     val allocatedPatients = roomInfo?.patients
                     if (!allocatedPatients.isNullOrEmpty()) {
-                        val patientAllocation = allocations[allocatedPatients[0]]
-                        if (patientAllocation != null) {
-                            patientAllocation.roomNumber = room.roomNumber
-                            patientAllocationService.updatePatientAllocation(patientAllocation)
+                        allocatedPatients.forEach { singlePatient ->
+                            val patientAllocation = patientAllocationService.findByPatientId(singlePatient)
+                            if (patientAllocation != null) {
+                                patientAllocation.roomNumber = room.roomNumber
+                                patientAllocationService.updatePatientAllocation(patientAllocation)
+                            } else {
+                                log.warning("Could not find allocation for patient ${singlePatient.patientId}")
+                            }
                         }
                     }
                 }
