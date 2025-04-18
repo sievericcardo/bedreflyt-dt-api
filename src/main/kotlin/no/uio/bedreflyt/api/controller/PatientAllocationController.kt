@@ -165,4 +165,28 @@ class PatientAllocationController (
 
         return ResponseEntity.ok("Patient allocation deleted")
     }
+
+    @Operation(summary = "Delete a patient allocation")
+    @ApiResponses(value = [
+        ApiResponse(responseCode = "200", description = "Patient allocation deleted"),
+        ApiResponse(responseCode = "400", description = "Invalid patient allocation"),
+        ApiResponse(responseCode = "401", description = "Unauthorized"),
+        ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
+        ApiResponse(responseCode = "500", description = "Internal server error")
+    ])
+    @DeleteMapping("/all", produces = ["application/json"])
+    fun deleteAllPatientAllocation() : ResponseEntity<String> {
+        log.info("Deleting patient allocations")
+
+        val allocations = patientAllocationService.findAll() ?: return ResponseEntity.notFound().build()
+        if (allocations.isEmpty()) {
+            return ResponseEntity.noContent().build()
+        }
+
+        for (allocation in allocations) {
+            patientAllocationService.deletePatientAllocation(allocation)
+        }
+
+        return ResponseEntity.ok("Patient allocation deleted")
+    }
 }
