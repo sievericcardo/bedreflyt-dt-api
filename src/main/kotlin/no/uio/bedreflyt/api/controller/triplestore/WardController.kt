@@ -104,8 +104,6 @@ class WardController (
         } ?: return ResponseEntity.noContent().build()
         replConfig.regenerateSingleModel().invoke("wards")
 
-        val floor = floorService.getFloorByNumber(request.newWardFloorNumber) ?: return ResponseEntity.badRequest().build()
-
         return ResponseEntity.ok(updatedWard)
     }
 
