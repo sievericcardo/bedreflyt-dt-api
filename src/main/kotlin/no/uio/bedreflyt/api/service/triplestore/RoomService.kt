@@ -36,7 +36,7 @@ open class RoomService (
     private val lock = ReentrantReadWriteLock()
 
     open fun createRoom(request: RoomRequest) : TreatmentRoom? {
-        lock.write {
+        synchronized(lock) {
             val query = """
             PREFIX bedreflyt: <$prefix>
             PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
@@ -74,7 +74,7 @@ open class RoomService (
     }
 
     open fun getAllRooms() : List<TreatmentRoom>? {
-        lock.read {
+        synchronized(lock) {
             val rooms: MutableList<TreatmentRoom> = mutableListOf()
 
             val query = """
@@ -120,7 +120,7 @@ open class RoomService (
     }
 
     open fun getRoomByRoomNumber(roomNumber: Int): TreatmentRoom? {
-        lock.read {
+        synchronized(lock) {
             val query = """
             SELECT DISTINCT ?capacity ?wardName ?hospitalName ?category WHERE {
                 ?obj a prog:TreatingRoom ;
@@ -158,7 +158,7 @@ open class RoomService (
     }
 
     open fun getRoomByRoomNumberWardHospital(roomNumber: Int, wardName: String, hospitalCode: String) : TreatmentRoom? {
-        lock.read {
+        synchronized(lock) {
             val query = """
             SELECT DISTINCT ?capacity ?category WHERE {
                 ?obj a prog:TreatingRoom ;
@@ -194,7 +194,7 @@ open class RoomService (
     }
 
     open fun getRoomsByWardHospital(wardName: String, hospitalCode: String) : List<TreatmentRoom>? {
-        lock.read {
+        synchronized(lock) {
             val rooms = mutableListOf<TreatmentRoom>()
             val query = """
                 SELECT DISTINCT ?roomNumber ?capacity ?category WHERE {
@@ -236,7 +236,7 @@ open class RoomService (
     }
 
     open fun updateRoom(room: TreatmentRoom, newCapacity: Int, newWard: String, newCategory: String) : TreatmentRoom? {
-        lock.write {
+        synchronized(lock) {
 
             val query = """
             PREFIX bedreflyt: <$prefix>
@@ -289,7 +289,7 @@ open class RoomService (
     }
 
     open fun deleteRoom(room: TreatmentRoom) : Boolean {
-        lock.write {
+        synchronized(lock) {
             val query = """
             PREFIX bedreflyt: <$prefix>
             PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
