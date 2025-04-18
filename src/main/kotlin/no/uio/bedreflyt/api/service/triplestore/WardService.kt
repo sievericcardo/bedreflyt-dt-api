@@ -2,6 +2,7 @@ package no.uio.bedreflyt.api.service.triplestore
 
 import no.uio.bedreflyt.api.config.REPLConfig
 import no.uio.bedreflyt.api.config.TriplestoreProperties
+import no.uio.bedreflyt.api.model.triplestore.Hospital
 import no.uio.bedreflyt.api.model.triplestore.Ward
 import no.uio.bedreflyt.api.types.WardRequest
 import org.apache.jena.query.QuerySolution
@@ -32,7 +33,7 @@ open class WardService (
     private val repl = replConfig.repl()
 
     @CachePut("wards", key = "#request.wardName + '_' + #request.wardHospitalName")
-    open fun createWard (request: WardRequest, hospitalName: String) : Ward? {
+    open fun createWard (request: WardRequest, hospital: Hospital) : Ward? {
         val wardCodeLine = request.wardCode?.let { "bedreflyt:wardCode $it ;" } ?: ""
         val name = request.wardName.split(" ").joinToString("")
 
@@ -42,7 +43,7 @@ open class WardService (
             
             INSERT DATA {
                 bedreflyt:$name a bedreflyt:Ward ;
-                    brick:hasHospital bedreflyt:$hospitalName ;
+                    brick:hasHospital bedreflyt:${hospital.hospitalName} ;
                     brick:hasFloor bedreflyt:Floor${request.wardFloorNumber} ;
                     $wardCodeLine
                     bedreflyt:wardName "${request.wardName}" .
@@ -55,7 +56,7 @@ open class WardService (
 
         try {
             updateProcessor.execute()
-            return Ward(request.wardName, request.wardCode, hospitalService.getHospitalByCode(hospitalName)!!, floorService.getFloorByNumber(request.wardFloorNumber)!!)
+            return Ward(request.wardName, request.wardCode, hospitalService.getHospitalByCode(hospital.hospitalCode)!!, floorService.getFloorByNumber(request.wardFloorNumber)!!)
         } catch (e: Exception) {
             return null
         }
@@ -214,23 +215,17 @@ open class WardService (
 
     @CacheEvict("wards", allEntries = true)
     open fun deleteWard (ward: Ward) : Boolean {
-        val name = ward.wardName.split(" ").joinToString("")
+        val name = ward.wardName.trim().replace(" ", "")
 
         val query = """
             PREFIX bedreflyt: <$prefix>
             PREFIX brick: <https://brickschema.org/schema/Brick#>
             
             DELETE {
-                bedreflyt:$name a bedreflyt:Ward ;
-                    bedreflyt:wardName "${ward.wardName}" ;
-                    brick:hasHospital bedreflyt:${ward.wardHospital.hospitalCode} ;
-                    brick:hasFloor bedreflyt:Floor${ward.wardFloor.floorNumber} .
+                bedreflyt:$name ?p ?o .
             }
             WHERE {
-                bedreflyt:$name a bedreflyt:Ward ;
-                    bedreflyt:wardName "${ward.wardName}" ;
-                    brick:hasHospital bedreflyt:${ward.wardHospital.hospitalCode}  ;
-                    brick:hasFloor bedreflyt:Floor${ward.wardFloor.floorNumber} .
+                bedreflyt:$name ?p ?o .
             }
         """.trimIndent()
 

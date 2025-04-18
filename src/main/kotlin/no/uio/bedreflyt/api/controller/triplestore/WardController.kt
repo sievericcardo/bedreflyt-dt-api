@@ -42,8 +42,8 @@ class WardController (
         log.info("Creating ward $wardRequest")
 
         val hospital = hospitalService.getHospitalByCode(wardRequest.wardHospitalName) ?: return ResponseEntity.badRequest().build()
-        val floor = floorService.getFloorByNumber(wardRequest.wardFloorNumber) ?: return ResponseEntity.badRequest().build()
-        val newWard = wardService.getWardByNameAndHospital(wardRequest.wardName, hospital.hospitalName)
+        floorService.getFloorByNumber(wardRequest.wardFloorNumber) ?: return ResponseEntity.badRequest().build()
+        val newWard = wardService.createWard(wardRequest, hospital) ?: return ResponseEntity.badRequest().build()
         replConfig.regenerateSingleModel().invoke("wards")
 
         return ResponseEntity.ok(newWard)

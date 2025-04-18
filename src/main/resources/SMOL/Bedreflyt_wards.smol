@@ -19,6 +19,13 @@ class WardModel extends BaseModel ()
                 prog:Hospital_hospitalName ?hospitalName .
             ?wardFloor a prog:Floor ;
                 prog:Floor_floorNumber ?floorNumber .
+
+            FILTER NOT EXISTS {
+                ?wardObj a prog:Ward ;
+                    prog:Ward_wardName ?wardName ;
+                    prog:Ward_wardHospital ?wardHospital ;
+                    prog:Ward_wardFloor ?wardFloor .
+            }
         }");
 
         if newWards != null then
@@ -45,7 +52,7 @@ class WardModel extends BaseModel ()
         SELECT DISTINCT ?obj {
             ?obj a prog:Ward ;
                 prog:Ward_wardName ?wardName ;
-                prog:Ward_wardhospital ?hospital ;
+                prog:Ward_wardHospital ?hospital ;
                 prog:Ward_wardFloor ?floor .
             ?hospital a prog:Hospital ;
                 prog:Hospital_hospitalName ?hospitalName .
