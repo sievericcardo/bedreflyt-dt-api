@@ -113,7 +113,25 @@ class AllocationController (
 
         val allocations : MutableMap<Patient, PatientAllocation> = mutableMapOf()
         patients.forEach { (_, patient) ->
-            allocations[patient] = patientAllocationService.findByPatientId(patient)!!
+            val patientAllocation = patientAllocationService.findByPatientId(patient)
+            if (patientAllocation == null) {
+                val newPatientAllocation = PatientAllocation(
+                    patientId = patient,
+                    acute = false, // Set appropriate values as needed
+                    diagnosisCode = "",
+                    diagnosisName = "",
+                    acuteCategory = 0,
+                    careCategory = 0,
+                    monitoringCategory = 0,
+                    careId = 0,
+                    contagious = false,
+                    roomNumber = -1
+                )
+                patientAllocationService.savePatientAllocation(newPatientAllocation)
+                allocations[patient] = newPatientAllocation
+            } else {
+                allocations[patient] = patientAllocation
+            }
         }
 
         databaseService.createAndPopulateTreatmentTables(bedreflytDB)
