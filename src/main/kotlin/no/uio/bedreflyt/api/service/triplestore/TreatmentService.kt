@@ -8,6 +8,8 @@ import no.uio.bedreflyt.api.types.TreatmentRequest
 import org.apache.jena.query.ResultSet
 import org.apache.jena.update.UpdateExecutionFactory
 import org.apache.jena.update.UpdateFactory
+import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.cache.CacheManager
 import org.springframework.stereotype.Service
 import org.springframework.cache.annotation.CacheEvict
 import org.springframework.cache.annotation.CachePut
@@ -16,20 +18,23 @@ import java.util.logging.Logger
 import kotlin.random.Random
 
 @Service
-class TreatmentService(
+open class TreatmentService(
     replConfig: REPLConfig,
     triplestoreProperties: TriplestoreProperties,
     private val diagnosisService: DiagnosisService,
     private val treatmentStepService: TreatmentStepService
 ) {
 
+    @Autowired
+    private lateinit var cacheManager: CacheManager
+
     private val tripleStore = triplestoreProperties.tripleStore
     private val prefix = triplestoreProperties.prefix
     private val repl = replConfig.repl()
     private val log: Logger = Logger.getLogger(TreatmentService::class.java.name)
 
-    @CachePut("treatments", key = "#request.treatmentName")
-    fun createTreatment (request: TreatmentRequest) : Boolean {
+    @Cacheable("treatments")
+    open fun createTreatment (request: TreatmentRequest) : Treatment? {
         val treatmentName = request.treatmentName.split(" ").joinToString("")
         val steps = mutableListOf<String>()
 
@@ -70,7 +75,7 @@ class TreatmentService(
                 updateProcessor.execute()
                 log.info("Treatment created")
             } catch (e: Exception) {
-                return false
+                return null
             }
         }
 
@@ -95,14 +100,22 @@ class TreatmentService(
         try {
             updateProcessor.execute()
             log.info("Steps created")
-            return true
+            return Treatment(
+                treatmentName = request.treatmentName,
+                treatmentDescription = null,
+                diagnosis = diagnosisService.getDiagnosisByName(request.diagnosis)!!,
+                frequency = request.frequency,
+                weight = request.weight,
+                firstTaskName = request.steps.first().task.taskName,
+                lastTaskName = request.steps.last().task.taskName
+            )
         } catch (e: Exception) {
-            return false
+            return null
         }
     }
 
     @Cacheable("treatments")
-    fun getAllTreatments(): List<Pair<Treatment, List<TreatmentStep>>>? {
+    open fun getAllTreatments(): List<Pair<Treatment, List<TreatmentStep>>>? {
         val treatments = mutableListOf<Pair<Treatment, List<TreatmentStep>>>()
 
         val query = """            
@@ -165,16 +178,30 @@ class TreatmentService(
         return treatments
     }
 
-    fun getTreatmentsByTreatmentName(treatmentName: String) : Pair<Treatment, List<TreatmentStep>>? {
+    @Cacheable("treatments")
+    open fun getTreatmentsByTreatmentName(treatmentName: String) : Pair<Treatment, List<TreatmentStep>>? {
         val query = """
         SELECT DISTINCT ?diagnosis ?frequency ?weight ?firstTask ?lastTask WHERE {
             ?treatment a prog:Treatment ;
-                prog:Treatment_firstTask ?firstTask ;
-                prog:Treatment_lastTask ?lastTask ;
+                prog:Treatment_firstTask ?firstStep ;
+                prog:Treatment_lastTask ?lastStep ;
                 prog:Treatment_treatmentName $treatmentName ;
                 prog:Treatment_diagnosis ?diagnosisObj ;
                 prog:Treatment_frequency ?frequency ;
                 prog:Treatment_weight ?weight .
+                
+            ?firstStep a prog:TreatmentStep ;
+                prog:TreatmentStep_treatmentName $treatmentName ;
+                prog:TreatmentStep_task ?firstTaskObj .
+           ?firstTaskObj a prog:Task ;
+                prog:Task_taskName ?firstTask .
+                
+           ?lastStep a prog:TreatmentStep ;
+                prog:TreatmentStep_treatmentName ?treatmentName ;
+                prog:TreatmentStep_task ?lastTaskObj .
+           ?lastTaskObj a prog:Task ;
+                prog:Task_taskName ?lastTask .
+                
             ?diagnosisObj a prog:Diagnosis ;
                 prog:Diagnosis_diagnosisCode ?diagnosis .
         }
@@ -208,17 +235,31 @@ class TreatmentService(
         return Pair(treatment, steps)
     }
 
-    fun getTreatmentByDiagnosisName(diagnosisName: String) : List<Treatment>? {
+    @Cacheable("treatments")
+    open fun getTreatmentByDiagnosisName(diagnosisName: String) : List<Treatment>? {
         val treatments = mutableListOf<Treatment>()
         val query = """
         SELECT DISTINCT ?treatmentName ?frequency ?weight ?firstTask ?lastTask WHERE {
             ?treatment a prog:Treatment ;
-                prog:Treatment_firstTask ?firstTask ;
-                prog:Treatment_lastTask ?lastTask ;
+                prog:Treatment_firstTask ?firstStep ;
+                prog:Treatment_lastTask ?lastStep ;
                 prog:Treatment_treatmentName ?treatmentName ;
                 prog:Treatment_diagnosis ?diagnosis ;
                 prog:Treatment_frequency ?frequency ;
                 prog:Treatment_weight ?weight .
+                
+           ?firstStep a prog:TreatmentStep ;
+                prog:TreatmentStep_treatmentName ?treatmentName ;
+                prog:TreatmentStep_task ?firstTaskObj .
+           ?firstTaskObj a prog:Task ;
+                prog:Task_taskName ?firstTask .
+                
+           ?lastStep a prog:TreatmentStep ;
+                prog:TreatmentStep_treatmentName ?treatmentName ;
+                prog:TreatmentStep_task ?lastTaskObj .
+           ?lastTaskObj a prog:Task ;
+                prog:Task_taskName ?lastTask .
+                
            ?diagnosis a prog:Diagnosis;
                 prog:Diagnosis_diagnosisCode "$diagnosisName" .
         }
@@ -266,6 +307,7 @@ class TreatmentService(
         return this.last()
     }
 
+    @Cacheable("treatments")
     fun getTreatmentByDiagnosisAndMode(diagnosisName: String, mode: String) : Treatment {
         val treatments : List<Treatment> = getTreatmentByDiagnosisName(diagnosisName)
             ?: throw IllegalArgumentException("No treatments found for diagnosis $diagnosisName")
@@ -293,8 +335,8 @@ class TreatmentService(
         }
     }
 
-    @CacheEvict(value = ["treatments"], key = "#tratmentName")
-    fun deleteTreatment(treatmentName: String) : Boolean {
+    @CacheEvict(value = ["treatments"], allEntries = true)
+    open fun deleteTreatment(treatmentName: String) : Boolean {
         val name = treatmentName.split(" ").joinToString("")
         val query = """
             PREFIX bedreflyt: <http://www.smolang.org/bedreflyt/>

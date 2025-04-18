@@ -4,17 +4,22 @@ import no.uio.bedreflyt.api.config.REPLConfig
 import no.uio.bedreflyt.api.config.TriplestoreProperties
 import no.uio.bedreflyt.api.model.triplestore.TreatmentStep
 import org.apache.jena.query.ResultSet
+import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.cache.CacheManager
 import org.springframework.stereotype.Service
 import org.springframework.cache.annotation.Cacheable
 import java.util.logging.Logger
 
 @Service
-class TreatmentStepService(
+open class TreatmentStepService(
     replConfig: REPLConfig,
     triplestoreProperties: TriplestoreProperties,
     private val monitoringCategoryService: MonitoringCategoryService,
     private val taskService: TaskService
 ) {
+
+    @Autowired
+    private lateinit var cacheManager: CacheManager
 
     private val tripleStore = triplestoreProperties.tripleStore
     private val prefix = triplestoreProperties.prefix
@@ -22,7 +27,7 @@ class TreatmentStepService(
     private val log : Logger = Logger.getLogger(TreatmentStepService::class.java.name)
 
     @Cacheable("treatment-steps")
-    fun getTreatmentStep(stepName: String, treatmentName: String): TreatmentStep? {
+    open fun getTreatmentStep(stepName: String, treatmentName: String): TreatmentStep? {
         val query = """
         SELECT ?previousTask ?nextTask ?stepNumber ?monitoringCategory ?staffLoad ?averageDuration WHERE {
             ?step a prog:TreatmentStep ;
@@ -77,7 +82,7 @@ class TreatmentStepService(
     }
 
     @Cacheable("treatment-steps")
-    fun getAllTreatmentSteps() : List<TreatmentStep>? {
+    open fun getAllTreatmentSteps() : List<TreatmentStep>? {
         val steps = mutableListOf<TreatmentStep>()
 
         val query = """
@@ -141,7 +146,7 @@ class TreatmentStepService(
     }
 
     @Cacheable("treatment-steps", key = "#treatmentName")
-    fun getTreatmentStepsByTreatmentName(treatmentName: String) : List<TreatmentStep>? {
+    open fun getTreatmentStepsByTreatmentName(treatmentName: String) : List<TreatmentStep>? {
         val steps = mutableListOf<TreatmentStep>()
 
         val query = """

@@ -41,13 +41,10 @@ class TreatmentController (
         log.info("Creating treatment $request")
 
         val diagnosis = diagnosisService.getDiagnosisByName(request.diagnosis) ?: return ResponseEntity.badRequest().build()
-
-        if (!treatmentService.createTreatment(request)) {
-            return ResponseEntity.badRequest().build()
-        }
+        val newTreatment = treatmentService.createTreatment(request) ?: return ResponseEntity.badRequest().build()
         replConfig.regenerateSingleModel().invoke("treatments")
 
-        return ResponseEntity.ok(Treatment(request.treatmentName, request.treatmentDescription, diagnosis, request.frequency, request.weight, request.firstStep, request.lastStep))
+        return ResponseEntity.ok(newTreatment)
     }
 
     @Operation(summary = "Get all treatments")
