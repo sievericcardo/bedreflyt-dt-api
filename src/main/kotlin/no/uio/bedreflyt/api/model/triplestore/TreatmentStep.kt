@@ -1,6 +1,8 @@
 package no.uio.bedreflyt.api.model.triplestore
 
-class TreatmentStep (
+import java.io.Serializable
+
+data class TreatmentStep (
     val treatmentName: String,
     val task: Task,
     val stepNumber: Int,
@@ -9,4 +11,9 @@ class TreatmentStep (
     val monitoringCategory: MonitoringCategory,
     val staffLoad: Double,
     val averageDuration: Double
-)
+) : Serializable
+{
+    override fun toString(): String {
+        return "TreatmentStep(treatmentName='$treatmentName', task=$task, stepNumber=$stepNumber, previousTask=$previousTask, nextTask=$nextTask, monitoringCategory=$monitoringCategory, staffLoad=$staffLoad, averageDuration=$averageDuration)"
+    }
+}
