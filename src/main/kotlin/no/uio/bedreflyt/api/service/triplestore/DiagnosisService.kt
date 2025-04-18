@@ -130,7 +130,7 @@ open class DiagnosisService (
         }
     }
 
-    @CacheEvict("diagnosis", key = "#diagnosisName")
+    @CacheEvict("diagnosis", allEntries = true)
     open fun deleteDiagnosis(diagnosisName: String) : Boolean {
         val query = """
             PREFIX bedreflyt: <$prefix>

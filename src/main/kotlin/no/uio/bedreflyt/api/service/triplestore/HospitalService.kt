@@ -161,7 +161,7 @@ open class HospitalService (
         }
     }
 
-    @CacheEvict("hospitals", key = "#hospitalCode")
+    @CacheEvict("hospitals", allEntries = true)
     open fun deleteHospital (hospitalCode: String) : Boolean {
         val query = """
             PREFIX bedreflyt: <$prefix>

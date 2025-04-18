@@ -143,7 +143,7 @@ open class TaskService (
         }
     }
 
-    @CacheEvict("tasks", key = "#task.taskName")
+    @CacheEvict("tasks", allEntries = true)
     open fun deleteTask(task: Task) : Boolean {
         val name = task.taskName.replace(" ", "")
         val query = """

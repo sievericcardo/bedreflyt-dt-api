@@ -137,7 +137,7 @@ open class CityService (
         }
     }
 
-    @CacheEvict("cities", key = "#cityName")
+    @CacheEvict("cities", allEntries = true)
     open fun deleteCity(cityName: String) : Boolean {
         val name = cityName.split(" ").joinToString("_")
         val query = """

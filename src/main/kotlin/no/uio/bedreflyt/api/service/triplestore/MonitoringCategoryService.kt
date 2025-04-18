@@ -165,7 +165,7 @@ open class MonitoringCategoryService (
         }
     }
 
-    @CacheEvict("monitoringCategories", key = "#monitoringCategory.description")
+    @CacheEvict("monitoringCategories", allEntries = true)
     open fun deleteCategory(monitoringCategory: MonitoringCategory) : Boolean {
         val name = monitoringCategory.description.split(" ").joinToString("")
 

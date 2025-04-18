@@ -140,7 +140,7 @@ open class FloorService (
         }
     }
 
-    @CacheEvict("floors", key = "#request.floorNumber")
+    @CacheEvict("floors", allEntries = true)
     open fun deleteFloor(floorNumber: Int) : Boolean {
         val query = """
             PREFIX bedreflyt: <$prefix>
