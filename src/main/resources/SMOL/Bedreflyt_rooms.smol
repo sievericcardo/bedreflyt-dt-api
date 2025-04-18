@@ -26,6 +26,21 @@ class RoomModel extends BaseModel()
                 prog:Ward_wardName ?wardName .
             ?monitoringCategory a prog:MonitoringCategory ;
                 prog:MonitoringCategory_category ?monitoringCode .
+
+           FILTER NOT EXISTS {
+                ?room a prog:TreatingRoom ;
+                    prog:TreatingRoom_roomNumber ?roomNumber ;
+                    prog:TreatingRoom_capacity ?capacity ;
+                    prog:TreatingRoom_treatingWard ?ward ;
+                    prog:TreatingRoom_hospital ?hospital ;
+                    prog:TreatingRoom_monitoringCategory ?monitoringStatus .
+                ?ward a prog:Ward ;
+                    prog:Ward_wardName ?wardName  .
+                ?hospital a prog:Hospital ;
+                    prog:Hospital_hospitalName ?hospitalName .
+                ?monitoringStatus a prog:MonitoringCategory ;
+                    prog:MonitoringCategory_category ?monitoringCode .
+            }
         }");
 
         if newRooms != null then
@@ -55,14 +70,14 @@ class RoomModel extends BaseModel()
             ?obj a prog:TreatingRoom ;
                 prog:TreatingRoom_roomNumber ?roomNumber ;
                 prog:TreatingRoom_capacity ?capacity ;
-                prog:TreatingRoom_isAssignWard ?ward ;
-                prog:TreatingRoom_monitoringCategory ?monitoringStatus .
-            ?ward a prog:Ward ;
-                prog:Ward_wardName ?wardName ;
-                prog:Ward_hasHospital ?hospitalWard .
-            ?hospitalWard a prog:Hospital ;
+                prog:TreatingRoom_treatingWard ?wardObj ;
+                prog:TreatingRoom_hospital ?hospitalObj ;
+                prog:TreatingRoom_monitoringCategory ?monitoringStatusObj .
+            ?wardObj a prog:Ward ;
+                prog:Ward_wardName ?wardName .
+            ?hospitalObj a prog:Hospital ;
                 prog:Hospital_hospitalName ?hospitalName .
-            ?monitoringStatus a prog:MonitoringCategory ;
+            ?monitoringStatusObj a prog:MonitoringCategory ;
                 prog:MonitoringCategory_category ?monitoringCode .
 
             FILTER NOT EXISTS {
