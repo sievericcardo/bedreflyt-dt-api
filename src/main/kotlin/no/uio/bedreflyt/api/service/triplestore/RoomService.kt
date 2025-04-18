@@ -12,9 +12,6 @@ import org.apache.jena.update.UpdateProcessor
 import org.apache.jena.update.UpdateRequest
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.cache.CacheManager
-import org.springframework.cache.annotation.CacheEvict
-import org.springframework.cache.annotation.CachePut
-import org.springframework.cache.annotation.Cacheable
 import org.springframework.stereotype.Service
 import java.util.concurrent.locks.ReentrantReadWriteLock
 import kotlin.concurrent.read
@@ -38,7 +35,6 @@ open class RoomService (
     private val repl = replConfig.repl()
     private val lock = ReentrantReadWriteLock()
 
-    @CachePut("rooms")
     open fun createRoom(request: RoomRequest) : TreatmentRoom? {
         lock.write {
             val query = """
@@ -66,14 +62,17 @@ open class RoomService (
                 val ward = wardService.getWardByNameAndHospital(request.ward, request.hospital) ?: return null
                 val hospital = hospitalService.getHospitalByCode(request.hospital) ?: return null
                 val monitoringCategory = monitoringCategoryService.getCategoryByDescription(request.categoryDescription) ?: return null
-                return TreatmentRoom(request.roomNumber, request.capacity, ward, hospital, monitoringCategory)
+
+                // Explicitly update the cache
+                val treatmentRoom = TreatmentRoom(request.roomNumber, request.capacity, ward, hospital, monitoringCategory)
+                cacheManager.getCache("rooms")?.put(request.roomNumber, treatmentRoom)
+                return treatmentRoom
             } catch (e: Exception) {
                 return null
             }
         }
     }
 
-    @Cacheable("rooms")
     open fun getAllRooms() : List<TreatmentRoom>? {
         lock.read {
             val rooms: MutableList<TreatmentRoom> = mutableListOf()
@@ -114,11 +113,12 @@ open class RoomService (
                 rooms.add(TreatmentRoom(roomNumber, capacity, ward, hospital, monitoringCategory))
             }
 
+            // Explicitly update the cache
+            cacheManager.getCache("rooms")?.put("allRooms", rooms)
             return rooms
         }
     }
 
-    @Cacheable("rooms")
     open fun getRoomByRoomNumber(roomNumber: Int): TreatmentRoom? {
         lock.read {
             val query = """
@@ -157,7 +157,6 @@ open class RoomService (
         }
     }
 
-    @Cacheable("rooms")
     open fun getRoomByRoomNumberWardHospital(roomNumber: Int, wardName: String, hospitalCode: String) : TreatmentRoom? {
         lock.read {
             val query = """
@@ -194,7 +193,6 @@ open class RoomService (
         }
     }
 
-    @Cacheable("rooms")
     open fun getRoomsByWardHospital(wardName: String, hospitalCode: String) : List<TreatmentRoom>? {
         lock.read {
             val rooms = mutableListOf<TreatmentRoom>()
@@ -237,8 +235,6 @@ open class RoomService (
         }
     }
 
-    @CacheEvict("rooms", key = "#room.roomNumber + '_' + #room.ward.wardName + '_' + #room.hospital.hospitalCode")
-    @CachePut("rooms", key = "#room.roomNumber + '_' + #newWard + '_' + #room.hospital.hospitalCode")
     open fun updateRoom(room: TreatmentRoom, newCapacity: Int, newWard: String, newCategory: String) : TreatmentRoom? {
         lock.write {
 
@@ -292,7 +288,6 @@ open class RoomService (
         }
     }
 
-    @CacheEvict(value = ["rooms"], allEntries = true)
     open fun deleteRoom(room: TreatmentRoom) : Boolean {
         lock.write {
             val query = """
