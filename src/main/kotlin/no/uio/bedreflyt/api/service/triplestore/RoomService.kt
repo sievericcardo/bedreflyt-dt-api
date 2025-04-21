@@ -13,13 +13,11 @@ import org.apache.jena.update.UpdateRequest
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.cache.CacheManager
 import org.springframework.stereotype.Service
-import java.util.concurrent.locks.ReentrantReadWriteLock
-import kotlin.concurrent.read
-import kotlin.concurrent.write
+import java.util.concurrent.locks.ReentrantLock
 
 @Service
 open class RoomService (
-    replConfig: REPLConfig,
+    private val replConfig: REPLConfig,
     triplestoreProperties: TriplestoreProperties,
     private val wardService: WardService,
     private val hospitalService: HospitalService,
@@ -33,10 +31,11 @@ open class RoomService (
     private val prefix = triplestoreProperties.prefix
     private val ttlPrefix = triplestoreProperties.ttlPrefix
     private val repl = replConfig.repl()
-    private val lock = ReentrantReadWriteLock()
+    private val lock = ReentrantLock()
 
     open fun createRoom(request: RoomRequest) : TreatmentRoom? {
-        synchronized(lock) {
+        lock.lock()
+        try {
             val query = """
             PREFIX bedreflyt: <$prefix>
             PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
@@ -62,6 +61,7 @@ open class RoomService (
                 val ward = wardService.getWardByNameAndHospital(request.ward, request.hospital) ?: return null
                 val hospital = hospitalService.getHospitalByCode(request.hospital) ?: return null
                 val monitoringCategory = monitoringCategoryService.getCategoryByDescription(request.categoryDescription) ?: return null
+                replConfig.regenerateSingleModel().invoke("rooms")
 
                 // Explicitly update the cache
                 val treatmentRoom = TreatmentRoom(request.roomNumber, request.capacity, ward, hospital, monitoringCategory)
@@ -70,11 +70,14 @@ open class RoomService (
             } catch (e: Exception) {
                 return null
             }
+        } finally {
+            lock.unlock()
         }
     }
 
     open fun getAllRooms() : List<TreatmentRoom>? {
-        synchronized(lock) {
+        lock.lock()
+        try {
             val rooms: MutableList<TreatmentRoom> = mutableListOf()
 
             val query = """
@@ -116,11 +119,14 @@ open class RoomService (
             // Explicitly update the cache
             cacheManager.getCache("rooms")?.put("allRooms", rooms)
             return rooms
+        } finally {
+            lock.unlock()
         }
     }
 
     open fun getRoomByRoomNumber(roomNumber: Int): TreatmentRoom? {
-        synchronized(lock) {
+        lock.lock()
+        try {
             val query = """
             SELECT DISTINCT ?capacity ?wardName ?hospitalName ?category WHERE {
                 ?obj a prog:TreatingRoom ;
@@ -154,11 +160,14 @@ open class RoomService (
             val monitoringCategory = monitoringCategoryService.getCategoryByDescription(category) ?: return null
 
             return TreatmentRoom(roomNumber, capacity, ward, hospital, monitoringCategory)
+        } finally {
+            lock.unlock()
         }
     }
 
     open fun getRoomByRoomNumberWardHospital(roomNumber: Int, wardName: String, hospitalCode: String) : TreatmentRoom? {
-        synchronized(lock) {
+        lock.lock()
+        try {
             val query = """
             SELECT DISTINCT ?capacity ?category WHERE {
                 ?obj a prog:TreatingRoom ;
@@ -190,11 +199,14 @@ open class RoomService (
             val monitoringCategory = monitoringCategoryService.getCategoryByDescription(category) ?: return null
 
             return TreatmentRoom(roomNumber, capacity, ward, hospital, monitoringCategory)
+        } finally {
+            lock.unlock()
         }
     }
 
     open fun getRoomsByWardHospital(wardName: String, hospitalCode: String) : List<TreatmentRoom>? {
-        synchronized(lock) {
+        lock.lock()
+        try {
             val rooms = mutableListOf<TreatmentRoom>()
             val query = """
                 SELECT DISTINCT ?roomNumber ?capacity ?category WHERE {
@@ -232,12 +244,14 @@ open class RoomService (
             }
 
             return rooms
+        } finally {
+            lock.unlock()
         }
     }
 
     open fun updateRoom(room: TreatmentRoom, newCapacity: Int, newWard: String, newCategory: String) : TreatmentRoom? {
-        synchronized(lock) {
-
+        lock.lock()
+        try {
             val query = """
             PREFIX bedreflyt: <$prefix>
             PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
@@ -278,6 +292,8 @@ open class RoomService (
 
             try {
                 updateProcessor.execute()
+                replConfig.regenerateSingleModel().invoke("rooms")
+
                 return TreatmentRoom(room.roomNumber, newCapacity,
                     wardService.getWardByNameAndHospital(newWard, room.hospital.hospitalCode) ?: return room,
                     hospitalService.getHospitalByCode(room.hospital.hospitalCode) ?: return room,
@@ -285,11 +301,14 @@ open class RoomService (
             } catch (e: Exception) {
                 return null
             }
+        } finally {
+            lock.unlock()
         }
     }
 
     open fun deleteRoom(room: TreatmentRoom) : Boolean {
-        synchronized(lock) {
+        lock.lock()
+        try {
             val query = """
             PREFIX bedreflyt: <$prefix>
             PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
@@ -312,12 +331,16 @@ open class RoomService (
 
             try {
                 updateProcessor.execute()
+                replConfig.regenerateSingleModel().invoke("rooms")
+
                 // Explicitly clear the cache
                 cacheManager.getCache("rooms")?.clear()
                 return true
             } catch (e: Exception) {
                 return false
             }
+        } finally {
+            lock.unlock()
         }
     }
 }

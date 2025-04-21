@@ -46,7 +46,6 @@ class RoomController(
         val hospital = hospitalService.getHospitalByCode(roomRequest.hospital) ?: return ResponseEntity.badRequest().build()
         val monitoringCategory = monitoringCategoryService.getCategoryByDescription(roomRequest.categoryDescription) ?: return ResponseEntity.badRequest().build()
         val newRoom = roomService.createRoom(roomRequest) ?: return ResponseEntity.badRequest().build()
-        replConfig.regenerateSingleModel().invoke("rooms")
 
         return ResponseEntity.ok(newRoom)
     }
@@ -108,7 +107,6 @@ class RoomController(
         val category = updateRoomRequest.newCategoryDescription ?: room.monitoringCategory.description
 
         val updatedRoom = roomService.updateRoom(room, capacity, ward, category) ?: return ResponseEntity.notFound().build()
-        replConfig.regenerateSingleModel().invoke("rooms")
 
         return ResponseEntity.ok(updatedRoom)
     }
@@ -132,7 +130,6 @@ class RoomController(
         if (!roomService.deleteRoom(room)) {
             return ResponseEntity.badRequest().build()
         }
-        replConfig.regenerateSingleModel().invoke("rooms")
 
         return ResponseEntity.ok("Room Deleted")
     }
