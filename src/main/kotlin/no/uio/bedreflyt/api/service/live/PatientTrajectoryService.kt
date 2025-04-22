@@ -40,4 +40,14 @@ open class PatientTrajectoryService (
             }
         }
     }
+
+    open fun deleteExpiredTrajectoryWithOffset(offset: Long) {
+        val trajectories = findAll() ?: emptyList()
+        // for each check if the date is expired
+        trajectories.forEach { trajectory ->
+            if (trajectory.date.isBefore(LocalDateTime.now().plusDays(offset))) {
+                patientTrajectoryRepository.delete(trajectory)
+            }
+        }
+    }
 }

@@ -10,6 +10,15 @@ data class SimulationRequest(
     val hospitalCode: String
 )
 
+data class AllocationSimulationRequest(
+    val scenario: List<ScenarioRequest>,
+    val mode: String,
+    val smtMode: String = "changes",
+    val wardName: String,
+    val hospitalCode: String,
+    val iteration: Long
+)
+
 data class WardRoom(
     val roomNumber: Int,
     val wardName: String,

@@ -47,6 +47,9 @@ class PatientAllocation (
 
     @Column(name = "room_number")
     var roomNumber : Int = -1,
+
+    @Column(name = "due_date")
+    var dueDate: LocalDateTime = LocalDateTime.now()
 ) {
     constructor() : this(
         null,

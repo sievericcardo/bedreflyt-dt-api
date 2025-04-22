@@ -5,6 +5,7 @@ import no.uio.bedreflyt.api.model.live.Patient
 import no.uio.bedreflyt.api.model.live.PatientAllocation
 import no.uio.bedreflyt.api.repository.live.PatientAllocationRepository
 import org.springframework.stereotype.Service
+import java.time.LocalDateTime
 
 @Service
 open class PatientAllocationService (
@@ -33,5 +34,15 @@ open class PatientAllocationService (
 
     open fun deletePatientAllocation(patientAllocation: PatientAllocation) {
         patientAllocationRepository.delete(patientAllocation)
+    }
+
+    open fun deletePatientAllocationWithOffset(offset: Long) {
+        val allocations = findAll() ?: emptyList()
+        // for each check if the date is expired
+        allocations.forEach { allocation ->
+            if (allocation.dueDate.isBefore(LocalDateTime.now().plusDays(offset))) {
+                patientAllocationRepository.delete(allocation)
+            }
+        }
     }
 }
