@@ -24,6 +24,7 @@ import no.uio.bedreflyt.api.types.AllocationRequest
 import no.uio.bedreflyt.api.types.AllocationResponse
 import no.uio.bedreflyt.api.types.AllocationSimulationRequest
 import no.uio.bedreflyt.api.types.DailyNeeds
+import no.uio.bedreflyt.api.types.SimulationRequest
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
@@ -67,52 +68,15 @@ class AllocationController (
         // Remove expired trajectories
         patientTrajectoryService.deleteExpiredTrajectory()
 
-        val incomingPatients : MutableList<Pair<Patient, String>> = mutableListOf()
-        // Ensure to have a valid patient for each scenario, else we won't continue with the allocation
-        allocationRequest.scenario.forEach { scenarioRequest ->
-            val patient = patientService.findByPatientId(scenarioRequest.patientId) ?: return ResponseEntity.badRequest().build()
-            incomingPatients.add(Pair(patient, scenarioRequest.diagnosis))
-        }
+        val incomingPatients = preparePatients(allocationRequest)
+        if (incomingPatients.isEmpty()) return ResponseEntity.badRequest().build()
 
-        incomingPatients.forEach { patient ->
-            val patientAllocation = patientAllocationService.findByPatientId(patient.first)
+        savePatientAllocations(incomingPatients)
 
-            // If the patient already has an allocation, we won't continue with the allocation
-            if (patientAllocation == null) {
-                val newPatientAllocation = PatientAllocation(
-                    patientId = patient.first,
-                    acute = false, // we will need to change this with proper information from the scenario
-                    diagnosisCode = patient.second,
-                    diagnosisName = patient.second, // we will need a proper naming for this
-                    acuteCategory = 0, // we will need to change this with proper information from the scenario
-                    careCategory = 0, // we will need to change this with proper information from the scenario
-                    monitoringCategory = 0, // we will need to change this with proper information from the scenario
-                    careId = 0, // we will need to change this with proper information from the scenario
-                    contagious = false, // we will need to change this with proper information from the scenario
-                    roomNumber = -1
-                )
-                patientAllocationService.savePatientAllocation(newPatientAllocation)
-            }
-        }
+        val (tempDir, bedreflytDB) = createTemporaryDatabase()
+        val (patients, trajectories) = populateDatabase(bedreflytDB, allocationRequest)
 
-        // Create a temporary directory
-        val uniqueID = UUID.randomUUID().toString()
-        val tempDir: Path = Files.createTempDirectory("allocation_$uniqueID")
-        val bedreflytDB = tempDir.resolve("bedreflyt.db").toString()
-        databaseService.createTables(bedreflytDB)
-
-        val ward = wardService.getWardByNameAndHospital(allocationRequest.wardName, allocationRequest.hospitalCode) ?: return ResponseEntity.badRequest().build()
-        databaseService.createAndPopulateRooms(bedreflytDB, ward)
-        val rooms = roomService.getAllRooms() ?: return ResponseEntity.badRequest().build()
-        val patients : MutableMap<String, Patient> = databaseService.createAndPopulatePatientTables(bedreflytDB, allocationRequest.scenario, allocationRequest.mode).toMutableMap()
-        // Add the patients that are already in the trajectory
-        val trajectories = patientTrajectoryService.findAll() ?: listOf()
-        trajectories.forEach { trajectory ->
-            val patient = trajectory.patientId
-            patients[patient.patientId] = trajectory.patientId
-        }
-
-        val allocations : MutableMap<Patient, PatientAllocation> = mutableMapOf()
+        val allocations: MutableMap<Patient, PatientAllocation> = mutableMapOf()
         patients.forEach { (_, patient) ->
             val patientAllocation = patientAllocationService.findByPatientId(patient)
             if (patientAllocation == null) {
@@ -141,43 +105,11 @@ class AllocationController (
         log.info("Tables populated, invoking ABS with ${allocationRequest.scenario.size} requests")
 
         val simulationNeeds: MutableList<DailyNeeds> = simulator.computeDailyNeeds(tempDir)?.toMutableList() ?: throw Exception("Could not compute daily needs")
-        trajectories.forEach { trajectory ->
-            val batchDay = trajectory.getBatchDay()
-            if (batchDay >= simulationNeeds.size) {
-                // Expand the list to accommodate the new index
-                while (simulationNeeds.size <= batchDay) {
-                    simulationNeeds.add(mutableListOf())
-                }
-            }
-            log.info("Will be adding $batchDay")
-            if (!simulationNeeds[batchDay].any { it.first == trajectory.patientId }) {
-                simulationNeeds[batchDay].add(Pair(trajectory.patientId, trajectory.need))
-            }
-        }
-
         val patientNeeds = mutableMapOf<Patient, Long>()
-        // Add all the simulation needs for each day into the trajectory table
-        simulationNeeds.forEachIndexed { index, dailyNeeds ->
-            dailyNeeds.forEach { (patient, need) ->
-                // If we have the patient in the map, we will update the need adding the new need
-                if (patientNeeds.containsKey(patient)) {
-                    patientNeeds[patient] = patientNeeds[patient]!! + need.toLong()
-                } else {
-                    patientNeeds[patient] = need.toLong()
-                }
-                val trajectory = PatientTrajectory(patientId = patient, date = LocalDateTime.now(), need = need)
-                trajectory.date = trajectory.setDate(index)
-                patientTrajectoryService.savePatientTrajectory(trajectory)
-            }
+        updatePatientNeeds(simulationNeeds, trajectories, patientNeeds)
+        updateAllocations(patientNeeds)
 
-            patientNeeds.forEach { (patient, need) ->
-                val allocation = patientAllocationService.findByPatientId(patient)!!
-                allocation.dueDate = LocalDateTime.now().plusDays(need)
-                patientAllocationService.updatePatientAllocation(allocation)
-            }
-        }
-
-        var allocationResponse = simulator.simulate(simulationNeeds, patients, allocations, rooms, tempDir, allocationRequest.smtMode)
+        var allocationResponse = simulator.simulate(simulationNeeds, patients, allocations, roomService.getAllRooms() ?: return ResponseEntity.badRequest().build(), tempDir, allocationRequest.smtMode)
         if (allocationResponse.allocations.isEmpty()) {
             val otherWards = wardService.getAllWardsExcept(allocationRequest.wardName, allocationRequest.hospitalCode)!!
             for (otherWard in otherWards) {
@@ -213,17 +145,7 @@ class AllocationController (
             }
             ResponseEntity.ok(allocationResponse)
         } else {
-            // Remove the users from the trajectory table and allocation table
-            incomingPatients.forEach { patient ->
-                val patientTrajectory = patientTrajectoryService.findByPatientId(patient.first)
-                patientTrajectory?.forEach { trajectory ->
-                    patientTrajectoryService.deletePatientTrajectory(trajectory)
-                }
-                val patientAllocation = patientAllocationService.findByPatientId(patient.first)
-                if (patientAllocation != null) {
-                    patientAllocationService.deletePatientAllocation(patientAllocation)
-                }
-            }
+            handleEmptyAllocations(incomingPatients)
             ResponseEntity.badRequest().build()
         }
     }
@@ -251,52 +173,23 @@ class AllocationController (
         // Remove expired allocations with offset
         patientAllocationService.deletePatientAllocationWithOffset(allocationRequest.iteration)
 
-        val incomingPatients : MutableList<Pair<Patient, String>> = mutableListOf()
-        // Ensure to have a valid patient for each scenario, else we won't continue with the allocation
-        allocationRequest.scenario.forEach { scenarioRequest ->
-            val patient = patientService.findByPatientId(scenarioRequest.patientId) ?: return ResponseEntity.badRequest().build()
-            incomingPatients.add(Pair(patient, scenarioRequest.diagnosis))
-        }
+        val request = SimulationRequest (
+            scenario = allocationRequest.scenario,
+            mode = allocationRequest.mode,
+            smtMode = allocationRequest.smtMode,
+            wardName = allocationRequest.wardName,
+            hospitalCode = allocationRequest.hospitalCode
+        )
 
-        incomingPatients.forEach { patient ->
-            val patientAllocation = patientAllocationService.findByPatientId(patient.first)
+        val incomingPatients = preparePatients(request)
+        if (incomingPatients.isEmpty()) return ResponseEntity.badRequest().build()
 
-            // If the patient already has an allocation, we won't continue with the allocation
-            if (patientAllocation == null) {
-                val newPatientAllocation = PatientAllocation(
-                    patientId = patient.first,
-                    acute = false, // we will need to change this with proper information from the scenario
-                    diagnosisCode = patient.second,
-                    diagnosisName = patient.second, // we will need a proper naming for this
-                    acuteCategory = 0, // we will need to change this with proper information from the scenario
-                    careCategory = 0, // we will need to change this with proper information from the scenario
-                    monitoringCategory = 0, // we will need to change this with proper information from the scenario
-                    careId = 0, // we will need to change this with proper information from the scenario
-                    contagious = false, // we will need to change this with proper information from the scenario
-                    roomNumber = -1
-                )
-                patientAllocationService.savePatientAllocation(newPatientAllocation)
-            }
-        }
+        savePatientAllocations(incomingPatients)
 
-        // Create a temporary directory
-        val uniqueID = UUID.randomUUID().toString()
-        val tempDir: Path = Files.createTempDirectory("allocation_$uniqueID")
-        val bedreflytDB = tempDir.resolve("bedreflyt.db").toString()
-        databaseService.createTables(bedreflytDB)
+        val (tempDir, bedreflytDB) = createTemporaryDatabase()
+        val (patients, trajectories) = populateDatabase(bedreflytDB, request)
 
-        val ward = wardService.getWardByNameAndHospital(allocationRequest.wardName, allocationRequest.hospitalCode) ?: return ResponseEntity.badRequest().build()
-        databaseService.createAndPopulateRooms(bedreflytDB, ward)
-        val rooms = roomService.getAllRooms() ?: return ResponseEntity.badRequest().build()
-        val patients : MutableMap<String, Patient> = databaseService.createAndPopulatePatientTables(bedreflytDB, allocationRequest.scenario, allocationRequest.mode).toMutableMap()
-        // Add the patients that are already in the trajectory
-        val trajectories = patientTrajectoryService.findAll() ?: listOf()
-        trajectories.forEach { trajectory ->
-            val patient = trajectory.patientId
-            patients[patient.patientId] = trajectory.patientId
-        }
-
-        val allocations : MutableMap<Patient, PatientAllocation> = mutableMapOf()
+        val allocations: MutableMap<Patient, PatientAllocation> = mutableMapOf()
         patients.forEach { (_, patient) ->
             val patientAllocation = patientAllocationService.findByPatientId(patient)
             if (patientAllocation == null) {
@@ -325,43 +218,11 @@ class AllocationController (
         log.info("Tables populated, invoking ABS with ${allocationRequest.scenario.size} requests")
 
         val simulationNeeds: MutableList<DailyNeeds> = simulator.computeDailyNeeds(tempDir)?.toMutableList() ?: throw Exception("Could not compute daily needs")
-        trajectories.forEach { trajectory ->
-            val batchDay = trajectory.getBatchDay()
-            if (batchDay >= simulationNeeds.size) {
-                // Expand the list to accommodate the new index
-                while (simulationNeeds.size <= batchDay) {
-                    simulationNeeds.add(mutableListOf())
-                }
-            }
-            log.info("Will be adding $batchDay")
-            if (!simulationNeeds[batchDay].any { it.first == trajectory.patientId }) {
-                simulationNeeds[batchDay].add(Pair(trajectory.patientId, trajectory.need))
-            }
-        }
-
         val patientNeeds = mutableMapOf<Patient, Long>()
-        // Add all the simulation needs for each day into the trajectory table
-        simulationNeeds.forEachIndexed { index, dailyNeeds ->
-            dailyNeeds.forEach { (patient, need) ->
-                // If we have the patient in the map, we will update the need adding the new need
-                if (patientNeeds.containsKey(patient)) {
-                    patientNeeds[patient] = patientNeeds[patient]!! + need.toLong()
-                } else {
-                    patientNeeds[patient] = need.toLong()
-                }
-                val trajectory = PatientTrajectory(patientId = patient, date = LocalDateTime.now(), need = need)
-                trajectory.date = trajectory.setDate(index)
-                patientTrajectoryService.savePatientTrajectory(trajectory)
-            }
+        updatePatientNeeds(simulationNeeds, trajectories, patientNeeds)
+        updateAllocations(patientNeeds, allocationRequest.iteration)
 
-            patientNeeds.forEach { (patient, need) ->
-                val allocation = patientAllocationService.findByPatientId(patient)!!
-                allocation.dueDate = LocalDateTime.now().plusDays(need)
-                patientAllocationService.updatePatientAllocation(allocation)
-            }
-        }
-
-        var allocationResponse = simulator.simulate(simulationNeeds, patients, allocations, rooms, tempDir, allocationRequest.smtMode)
+        var allocationResponse = simulator.simulate(simulationNeeds, patients, allocations, roomService.getAllRooms() ?: return ResponseEntity.badRequest().build(), tempDir, allocationRequest.smtMode)
         if (allocationResponse.allocations.isEmpty()) {
             val otherWards = wardService.getAllWardsExcept(allocationRequest.wardName, allocationRequest.hospitalCode)!!
             for (otherWard in otherWards) {
@@ -397,18 +258,100 @@ class AllocationController (
             }
             ResponseEntity.ok(allocationResponse)
         } else {
-            // Remove the users from the trajectory table and allocation table
-            incomingPatients.forEach { patient ->
-                val patientTrajectory = patientTrajectoryService.findByPatientId(patient.first)
-                patientTrajectory?.forEach { trajectory ->
-                    patientTrajectoryService.deletePatientTrajectory(trajectory)
-                }
-                val patientAllocation = patientAllocationService.findByPatientId(patient.first)
-                if (patientAllocation != null) {
-                    patientAllocationService.deletePatientAllocation(patientAllocation)
-                }
-            }
+            handleEmptyAllocations(incomingPatients)
             ResponseEntity.badRequest().build()
+        }
+    }
+
+    private fun createTemporaryDatabase(): Pair<Path, String> {
+        val uniqueID = UUID.randomUUID().toString()
+        val tempDir: Path = Files.createTempDirectory("allocation_$uniqueID")
+        val bedreflytDB = tempDir.resolve("bedreflyt.db").toString()
+        databaseService.createTables(bedreflytDB)
+        return Pair(tempDir, bedreflytDB)
+    }
+
+    private fun preparePatients(allocationRequest: AllocationRequest): MutableList<Pair<Patient, String>> {
+        val incomingPatients: MutableList<Pair<Patient, String>> = mutableListOf()
+        allocationRequest.scenario.forEach { scenarioRequest ->
+            val patient = patientService.findByPatientId(scenarioRequest.patientId) ?: return mutableListOf()
+            incomingPatients.add(Pair(patient, scenarioRequest.diagnosis))
+        }
+        return incomingPatients
+    }
+
+    private fun savePatientAllocations(incomingPatients: MutableList<Pair<Patient, String>>) {
+        incomingPatients.forEach { patient ->
+            val patientAllocation = patientAllocationService.findByPatientId(patient.first)
+            if (patientAllocation == null) {
+                val newPatientAllocation = PatientAllocation(
+                    patientId = patient.first,
+                    acute = false,
+                    diagnosisCode = patient.second,
+                    diagnosisName = patient.second,
+                    acuteCategory = 0,
+                    careCategory = 0,
+                    monitoringCategory = 0,
+                    careId = 0,
+                    contagious = false,
+                    roomNumber = -1
+                )
+                patientAllocationService.savePatientAllocation(newPatientAllocation)
+            }
+        }
+    }
+
+    private fun populateDatabase(bedreflytDB: String, allocationRequest: AllocationRequest): Pair<MutableMap<String, Patient>, List<PatientTrajectory>> {
+        val ward = wardService.getWardByNameAndHospital(allocationRequest.wardName, allocationRequest.hospitalCode) ?: throw IllegalArgumentException("Invalid ward or hospital")
+        databaseService.createAndPopulateRooms(bedreflytDB, ward)
+        val patients = databaseService.createAndPopulatePatientTables(bedreflytDB, allocationRequest.scenario, allocationRequest.mode).toMutableMap()
+        val trajectories = patientTrajectoryService.findAll() ?: listOf()
+        trajectories.forEach { trajectory ->
+            val patient = trajectory.patientId
+            patients[patient.patientId] = trajectory.patientId
+        }
+        return Pair(patients, trajectories)
+    }
+
+    private fun updatePatientNeeds(simulationNeeds: MutableList<DailyNeeds>, trajectories: List<PatientTrajectory>, patientNeeds: MutableMap<Patient, Long>) {
+        trajectories.forEach { trajectory ->
+            val batchDay = trajectory.getBatchDay()
+            while (simulationNeeds.size <= batchDay) {
+                simulationNeeds.add(mutableListOf())
+            }
+            if (!simulationNeeds[batchDay].any { it.first == trajectory.patientId }) {
+                simulationNeeds[batchDay].add(Pair(trajectory.patientId, trajectory.need))
+            }
+        }
+
+        simulationNeeds.forEachIndexed { index, dailyNeeds ->
+            dailyNeeds.forEach { (patient, need) ->
+                patientNeeds[patient] = patientNeeds.getOrDefault(patient, 0L) + need.toLong()
+                val trajectory = PatientTrajectory(patientId = patient, date = LocalDateTime.now(), need = need)
+                trajectory.date = trajectory.setDate(index)
+                patientTrajectoryService.savePatientTrajectory(trajectory)
+            }
+        }
+    }
+
+    private fun updateAllocations(patientNeeds: Map<Patient, Long>, offset:Long = 0) {
+        patientNeeds.forEach { (patient, need) ->
+            val allocation = patientAllocationService.findByPatientId(patient)!!
+            allocation.dueDate = LocalDateTime.now().plusDays(need+offset)
+            patientAllocationService.updatePatientAllocation(allocation)
+        }
+    }
+
+    private fun handleEmptyAllocations(incomingPatients: MutableList<Pair<Patient, String>>) {
+        incomingPatients.forEach { patient ->
+            val patientTrajectory = patientTrajectoryService.findByPatientId(patient.first)
+            patientTrajectory?.forEach { trajectory ->
+                patientTrajectoryService.deletePatientTrajectory(trajectory)
+            }
+            val patientAllocation = patientAllocationService.findByPatientId(patient.first)
+            if (patientAllocation != null) {
+                patientAllocationService.deletePatientAllocation(patientAllocation)
+            }
         }
     }
 }
