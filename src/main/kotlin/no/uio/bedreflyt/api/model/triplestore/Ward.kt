@@ -5,6 +5,9 @@ import java.io.Serializable
 data class Ward (
     val wardName: String,
     val wardCode: String?,
+    val capacityThreshold: Double,
+    val corridorPenalty: Double,
+    val officePenalty: Double,
     val wardHospital: Hospital,
     val wardFloor: Floor
 ) : Serializable
