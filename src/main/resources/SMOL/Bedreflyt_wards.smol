@@ -4,10 +4,13 @@ class WardModel extends BaseModel ()
         PREFIX : <http://www.smolang.org/bedreflyt/>
         PREFIX brick: <https://brickschema.org/schema/Brick#>
 
-        SELECT DISTINCT ?wardName ?wardHospital ?wardFloor
+        SELECT DISTINCT ?wardName ?capacityThreshold ?corridorPenalty ?officePenalty ?wardHospital ?wardFloor
         WHERE {
             ?ward a :Ward ;
                 :wardName ?wardName ;
+                :capacityThreshold ?capacityThreshold ;
+                :corridorPenalty ?corridorPenalty ;
+                :officePenalty ?officePenalty ;
                 brick:hasHospital ?hospital ;
                 brick:hasFloor ?floor .
             ?hospital a brick:Hospital ;

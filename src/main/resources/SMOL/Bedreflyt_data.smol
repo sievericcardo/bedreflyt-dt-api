@@ -151,6 +151,9 @@ end
 class Ward extends Twin (
     String wardName,
     String wardCode,
+    Double capacityThreshold,
+    Double corridorPenalty,
+    Double officePenalty,
     Hospital wardHospital,
     Floor wardFloor
 )
