@@ -101,7 +101,7 @@ open class WardService (
         return wards
     }
 
-    @Cacheable
+    @Cacheable("wards_except", key = "#wardName + '_' + #hospitalCode")
     open fun getAllWardsExcept(wardName: String, hospitalCode: String) : List<Ward>? {
         val wards = mutableListOf<Ward>()
 
