@@ -40,6 +40,9 @@ class WardModel extends BaseModel ()
                 newWards = newWards.next;
                 
                 print("RECONFIG> Adding ward " ++ newWard.wardName);
+                print("          Capacity threshold: " ++ newWard.capacityThreshold);
+                print("          Corridor penalty: " ++ newWard.corridorPenalty);
+                print("          Office penalty: " ++ newWard.officePenalty);
                 destroy(lx);
             end
 
