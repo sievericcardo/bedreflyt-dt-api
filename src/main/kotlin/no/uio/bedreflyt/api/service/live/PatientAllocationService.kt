@@ -36,6 +36,16 @@ open class PatientAllocationService (
         patientAllocationRepository.delete(patientAllocation)
     }
 
+    open fun deleteExpiredAllocation() {
+        val allocations = findAll() ?: emptyList()
+        // for each check if the date is expired
+        allocations.forEach { allocation ->
+            if (allocation.dueDate.isBefore(LocalDateTime.now())) {
+                patientAllocationRepository.delete(allocation)
+            }
+        }
+    }
+
     open fun deletePatientAllocationWithOffset(offset: Long) {
         val allocations = findAll() ?: emptyList()
         // for each check if the date is expired
