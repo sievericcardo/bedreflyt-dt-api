@@ -222,7 +222,7 @@ class AllocationController (
         updatePatientNeeds(simulationNeeds, trajectories, patientNeeds)
         updateAllocations(patientNeeds, allocationRequest.iteration)
 
-        var allocationResponse = simulator.simulate(simulationNeeds, patients, allocations, roomService.getAllRooms() ?: return ResponseEntity.badRequest().build(), tempDir, allocationRequest.smtMode)
+        var allocationResponse = simulator.simulate(simulationNeeds, patients, allocations, roomService.getRoomsByWardHospital(request.wardName, request.hospitalCode) ?: return ResponseEntity.badRequest().build(), tempDir, allocationRequest.smtMode)
         if (allocationResponse.allocations.isEmpty()) {
             val otherWards = wardService.getAllWardsExcept(allocationRequest.wardName, allocationRequest.hospitalCode)!!
             for (otherWard in otherWards) {
