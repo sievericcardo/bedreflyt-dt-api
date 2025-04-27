@@ -6,6 +6,7 @@ import no.uio.bedreflyt.api.config.EnvironmentConfig
 import no.uio.bedreflyt.api.model.live.Patient
 import no.uio.bedreflyt.api.model.live.PatientAllocation
 import no.uio.bedreflyt.api.model.triplestore.TreatmentRoom
+import no.uio.bedreflyt.api.model.triplestore.Ward
 import no.uio.bedreflyt.api.service.live.PatientAllocationService
 import no.uio.bedreflyt.api.service.live.PatientService
 import no.uio.bedreflyt.api.service.triplestore.RoomService
@@ -22,6 +23,7 @@ import java.nio.file.Paths
 import java.nio.file.StandardCopyOption
 import java.util.logging.Level
 import java.util.logging.Logger
+import kotlin.text.toInt
 
 @Service
 class Simulator (
@@ -178,12 +180,21 @@ class Simulator (
         patientsSimulated: Map<String, Patient>, // All patients that are simulated
         allocations: Map<Patient, PatientAllocation>,
         rooms: List<TreatmentRoom>,
+        ward: Ward,
         smtMode: String
     ): SolverResponse {
         val numberOfRooms = rooms.size
         val capacities = rooms.map { it.capacity ?: 0 }
         val roomCategories: List<Long> = rooms.map { it.monitoringCategory.category.toLong() ?: 0 }
-        val penalties: List<Int> = rooms.map { if (it.monitoringCategory.description != "Korridor") 0 else 100 }
+        val penalties: List<Int> = rooms.map {
+            if (it.monitoringCategory.description == "Korridor") {
+                ward.corridorPenalty.toInt()
+            } else if (it.monitoringCategory.description == "Midlertidig") {
+                ward.officePenalty.toInt()
+            } else {
+                0
+            }
+        }
         val allowContagious : List<Boolean> = rooms.map { it.monitoringCategory.description != "Korridor" }
         var patientNumbers = 0
         val genders = mutableListOf<Boolean>()
@@ -265,6 +276,7 @@ class Simulator (
         patients: Map<String, Patient>,
         allocations: Map<Patient, PatientAllocation>,
         rooms: List<TreatmentRoom>,
+        ward: Ward,
         tempDir: Path,
         smtMode: String
     ): SimulationResponse {
@@ -275,7 +287,7 @@ class Simulator (
             var totalChanges = 0
             needs.forEach { group ->
                 // Solve each day
-                val response = solve(group, patients, allocations, rooms, smtMode)
+                val response = solve(group, patients, allocations, rooms, ward, smtMode)
                 log.info("Solved day with ${response.changes} changes")
                 if (response.changes != -1) {totalChanges += response.changes}
                 val solveData = response.allocations

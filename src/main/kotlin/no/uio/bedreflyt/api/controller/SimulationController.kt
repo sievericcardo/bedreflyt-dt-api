@@ -70,7 +70,7 @@ class SimulationController(
         log.info("Tables populated, invoking ABS with ${simulationRequest.scenario.size} requests")
 
         val simulationNeeds = simulator.computeDailyNeeds(tempDir) ?: throw Exception("Could not compute daily needs")
-        val sim = simulator.simulate(simulationNeeds, patients, allocations, rooms, tempDir, simulationRequest.smtMode)
+        val sim = simulator.simulate(simulationNeeds, patients, allocations, rooms, ward, tempDir, simulationRequest.smtMode)
 
         Files.walk(tempDir)
             .sorted(Comparator.reverseOrder())
@@ -141,7 +141,7 @@ class SimulationController(
                     }
                     val needsWc = simulator.computeDailyNeeds(tempDir) ?: throw Exception("Could not compute daily needs")
 
-                    worstCase = simulator.simulate(needsWc, patientsWc, allocationsWc, rooms, tempDir, simulationRequest.smtMode)
+                    worstCase = simulator.simulate(needsWc, patientsWc, allocationsWc, rooms, ward, tempDir, simulationRequest.smtMode)
                     databaseService.clearTable(bedreflytDB, "scenario")
                     runs.add(worstCase)
                 } else {
@@ -157,7 +157,7 @@ class SimulationController(
                 }
                 val needs = simulator.computeDailyNeeds(tempDir) ?: throw Exception("Could not compute daily needs")
                 log.info("Run $i / ${simulationRequest.repetitions}:\tPatient table populated, invoking ABS with ${simulationRequest.scenario.size} requests")
-                runs.add(simulator.simulate(needs, patients, allocations, rooms, tempDir, simulationRequest.smtMode))
+                runs.add(simulator.simulate(needs, patients, allocations, rooms, ward, tempDir, simulationRequest.smtMode))
                 databaseService.clearTable(bedreflytDB, "scenario")
             }
         }
