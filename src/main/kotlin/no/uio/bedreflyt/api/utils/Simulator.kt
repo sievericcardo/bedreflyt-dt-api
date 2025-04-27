@@ -203,7 +203,13 @@ class Simulator (
                     val singlePatient = patientService.findByPatientId(patientInfo.patientId)!!
                     contagious.add(allocations[singlePatient]!!.contagious)
                     patientDistances.add(patientDistance.toInt())
-                    previous.add(allocations[singlePatient]!!.roomNumber)
+                    val previousRoom = allocations[singlePatient]!!.roomNumber
+                    if (previousRoom == -1) {
+                        previous.add(-1)
+                    } else {
+                        val roomNumber = indexRoomMap[previousRoom] ?: previousRoom
+                        previous.add(roomNumber)
+                    }
                     patientMap[patientNumbers] = patientInfo
                     patientNumbers += 1
                 }
