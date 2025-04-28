@@ -113,7 +113,11 @@ open class RoomService (
                 val hospital = hospitalService.getHospitalByCode(hospitalName) ?: continue
                 val monitoringCategory = monitoringCategoryService.getCategoryByCategory(category) ?: continue
 
-                rooms.add(TreatmentRoom(roomNumber, capacity, ward, hospital, monitoringCategory))
+                val room = TreatmentRoom(roomNumber, capacity, ward, hospital, monitoringCategory)
+                if (!rooms.any { it.roomNumber == room.roomNumber && it.treatmentWard.wardName == room.treatmentWard.wardName && it.hospital.hospitalCode == room.hospital.hospitalCode }) {
+                    rooms.add(room)
+                }
+//                rooms.add(TreatmentRoom(roomNumber, capacity, ward, hospital, monitoringCategory))
             }
 
             // Explicitly update the cache
@@ -240,7 +244,10 @@ open class RoomService (
                 val hospital = hospitalService.getHospitalByCode(hospitalCode) ?: return null
                 val monitoringCategory = monitoringCategoryService.getCategoryByDescription(category) ?: return null
 
-                rooms.add(TreatmentRoom(roomNumber, capacity, ward, hospital, monitoringCategory))
+                val room = TreatmentRoom(roomNumber, capacity, ward, hospital, monitoringCategory)
+                if (!rooms.any { it.roomNumber == room.roomNumber && it.treatmentWard.wardName == room.treatmentWard.wardName && it.hospital.hospitalCode == room.hospital.hospitalCode }) {
+                    rooms.add(room)
+                }
             }
 
             return rooms

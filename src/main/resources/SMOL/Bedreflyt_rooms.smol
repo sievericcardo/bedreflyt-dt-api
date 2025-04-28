@@ -18,14 +18,14 @@ class RoomModel extends BaseModel()
             ?hospitalWard a brick:Hospital ;
                 :hospitalName ?hospitalName .
             ?monitoringStatus a :MonitoringCategory ;
-                :hasMonitoringCode ?monitoringCode.
+                :monitoringName ?monitoringCode.
 
             ?hospital a prog:Hospital ;
                 prog:Hospital_hospitalName ?hospitalName .
             ?treatingWard a prog:Ward ;
                 prog:Ward_wardName ?wardName .
             ?monitoringCategory a prog:MonitoringCategory ;
-                prog:MonitoringCategory_category ?monitoringCode .
+                prog:MonitoringCategory_description ?monitoringCode .
 
            FILTER NOT EXISTS {
                 ?room a prog:TreatingRoom ;
@@ -39,7 +39,7 @@ class RoomModel extends BaseModel()
                 ?hospital a prog:Hospital ;
                     prog:Hospital_hospitalName ?hospitalName .
                 ?monitoringStatus a prog:MonitoringCategory ;
-                    prog:MonitoringCategory_category ?monitoringCode .
+                    prog:MonitoringCategory_description ?monitoringCode .
             }
         }");
 
