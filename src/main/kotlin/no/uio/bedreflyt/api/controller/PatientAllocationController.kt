@@ -76,6 +76,23 @@ class PatientAllocationController (
         return ResponseEntity.ok(patientAllocations)
     }
 
+    @Operation(summary = "Get all patient allocations")
+    @ApiResponses(value = [
+        ApiResponse(responseCode = "200", description = "Patient allocations found"),
+        ApiResponse(responseCode = "400", description = "Invalid patient allocations"),
+        ApiResponse(responseCode = "401", description = "Unauthorized"),
+        ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
+        ApiResponse(responseCode = "500", description = "Internal server error")
+    ])
+    @GetMapping("/simulated", produces = ["application/json"])
+    fun getSimulatedAllocations() : ResponseEntity<List<PatientAllocation>?> {
+        log.info("Retrieving all patient allocations")
+
+        val patientAllocations = patientAllocationService.findAllSimulated()
+
+        return ResponseEntity.ok(patientAllocations)
+    }
+
     @Operation(summary = "Get patient allocation by patientId")
     @ApiResponses(value = [
         ApiResponse(responseCode = "200", description = "Patient allocation found"),

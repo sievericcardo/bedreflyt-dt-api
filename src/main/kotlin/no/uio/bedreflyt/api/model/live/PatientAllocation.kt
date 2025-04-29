@@ -49,7 +49,10 @@ class PatientAllocation (
     var roomNumber : Int = -1,
 
     @Column(name = "due_date")
-    var dueDate: LocalDateTime = LocalDateTime.now()
+    var dueDate: LocalDateTime = LocalDateTime.now(),
+
+    @Column(name = "simulated")
+    var simulated: Boolean = false,
 ) {
     constructor() : this(
         null,
@@ -64,7 +67,9 @@ class PatientAllocation (
         false,
         "",
         "",
-        -1
+        -1,
+        LocalDateTime.now(),
+        false
     )
 
     constructor (
@@ -79,7 +84,9 @@ class PatientAllocation (
         contagious: Boolean,
         wardName: String,
         hospitalCode: String,
-        roomNumber: Int
+        roomNumber: Int,
+        dueDate: LocalDateTime,
+        simulated: Boolean = false
     ) : this(
         null,
         patientId,
@@ -93,6 +100,8 @@ class PatientAllocation (
         contagious,
         wardName,
         hospitalCode,
-        roomNumber
+        roomNumber,
+        dueDate,
+        simulated
     )
 }

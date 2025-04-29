@@ -15,8 +15,17 @@ open class PatientAllocationService (
         return patientAllocationRepository.findAll()
     }
 
-    open fun findByPatientId(patientId: Patient): PatientAllocation? {
-        return patientAllocationRepository.findByPatientId(patientId)
+    open fun findAllSimulated(): List<PatientAllocation>? {
+        return patientAllocationRepository.findBySimulatedTrue()
+    }
+
+    open fun findByPatientId(patientId: Patient, simulated : Boolean = false): PatientAllocation? {
+        val allocations = patientAllocationRepository.findByPatientId(patientId)
+
+        if (allocations == null) {
+            return null
+        }
+        return allocations.firstOrNull { it.simulated == simulated }
     }
 
     open fun findByWardNameAndHospitalCode(wardName: String, hospitalCode: String): List<PatientAllocation>? {
@@ -47,7 +56,7 @@ open class PatientAllocationService (
     }
 
     open fun deletePatientAllocationWithOffset(offset: Long) {
-        val allocations = findAll() ?: emptyList()
+        val allocations = findAllSimulated() ?: emptyList()
         // for each check if the date is expired
         allocations.forEach { allocation ->
             if (allocation.dueDate.isBefore(LocalDateTime.now().plusDays(offset))) {

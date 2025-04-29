@@ -21,7 +21,10 @@ class PatientTrajectory (
     var date: LocalDateTime,
 
     @Column(name = "daily_need")
-    var need: Int
+    var need: Int,
+
+    @Column(name = "simulated")
+    var simulated: Boolean = false,
 ) {
     constructor() : this(
         null,
@@ -33,12 +36,14 @@ class PatientTrajectory (
     constructor (
         patientId: Patient,
         date: LocalDateTime,
-        need: Int
+        need: Int,
+        simulated: Boolean = false
     ) : this(
         null,
         patientId,
         date,
-        need
+        need,
+        simulated
     )
 
     fun setDate(offset: Int) : LocalDateTime {

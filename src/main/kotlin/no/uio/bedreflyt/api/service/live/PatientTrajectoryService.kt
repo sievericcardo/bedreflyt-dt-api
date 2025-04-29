@@ -15,8 +15,12 @@ open class PatientTrajectoryService (
         return patientTrajectoryRepository.findAll()
     }
 
-    open fun findByPatientId(patientId: Patient): List<PatientTrajectory>? {
-        return patientTrajectoryRepository.findByPatientId(patientId)
+    open fun findAllSimulated() : List<PatientTrajectory>? {
+        return patientTrajectoryRepository.findAll().filter { it.simulated }
+    }
+
+    open fun findByPatientId(patientId: Patient, simulated: Boolean = false): List<PatientTrajectory>? {
+        return patientTrajectoryRepository.findByPatientId(patientId)?.filter { it.simulated == simulated }
     }
 
     open fun savePatientTrajectory(patientTrajectory: PatientTrajectory): PatientTrajectory {
@@ -42,7 +46,7 @@ open class PatientTrajectoryService (
     }
 
     open fun deleteExpiredTrajectoryWithOffset(offset: Long) {
-        val trajectories = findAll() ?: emptyList()
+        val trajectories = findAllSimulated() ?: emptyList()
         // for each check if the date is expired
         trajectories.forEach { trajectory ->
             if (trajectory.date.isBefore(LocalDateTime.now().plusDays(offset))) {
