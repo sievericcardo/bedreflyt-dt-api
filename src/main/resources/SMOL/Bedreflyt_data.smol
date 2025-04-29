@@ -154,6 +154,7 @@ class Ward extends Twin (
     Double capacityThreshold,
     Double corridorPenalty,
     Double officePenalty,
+    Int corridorCapacity,
     Hospital wardHospital,
     Floor wardFloor
 )

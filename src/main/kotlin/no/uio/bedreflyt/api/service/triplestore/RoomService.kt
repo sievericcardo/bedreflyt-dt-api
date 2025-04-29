@@ -42,7 +42,7 @@ open class RoomService (
             PREFIX owl: <http://www.w3.org/2002/07/owl#>
             
             INSERT DATA {
-                bedreflyt:Room${request.roomNumber} rdf:type owl:NamedIndividual ,
+                bedreflyt:Room${request.roomNumber}_${request.ward} rdf:type owl:NamedIndividual ,
                            <https://w3id.org/rec/building/TreatmentRoom> ;
                     bedreflyt:hasBathroom bedreflyt:Room${request.roomNumber}-1 ;
                     bedreflyt:hasMonitoringStatus bedreflyt:${request.categoryDescription} ;
@@ -93,7 +93,7 @@ open class RoomService (
                 ?hospital a prog:Hospital ;
                     prog:Hospital_hospitalCode ?hospitalName .
                 ?monitoringCategory a prog:MonitoringCategory ;
-                    prog:MonitoringCategory_category ?category .
+                    prog:MonitoringCategory_description ?category .
             }"""
 
             val resultRooms: ResultSet = repl.interpreter!!.query(query)!!
@@ -107,11 +107,11 @@ open class RoomService (
                 val capacity = solution.get("?capacity").asLiteral().toString().split("^^")[0].toInt()
                 val wardName = solution.get("?wardName").asLiteral().toString()
                 val hospitalName = solution.get("?hospitalName").asLiteral().toString()
-                val category = solution.get("?category").asLiteral().toString().split("^^")[0].toInt()
+                val category = solution.get("?category").asLiteral().toString()
 
                 val ward = wardService.getWardByNameAndHospital(wardName, hospitalName) ?: continue
                 val hospital = hospitalService.getHospitalByCode(hospitalName) ?: continue
-                val monitoringCategory = monitoringCategoryService.getCategoryByCategory(category) ?: continue
+                val monitoringCategory = monitoringCategoryService.getCategoryByDescription(category) ?: continue
 
                 val room = TreatmentRoom(roomNumber, capacity, ward, hospital, monitoringCategory)
                 if (!rooms.any { it.roomNumber == room.roomNumber && it.treatmentWard.wardName == room.treatmentWard.wardName && it.hospital.hospitalCode == room.hospital.hospitalCode }) {
@@ -265,7 +265,7 @@ open class RoomService (
             PREFIX owl: <http://www.w3.org/2002/07/owl#>
             
             DELETE {
-                bedreflyt:Room${room.roomNumber} rdf:type owl:NamedIndividual ,
+                bedreflyt:Room${room.roomNumber}_${room.treatmentWard.wardName} rdf:type owl:NamedIndividual ,
                            <https://w3id.org/rec/building/TreatmentRoom> ;
                     bedreflyt:hasBathroom bedreflyt:Room${room.roomNumber}-1 ;
                     bedreflyt:hasMonitoringStatus bedreflyt:${room.monitoringCategory.description} ;
@@ -274,7 +274,7 @@ open class RoomService (
                     bedreflyt:hasRoomNr ${room.roomNumber} .
             }
             INSERT {
-                bedreflyt:Room${room.roomNumber} rdf:type owl:NamedIndividual ,
+                bedreflyt:Room${room.roomNumber}_${room.treatmentWard.wardName} rdf:type owl:NamedIndividual ,
                            <https://w3id.org/rec/building/TreatmentRoom> ;
                     bedreflyt:hasBathroom bedreflyt:Room${room.roomNumber}-1 ;
                     bedreflyt:hasMonitoringStatus bedreflyt:$newCategory ;
@@ -283,7 +283,7 @@ open class RoomService (
                     bedreflyt:hasRoomNr ${room.roomNumber} .
             }
             WHERE {
-                bedreflyt:Room${room.roomNumber} rdf:type owl:NamedIndividual ,
+                bedreflyt:Room${room.roomNumber}_${room.treatmentWard.wardName} rdf:type owl:NamedIndividual ,
                            <https://w3id.org/rec/building/TreatmentRoom> ;
                     bedreflyt:hasBathroom bedreflyt:Room${room.roomNumber}-1 ;
                     bedreflyt:hasMonitoringStatus bedreflyt:${room.monitoringCategory.description} ;
@@ -322,11 +322,11 @@ open class RoomService (
             PREFIX owl: <http://www.w3.org/2002/07/owl#>
             
             DELETE {
-                bedreflyt:Room${room.roomNumber} rdf:type owl:NamedIndividual ,
+                bedreflyt:Room${room.roomNumber}_${room.treatmentWard.wardName} rdf:type owl:NamedIndividual ,
                            <https://w3id.org/rec/building/TreatmentRoom> ;
             }
             WHERE {
-                bedreflyt:Room${room.roomNumber} rdf:type owl:NamedIndividual ,
+                bedreflyt:Room${room.roomNumber}_${room.treatmentWard.wardName} rdf:type owl:NamedIndividual ,
                            <https://w3id.org/rec/building/TreatmentRoom> ;
                     bedreflyt:isAssignWard bedreflyt:${room.treatmentWard.wardName}  .
             }

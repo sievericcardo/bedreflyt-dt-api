@@ -8,6 +8,7 @@ data class Ward (
     val capacityThreshold: Double,
     val corridorPenalty: Double,
     val officePenalty: Double,
+    val corridorCapacity: Int,
     val wardHospital: Hospital,
     val wardFloor: Floor
 ) : Serializable

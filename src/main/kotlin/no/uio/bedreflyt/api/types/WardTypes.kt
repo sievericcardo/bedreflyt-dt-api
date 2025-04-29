@@ -26,6 +26,10 @@ data class WardRequest (
     @NotNull(message = "Office penalty is required")
     @Pattern(regexp = "^-?\\d+(\\.\\d+)?$", message = "Office penalty is invalid")
     val officePenalty: Double,
+    @NotBlank(message = "Corridor capacity is required")
+    @NotNull(message = "Corridor capacity is required")
+    @Pattern(regexp = "^[0-9]+$", message = "Corridor capacity is invalid")
+    val corridorCapacity: Int,
     @NotBlank(message = "Hospital name is required")
     @NotNull(message = "Hospital name is required")
     val wardHospitalName: String,
