@@ -71,7 +71,7 @@ class PatientAllocationController (
     fun retrievePatientAllocations() : ResponseEntity<List<PatientAllocation>?> {
         log.info("Retrieving all patient allocations")
 
-        val patientAllocations = patientAllocationService.findAll()
+        val patientAllocations = patientAllocationService.findAll()?.filter { !it.simulated } ?: return ResponseEntity.noContent().build()
 
         return ResponseEntity.ok(patientAllocations)
     }

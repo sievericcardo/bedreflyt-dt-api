@@ -34,8 +34,16 @@ class Simulator (
 ) {
 
     private val log: Logger = Logger.getLogger(Simulator::class.java.name)
-    private val roomMap: MutableMap<Int, Int> = mutableMapOf()
-    private val indexRoomMap : MutableMap<Int, Int> = mutableMapOf()
+    private var roomMap: MutableMap<Int, Int> = mutableMapOf()
+    private var indexRoomMap : MutableMap<Int, Int> = mutableMapOf()
+
+    fun setRoomMap(roomMap: Map<Int, Int>) {
+        this.roomMap = roomMap.toMutableMap()
+    }
+
+    fun setIndexRoomMap(indexRoomMap: Map<Int, Int>) {
+        this.indexRoomMap = indexRoomMap.toMutableMap()
+    }
 
     private fun processDailyNeeds(needs: String) : SimulationNeeds {
         val information = needs.split("------").filter { it.isNotEmpty() } // EB - split data over ------
@@ -208,7 +216,7 @@ class Simulator (
             val patientDistance = dailyNeed.second
 
             patientsSimulated[patientId]?.let { patientInfo ->
-                if (patientDistance.toInt() > 0) {
+                if (patientDistance.toInt() > 0 && allocations.containsKey(patientInfo)) {
                     val gender = patientInfo.gender == "Male"
                     genders.add(gender)
                     val singlePatient = patientService.findByPatientId(patientInfo.patientId)!!
@@ -281,8 +289,6 @@ class Simulator (
         smtMode: String
     ): SimulationResponse {
         val scenarios = mutableListOf<List<Map<WardRoom, RoomInfo>>>()
-        rooms.forEachIndexed { index, room -> roomMap[index] = room.roomNumber }
-        roomMap.forEach { (key, value) -> indexRoomMap[value] = key }
         try {
             var totalChanges = 0
             needs.forEach { group ->
