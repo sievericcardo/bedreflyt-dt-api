@@ -214,7 +214,7 @@ class DatabaseService (
         jdbcTemplate.execute(createView)
     }
 
-    fun createAndPopulateTreatmentTables(treatmentDbUrl: String) {
+    fun createAndPopulateTreatmentTables(treatmentDbUrl: String, simulation: Boolean = false) {
         createTreatmentTables(treatmentDbUrl)
 
         val treatments = treatmentService.getAllTreatments() ?: throw IllegalArgumentException("No treatments found")
@@ -230,7 +230,7 @@ class DatabaseService (
                     treatmentDbUrl,
                     task.taskName + "_" + treatmentName +  "_" + taskDependency.stepNumber,
                     taskDependency.monitoringCategory.category,
-                    taskDependency.averageDuration.toInt()
+                    if (!simulation) taskDependency.averageDuration.toInt() else (taskDependency.averageDuration / 24).toInt().coerceAtLeast(1)
                 )
                 val prev = taskDependency.stepNumber - 1
                 taskDependency.previousTask?.takeIf { it.isNotEmpty() }?.let  { insertTaskDependency(

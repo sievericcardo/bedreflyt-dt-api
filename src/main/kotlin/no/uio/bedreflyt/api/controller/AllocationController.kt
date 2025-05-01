@@ -270,7 +270,7 @@ class AllocationController (
             }
         }
 
-        databaseService.createAndPopulateTreatmentTables(bedreflytDB)
+        databaseService.createAndPopulateTreatmentTables(bedreflytDB, true)
         databaseService.createTreatmentView(bedreflytDB)
 
         log.info("Tables populated, invoking ABS with ${allocationRequest.scenario.size} requests")
@@ -337,7 +337,7 @@ class AllocationController (
                             allocatedPatients.forEach { singlePatient ->
                                 val patientAllocation = patientAllocationService.findAll()
                                     ?.filter { it.patientId.patientId == singlePatient.patientId }
-                                    ?.firstOrNull { !it.simulated }
+                                    ?.firstOrNull { it.simulated }
                                 if (patientAllocation != null) {
                                     if (patientAllocation.roomNumber == -1) {
                                         patientAllocation.roomNumber = room.roomNumber
@@ -423,7 +423,11 @@ class AllocationController (
             dailyNeeds.forEach { (patient, need) ->
                 patientNeeds[patient] = patientNeeds.getOrDefault(patient, 0L) + need.toLong()
                 val trajectory = PatientTrajectory(patientId = patient, date = LocalDateTime.now(), need = need, simulated =  simulation)
-                trajectory.date = trajectory.setDate(index)
+                if (simulation) {
+                    trajectory.date = trajectory.setDate(index*24)
+                } else {
+                    trajectory.date = trajectory.setDate(index)
+                }
                 patientTrajectoryService.savePatientTrajectory(trajectory)
             }
         }
