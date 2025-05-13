@@ -11,14 +11,13 @@ import org.apache.jena.update.UpdateExecutionFactory
 import org.apache.jena.update.UpdateFactory
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.cache.CacheManager
-import org.springframework.cache.annotation.CacheEvict
-import org.springframework.cache.annotation.CachePut
 import org.springframework.cache.annotation.Cacheable
 import org.springframework.stereotype.Service
+import java.util.concurrent.locks.ReentrantReadWriteLock
 
 @Service
 open class WardService (
-    replConfig: REPLConfig,
+    private val replConfig: REPLConfig,
     triplestoreProperties: TriplestoreProperties,
     private val hospitalService: HospitalService,
     private val floorService: FloorService
@@ -31,13 +30,15 @@ open class WardService (
     private val prefix = triplestoreProperties.prefix
     private val ttlPrefix = triplestoreProperties.ttlPrefix
     private val repl = replConfig.repl()
+    private val lock = ReentrantReadWriteLock()
 
-    @CachePut("wards", key = "#request.wardName + '_' + #request.wardHospitalName")
     open fun createWard (request: WardRequest, hospital: Hospital) : Ward? {
-        val wardCodeLine = request.wardCode?.let { "bedreflyt:wardCode $it ;" } ?: ""
-        val name = request.wardName.split(" ").joinToString("")
+        lock.writeLock().lock()
+        try {
+            val wardCodeLine = request.wardCode?.let { "bedreflyt:wardCode $it ;" } ?: ""
+            val name = request.wardName.split(" ").joinToString("")
 
-        val query = """
+            val query = """
             PREFIX bedreflyt: <$prefix>
             PREFIX brick: <https://brickschema.org/schema/Brick#>
             PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
@@ -55,78 +56,92 @@ open class WardService (
             }
         """.trimIndent()
 
-        val updateRequest = UpdateFactory.create(query)
-        val fusekiEndpoint = "$tripleStore/update"
-        val updateProcessor = UpdateExecutionFactory.createRemote(updateRequest, fusekiEndpoint)
+            val updateRequest = UpdateFactory.create(query)
+            val fusekiEndpoint = "$tripleStore/update"
+            val updateProcessor = UpdateExecutionFactory.createRemote(updateRequest, fusekiEndpoint)
 
-        try {
-            updateProcessor.execute()
-            return Ward(
-                request.wardName,
-                request.wardCode,
-                request.capacityThreshold,
-                request.corridorPenalty,
-                request.officePenalty,
-                request.corridorCapacity,
-                hospitalService.getHospitalByCode(hospital.hospitalCode)!!,
-                floorService.getFloorByNumber(request.wardFloorNumber)!!)
-        } catch (e: Exception) {
-            return null
+            try {
+                updateProcessor.execute()
+                val ward = Ward(
+                    request.wardName,
+                    request.wardCode,
+                    request.capacityThreshold,
+                    request.corridorPenalty,
+                    request.officePenalty,
+                    request.corridorCapacity,
+                    hospitalService.getHospitalByCode(hospital.hospitalCode)!!,
+                    floorService.getFloorByNumber(request.wardFloorNumber)!!
+                )
+                replConfig.regenerateSingleModel().invoke("wards")
+
+                cacheManager.getCache("wards")?.put("${request.wardName}_${hospital.hospitalCode}", ward)
+                return ward
+            } catch (_: Exception) {
+                return null
+            }
+        } finally {
+            lock.writeLock().unlock()
         }
     }
 
-    @Cacheable("wards")
     open fun getAllWards() : List<Ward>? {
-        val wards = mutableListOf<Ward>()
+        lock.readLock().lock()
+        try {
+            val wards = mutableListOf<Ward>()
 
-        val query =
-            """
-                SELECT DISTINCT ?wardName ?wardCode ?capacityThreshold ?corridorPenalty ?officePenalty ?corridorCapacity ?hospitalCode ?floorNumber WHERE {
-                    ?ward a prog:Ward ;
-                        prog:Ward_wardName ?wardName ;
-                        prog:Ward_wardCode ?wardCode ;
-                        prog:Ward_capacityThreshold ?capacityThreshold ;
-                        prog:Ward_corridorPenalty ?corridorPenalty ;
-                        prog:Ward_officePenalty ?officePenalty ;
-                        prog:Ward_corridorCapacity ?corridorCapacity ;
-                        prog:Ward_wardHospital ?wardHospital ;
-                        prog:Ward_wardFloor ?wardFloor .
-                    ?wardHospital a prog:Hospital ;
-                        prog:Hospital_hospitalCode ?hospitalCode .
-                    ?wardFloor a prog:Floor ;
-                        prog:Floor_floorNumber ?floorNumber .
-            }"""
+            val query =
+                """
+                    SELECT DISTINCT ?wardName ?wardCode ?capacityThreshold ?corridorPenalty ?officePenalty ?corridorCapacity ?hospitalCode ?floorNumber WHERE {
+                        ?ward a prog:Ward ;
+                            prog:Ward_wardName ?wardName ;
+                            prog:Ward_wardCode ?wardCode ;
+                            prog:Ward_capacityThreshold ?capacityThreshold ;
+                            prog:Ward_corridorPenalty ?corridorPenalty ;
+                            prog:Ward_officePenalty ?officePenalty ;
+                            prog:Ward_corridorCapacity ?corridorCapacity ;
+                            prog:Ward_wardHospital ?wardHospital ;
+                            prog:Ward_wardFloor ?wardFloor .
+                        ?wardHospital a prog:Hospital ;
+                            prog:Hospital_hospitalCode ?hospitalCode .
+                        ?wardFloor a prog:Floor ;
+                            prog:Floor_floorNumber ?floorNumber .
+                }"""
 
-        val resultSet: ResultSet = repl.interpreter!!.query(query)!!
-        if(!resultSet.hasNext()) {
-            return null
+            val resultSet: ResultSet = repl.interpreter!!.query(query)!!
+            if(!resultSet.hasNext()) {
+                return null
+            }
+
+            while (resultSet.hasNext()) {
+                val result: QuerySolution = resultSet.next()
+                val wardName = result.get("wardName").toString()
+                val wardCode = result.get("wardCode")?.toString()
+                val capacityThreshold = result.get("capacityThreshold").asLiteral().toString().split("^^")[0].toDouble()
+                val corridorPenalty = result.get("corridorPenalty").asLiteral().toString().split("^^")[0].toDouble()
+                val officePenalty = result.get("officePenalty").asLiteral().toString().split("^^")[0].toDouble()
+                val corridorCapacity = result.get("corridorCapacity").asLiteral().toString().split("^^")[0].toInt()
+                val hospitalName = result.get("hospitalCode").toString()
+                val floorNumber = result.get("floorNumber").asLiteral().toString().split("^^")[0].toInt()
+
+                val hospital = hospitalService.getHospitalByCode(hospitalName) ?: continue
+                val floor = floorService.getFloorByNumber(floorNumber) ?: continue
+
+                wards.add(Ward(wardName, wardCode, capacityThreshold, corridorPenalty, officePenalty,  corridorCapacity, hospital, floor))
+            }
+
+            cacheManager.getCache("wards")?.put("allWards", wards)
+            return wards
+        } finally {
+            lock.readLock().unlock()
         }
-
-        while (resultSet.hasNext()) {
-            val result: QuerySolution = resultSet.next()
-            val wardName = result.get("wardName").toString()
-            val wardCode = result.get("wardCode")?.toString()
-            val capacityThreshold = result.get("capacityThreshold").asLiteral().toString().split("^^")[0].toDouble()
-            val corridorPenalty = result.get("corridorPenalty").asLiteral().toString().split("^^")[0].toDouble()
-            val officePenalty = result.get("officePenalty").asLiteral().toString().split("^^")[0].toDouble()
-            val corridorCapacity = result.get("corridorCapacity").asLiteral().toString().split("^^")[0].toInt()
-            val hospitalName = result.get("hospitalCode").toString()
-            val floorNumber = result.get("floorNumber").asLiteral().toString().split("^^")[0].toInt()
-
-            val hospital = hospitalService.getHospitalByCode(hospitalName) ?: continue
-            val floor = floorService.getFloorByNumber(floorNumber) ?: continue
-
-            wards.add(Ward(wardName, wardCode, capacityThreshold, corridorPenalty, officePenalty,  corridorCapacity, hospital, floor))
-        }
-
-        return wards
     }
 
-    @Cacheable("wards_except", key = "#wardName + '_' + #hospitalCode")
     open fun getAllWardsExcept(wardName: String, hospitalCode: String) : List<Ward>? {
-        val wards = mutableListOf<Ward>()
+        lock.readLock().lock()
+        try {
+            val wards = mutableListOf<Ward>()
 
-        val query = """
+            val query = """
             SELECT DISTINCT ?wardName ?wardCode ?capacityThreshold ?corridorPenalty ?officePenalty ?corridorCapacity ?hospitalCode ?floorNumber WHERE {
                 ?ward a prog:Ward ;
                     prog:Ward_wardName ?wardName ;
@@ -145,34 +160,51 @@ open class WardService (
             }
         """.trimIndent()
 
-        val resultSet: ResultSet = repl.interpreter!!.query(query)!!
-        if(!resultSet.hasNext()) {
-            return null
+            val resultSet: ResultSet = repl.interpreter!!.query(query)!!
+            if (!resultSet.hasNext()) {
+                return null
+            }
+
+            while (resultSet.hasNext()) {
+                val result: QuerySolution = resultSet.next()
+                val wardNameNew = result.get("wardName").toString()
+                val wardCode = result.get("wardCode")?.toString()
+                val capacityThreshold = result.get("capacityThreshold").asLiteral().toString().split("^^")[0].toDouble()
+                val corridorPenalty = result.get("corridorPenalty").asLiteral().toString().split("^^")[0].toDouble()
+                val officePenalty = result.get("officePenalty").asLiteral().toString().split("^^")[0].toDouble()
+                val corridorCapacity = result.get("corridorCapacity").asLiteral().toString().split("^^")[0].toInt()
+                val hospitalName = result.get("hospitalCode").toString()
+                val floorNumber = result.get("floorNumber").asLiteral().toString().split("^^")[0].toInt()
+
+                val hospital = hospitalService.getHospitalByCode(hospitalName) ?: continue
+                val floor = floorService.getFloorByNumber(floorNumber) ?: continue
+
+                wards.add(
+                    Ward(
+                        wardNameNew,
+                        wardCode,
+                        capacityThreshold,
+                        corridorPenalty,
+                        officePenalty,
+                        corridorCapacity,
+                        hospital,
+                        floor
+                    )
+                )
+            }
+
+            cacheManager.getCache("wards")?.put("allWardsExcept", wards)
+            return wards
+        } finally {
+            lock.readLock().unlock()
         }
-
-        while (resultSet.hasNext()) {
-            val result: QuerySolution = resultSet.next()
-            val wardNameNew = result.get("wardName").toString()
-            val wardCode = result.get("wardCode")?.toString()
-            val capacityThreshold = result.get("capacityThreshold").asLiteral().toString().split("^^")[0].toDouble()
-            val corridorPenalty = result.get("corridorPenalty").asLiteral().toString().split("^^")[0].toDouble()
-            val officePenalty = result.get("officePenalty").asLiteral().toString().split("^^")[0].toDouble()
-            val corridorCapacity = result.get("corridorCapacity").asLiteral().toString().split("^^")[0].toInt()
-            val hospitalName = result.get("hospitalCode").toString()
-            val floorNumber = result.get("floorNumber").asLiteral().toString().split("^^")[0].toInt()
-
-            val hospital = hospitalService.getHospitalByCode(hospitalName) ?: continue
-            val floor = floorService.getFloorByNumber(floorNumber) ?: continue
-
-            wards.add(Ward(wardNameNew, wardCode, capacityThreshold, corridorPenalty, officePenalty, corridorCapacity, hospital, floor))
-        }
-
-        return wards
     }
 
     @Cacheable("wards", key = "#wardName + '_' + #wardHospital")
     open fun getWardByNameAndHospital (wardName: String, wardHospital: String) : Ward? {
-        val query = """
+        lock.readLock().lock()
+        try {
+            val query = """
             SELECT DISTINCT ?wardName ?wardCode ?capacityThreshold ?corridorPenalty ?officePenalty ?corridorCapacity ?hospitalCode ?floorNumber WHERE {
                 ?ward a prog:Ward ;
                     prog:Ward_wardName "$wardName" ;
@@ -190,31 +222,45 @@ open class WardService (
             }
         """.trimIndent()
 
-        val resultSet: ResultSet = repl.interpreter!!.query(query)!!
-        if(!resultSet.hasNext()) {
-            return null
+            val resultSet: ResultSet = repl.interpreter!!.query(query)!!
+            if (!resultSet.hasNext()) {
+                return null
+            }
+
+            val result: QuerySolution = resultSet.next()
+            val wardCode = result.get("wardCode")?.toString()
+            val capacityThreshold = result.get("capacityThreshold").asLiteral().toString().split("^^")[0].toDouble()
+            val corridorPenalty = result.get("corridorPenalty").asLiteral().toString().split("^^")[0].toDouble()
+            val officePenalty = result.get("officePenalty").asLiteral().toString().split("^^")[0].toDouble()
+            val corridorCapacity = result.get("corridorCapacity").asLiteral().toString().split("^^")[0].toInt()
+            val floorNumber = result.get("floorNumber").toString().split("^^")[0].toInt()
+
+            val hospital = hospitalService.getHospitalByCode(wardHospital) ?: return null
+            val floor = floorService.getFloorByNumber(floorNumber) ?: return null
+            val ward = Ward(
+                wardName,
+                wardCode,
+                capacityThreshold,
+                corridorPenalty,
+                officePenalty,
+                corridorCapacity,
+                hospital,
+                floor
+            )
+
+            cacheManager.getCache("wards")?.put("${wardName}_${wardHospital}", ward)
+            return ward
+        } finally {
+            lock.readLock().unlock()
         }
-
-        val result: QuerySolution = resultSet.next()
-        val wardCode = result.get("wardCode")?.toString()
-        val capacityThreshold = result.get("capacityThreshold").asLiteral().toString().split("^^")[0].toDouble()
-        val corridorPenalty = result.get("corridorPenalty").asLiteral().toString().split("^^")[0].toDouble()
-        val officePenalty = result.get("officePenalty").asLiteral().toString().split("^^")[0].toDouble()
-        val corridorCapacity = result.get("corridorCapacity").asLiteral().toString().split("^^")[0].toInt()
-        val floorNumber = result.get("floorNumber").toString().split("^^")[0].toInt()
-
-        val hospital = hospitalService.getHospitalByCode(wardHospital) ?: return null
-        val floor = floorService.getFloorByNumber(floorNumber) ?: return null
-
-        return Ward(wardName, wardCode, capacityThreshold, corridorPenalty, officePenalty, corridorCapacity, hospital, floor)
     }
 
-    @CacheEvict("wards", key = "#ward.wardName + '_' + #ward.wardHospital.hospitalCode")
-    @CachePut("wards", key = "#ward.wardName + '_' + #ward.wardHospital.hospitalCode")
     open fun updateWard (ward: Ward,  newFloorNumber: Int) : Ward? {
-        val name = ward.wardName.split(" ").joinToString("")
+        lock.writeLock().lock()
+        try {
+            val name = ward.wardName.split(" ").joinToString("")
 
-        val query = """
+            val query = """
             PREFIX bedreflyt: <$prefix>
             PREFIX brick: <https://brickschema.org/schema/Brick#>
             
@@ -238,51 +284,66 @@ open class WardService (
             }
         """.trimIndent()
 
-        val updateRequest = UpdateFactory.create(query)
-        val fusekiEndpoint = "$tripleStore/update"
-        val updateProcessor = UpdateExecutionFactory.createRemote(updateRequest, fusekiEndpoint)
+            val updateRequest = UpdateFactory.create(query)
+            val fusekiEndpoint = "$tripleStore/update"
+            val updateProcessor = UpdateExecutionFactory.createRemote(updateRequest, fusekiEndpoint)
 
-        try {
-            updateProcessor.execute()
-            return Ward(
-                ward.wardName,
-                ward.wardCode,
-                ward.capacityThreshold,
-                ward.corridorPenalty,
-                ward.officePenalty,
-                ward.corridorCapacity,
-                hospitalService.getHospitalByCode(ward.wardHospital.hospitalCode)!!,
-                floorService.getFloorByNumber(newFloorNumber)!!)
-        } catch (e: Exception) {
-            return null
+            try {
+                updateProcessor.execute()
+                replConfig.regenerateSingleModel().invoke("wards")
+                val ward = Ward(
+                    ward.wardName,
+                    ward.wardCode,
+                    ward.capacityThreshold,
+                    ward.corridorPenalty,
+                    ward.officePenalty,
+                    ward.corridorCapacity,
+                    hospitalService.getHospitalByCode(ward.wardHospital.hospitalCode)!!,
+                    floorService.getFloorByNumber(newFloorNumber)!!
+                )
+
+                cacheManager.getCache("wards")?.put("${ward.wardName}_${ward.wardHospital.hospitalCode}", ward)
+                return ward
+            } catch (_: Exception) {
+                return null
+            }
+        } finally {
+            lock.writeLock().unlock()
         }
     }
 
-    @CacheEvict("wards", allEntries = true)
     open fun deleteWard (ward: Ward) : Boolean {
-        val name = ward.wardName.trim().replace(" ", "")
-
-        val query = """
-            PREFIX bedreflyt: <$prefix>
-            PREFIX brick: <https://brickschema.org/schema/Brick#>
-            
-            DELETE {
-                bedreflyt:$name ?p ?o .
-            }
-            WHERE {
-                bedreflyt:$name ?p ?o .
-            }
-        """.trimIndent()
-
-        val updateRequest = UpdateFactory.create(query)
-        val fusekiEndpoint = "$tripleStore/update"
-        val updateProcessor = UpdateExecutionFactory.createRemote(updateRequest, fusekiEndpoint)
-
+        lock.writeLock().lock()
         try {
-            updateProcessor.execute()
-            return true
-        } catch (e: Exception) {
-            return false
+            val name = ward.wardName.trim().replace(" ", "")
+
+            val query = """
+                PREFIX bedreflyt: <$prefix>
+                PREFIX brick: <https://brickschema.org/schema/Brick#>
+                
+                DELETE {
+                    bedreflyt:$name ?p ?o .
+                }
+                WHERE {
+                    bedreflyt:$name ?p ?o .
+                }
+            """.trimIndent()
+
+            val updateRequest = UpdateFactory.create(query)
+            val fusekiEndpoint = "$tripleStore/update"
+            val updateProcessor = UpdateExecutionFactory.createRemote(updateRequest, fusekiEndpoint)
+
+            try {
+                updateProcessor.execute()
+                cacheManager.getCache("wards")?.evict("${ward.wardName}_${ward.wardHospital.hospitalCode}")
+
+                replConfig.regenerateSingleModel().invoke("wards")
+                return true
+            } catch (_: Exception) {
+                return false
+            }
+        } finally {
+            lock.writeLock().unlock()
         }
     }
 }
