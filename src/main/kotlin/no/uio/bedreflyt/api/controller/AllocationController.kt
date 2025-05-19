@@ -29,7 +29,6 @@ import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
 import java.nio.file.Files
 import java.nio.file.Path
-import java.time.LocalDate
 import java.time.LocalDateTime
 import java.util.*
 
@@ -149,21 +148,21 @@ class AllocationController (
         cleanAllocations()
         simulator.setRoomMap(roomMap)
         simulator.setIndexRoomMap(indexRoomMap)
-        var allocationResponse = simulator.simulate(patientsNeeds, patients, patientAllocations, rooms, ward, tempDir, allocationRequest.smtMode)
-        if (allocationResponse.allocations.isEmpty()) {
-            val otherWards = wardService.getAllWardsExcept(allocationRequest.wardName, allocationRequest.hospitalCode)!!
-            for (otherWard in otherWards) {
-                val otherRooms = roomService.getRoomsByWardHospital(otherWard.wardName, otherWard.wardHospital.hospitalCode)!!
-                val allocationRoom = mutableListOf<TreatmentRoom>()
-                otherRooms.forEach { otherRoom ->
-                    allocationRoom.add(TreatmentRoom(otherRoom.roomNumber, otherRoom.capacity, otherWard, otherWard.wardHospital, otherRoom.monitoringCategory))
-                }
-                allocationResponse = simulator.simulate(simulationNeeds, patients, allocations, allocationRoom, otherWard, tempDir, allocationRequest.mode)
-                if (allocationResponse.allocations.isNotEmpty()) {
-                    break
-                }
-            }
-        }
+        val allocationResponse = simulator.simulate(patientsNeeds, patients, patientAllocations, rooms, ward, tempDir, allocationRequest.smtMode)
+//        if (allocationResponse.allocations.isEmpty()) {
+//            val otherWards = wardService.getAllWardsExcept(allocationRequest.wardName, allocationRequest.hospitalCode)!!
+//            for (otherWard in otherWards) {
+//                val otherRooms = roomService.getRoomsByWardHospital(otherWard.wardName, otherWard.wardHospital.hospitalCode)!!
+//                val allocationRoom = mutableListOf<TreatmentRoom>()
+//                otherRooms.forEach { otherRoom ->
+//                    allocationRoom.add(TreatmentRoom(otherRoom.roomNumber, otherRoom.capacity, otherWard, otherWard.wardHospital, otherRoom.monitoringCategory))
+//                }
+//                allocationResponse = simulator.simulate(simulationNeeds, patients, allocations, allocationRoom, otherWard, tempDir, allocationRequest.mode)
+//                if (allocationResponse.allocations.isNotEmpty()) {
+//                    break
+//                }
+//            }
+//        }
 
         return if (allocationResponse.allocations.isNotEmpty()) {
             // if the allocation is not empty, we will save the first allocation to the database
@@ -310,22 +309,22 @@ class AllocationController (
         cleanAllocations()
         simulator.setRoomMap(roomMap)
         simulator.setIndexRoomMap(indexRoomMap)
-        var allocationResponse = simulator.simulate(patientsNeeds, patients, patientAllocations, rooms, ward, tempDir, allocationRequest.smtMode)
+        val allocationResponse = simulator.simulate(patientsNeeds, patients, patientAllocations, rooms, ward, tempDir, allocationRequest.smtMode)
         log.info("Allocation response size: ${allocationResponse.allocations.size}")
-        if (allocationResponse.allocations.isEmpty()) {
-            val otherWards = wardService.getAllWardsExcept(allocationRequest.wardName, allocationRequest.hospitalCode)!!
-            for (otherWard in otherWards) {
-                val otherRooms = roomService.getRoomsByWardHospital(otherWard.wardName, otherWard.wardHospital.hospitalCode)!!
-                val allocationRoom = mutableListOf<TreatmentRoom>()
-                otherRooms.forEach { otherRoom ->
-                    allocationRoom.add(TreatmentRoom(otherRoom.roomNumber, otherRoom.capacity, otherWard, otherWard.wardHospital, otherRoom.monitoringCategory))
-                }
-                allocationResponse = simulator.simulate(simulationNeeds, patients, allocations, allocationRoom, otherWard, tempDir, allocationRequest.mode)
-                if (allocationResponse.allocations.isNotEmpty()) {
-                    break
-                }
-            }
-        }
+//        if (allocationResponse.allocations.isEmpty()) {
+//            val otherWards = wardService.getAllWardsExcept(allocationRequest.wardName, allocationRequest.hospitalCode)!!
+//            for (otherWard in otherWards) {
+//                val otherRooms = roomService.getRoomsByWardHospital(otherWard.wardName, otherWard.wardHospital.hospitalCode)!!
+//                val allocationRoom = mutableListOf<TreatmentRoom>()
+//                otherRooms.forEach { otherRoom ->
+//                    allocationRoom.add(TreatmentRoom(otherRoom.roomNumber, otherRoom.capacity, otherWard, otherWard.wardHospital, otherRoom.monitoringCategory))
+//                }
+//                allocationResponse = simulator.simulate(simulationNeeds, patients, allocations, allocationRoom, otherWard, tempDir, allocationRequest.mode)
+//                if (allocationResponse.allocations.isNotEmpty()) {
+//                    break
+//                }
+//            }
+//        }
 
         return if (allocationResponse.allocations.isNotEmpty()) {
             // if the allocation is not empty, we will save the first allocation to the database
