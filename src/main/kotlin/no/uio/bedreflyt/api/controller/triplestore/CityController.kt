@@ -48,7 +48,6 @@ class CityController (
         log.info("Creating city $cityRequest")
 
         val newCity = cityService.createCity(cityRequest) ?: return ResponseEntity.badRequest().build()
-        replConfig.regenerateSingleModel().invoke("cities")
 
         return ResponseEntity.ok(newCity)
     }
@@ -107,7 +106,6 @@ class CityController (
             log.info("New city name: $it")
             cityService.updateCity(cityName, it) ?: return ResponseEntity.badRequest().build()
         } ?: return ResponseEntity.noContent().build()
-        replConfig.regenerateSingleModel().invoke("cities")
 
         return ResponseEntity.ok(updatedCity)
     }
@@ -130,7 +128,6 @@ class CityController (
         if (!cityService.deleteCity(cityName)) {
             return ResponseEntity.badRequest().build()
         }
-        replConfig.regenerateSingleModel().invoke("cities")
 
         return ResponseEntity.ok("City removed successfully")
     }

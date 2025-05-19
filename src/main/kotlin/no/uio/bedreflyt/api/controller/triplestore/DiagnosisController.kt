@@ -37,7 +37,6 @@ class DiagnosisController (
         log.info("Creating diagnosis $diagnosisRequest")
 
         val newDiagnosis = diagnosisService.createDiagnosis(diagnosisRequest.diagnosisName) ?: return ResponseEntity.badRequest().build()
-        replConfig.regenerateSingleModel().invoke("diagnoses")
 
         return ResponseEntity.ok(newDiagnosis)
     }
@@ -94,7 +93,6 @@ class DiagnosisController (
         val updatedDiagnosis = updateDiagnosisRequest.newDiagnosisName?.let {
             diagnosisService.updateDiagnosis(diagnosisCode, it) ?: return ResponseEntity.badRequest().build()
         } ?: return ResponseEntity.noContent().build()
-        replConfig.regenerateSingleModel().invoke("diagnoses")
 
         return ResponseEntity.ok(updatedDiagnosis)
     }
@@ -119,7 +117,6 @@ class DiagnosisController (
         if(!diagnosisService.deleteDiagnosis(diagnosisCode)) {
             return ResponseEntity.badRequest().body("Diagnosis does not exist")
         }
-        replConfig.regenerateSingleModel().invoke("diagnoses")
 
         return ResponseEntity.ok("Diagnosis deleted")
     }

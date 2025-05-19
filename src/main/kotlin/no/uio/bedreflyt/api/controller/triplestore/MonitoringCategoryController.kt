@@ -38,7 +38,6 @@ class MonitoringCategoryController (
         log.info("Adding monitoring category")
 
         val newMonitoringCategory = monitoringCategoryService.createCategory(request) ?: return ResponseEntity.badRequest().build()
-        replConfig.regenerateSingleModel().invoke("monitoring categories")
 
         return ResponseEntity.ok(newMonitoringCategory)
     }
@@ -91,7 +90,6 @@ class MonitoringCategoryController (
         val desc = request.newDescription ?: category.description
 
         val updatedCategory = monitoringCategoryService.updateCategory(category, desc) ?: return ResponseEntity.badRequest().build()
-        replConfig.regenerateSingleModel().invoke("monitoring categories")
 
         return ResponseEntity.ok(updatedCategory)
     }
@@ -112,7 +110,6 @@ class MonitoringCategoryController (
         if(!monitoringCategoryService.deleteCategory(category)) {
             return ResponseEntity.badRequest().body("Error: the category could not be deleted.")
         }
-        replConfig.regenerateSingleModel().invoke("monitoring categories")
 
         return ResponseEntity.ok("Category deleted")
     }

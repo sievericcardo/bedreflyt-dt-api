@@ -16,10 +16,11 @@ import org.springframework.cache.annotation.CacheEvict
 import org.springframework.cache.annotation.CachePut
 import org.springframework.cache.annotation.Cacheable
 import org.springframework.stereotype.Service
+import java.util.concurrent.locks.ReentrantReadWriteLock
 
 @Service
 open class HospitalService (
-    replConfig: REPLConfig,
+    private val replConfig: REPLConfig,
     triplestoreProperties: TriplestoreProperties,
     private val cityService: CityService
 ) {
@@ -31,11 +32,14 @@ open class HospitalService (
     private val prefix = triplestoreProperties.prefix
     private val ttlPrefix = triplestoreProperties.ttlPrefix
     private val repl = replConfig.repl()
+    private val lock = ReentrantReadWriteLock()
 
     @CachePut("hospitals", key = "#request.hospitalCode")
     open fun createHospital(request: HospitalRequest) : Hospital? {
-        val name = request.hospitalName.split(" ").joinToString("")
-        val query = """
+        lock.writeLock().lock()
+        try {
+            val name = request.hospitalName.split(" ").joinToString("")
+            val query = """
             PREFIX bedreflyt: <$prefix>
             PREFIX brick: <https://brickschema.org/schema/Brick#>
             
@@ -47,24 +51,30 @@ open class HospitalService (
             }
         """.trimIndent()
 
-        val updateRequest: UpdateRequest = UpdateFactory.create(query)
-        val fusekiEndpoint = "$tripleStore/update"
-        val updateProcessor: UpdateProcessor = UpdateExecutionFactory.createRemote(updateRequest, fusekiEndpoint)
+            val updateRequest: UpdateRequest = UpdateFactory.create(query)
+            val fusekiEndpoint = "$tripleStore/update"
+            val updateProcessor: UpdateProcessor = UpdateExecutionFactory.createRemote(updateRequest, fusekiEndpoint)
 
-        try {
-            updateProcessor.execute()
-            return Hospital(request.hospitalName, request.hospitalCode, cityService.getCityByName(request.city)!!)
-        } catch (e: Exception) {
-            return null
+            try {
+                updateProcessor.execute()
+                replConfig.regenerateSingleModel().invoke("hospitals")
+                return Hospital(request.hospitalName, request.hospitalCode, cityService.getCityByName(request.city)!!)
+            } catch (_: Exception) {
+                return null
+            }
+        } finally {
+            lock.writeLock().unlock()
         }
     }
 
     @Cacheable("hospitals")
     open fun getAllHospitals() : List<Hospital>? {
-        val hospitals = mutableListOf<Hospital>()
+        lock.readLock().lock()
+        try {
+            val hospitals = mutableListOf<Hospital>()
 
-        val query =
-            """
+            val query =
+                """
                 SELECT DISTINCT ?hospitalName ?hospitalCode ?cityName WHERE {
                     ?hospital a prog:Hospital ;
                         prog:Hospital_hospitalName ?hospitalName ;
@@ -75,27 +85,32 @@ open class HospitalService (
                 }
             """.trimIndent()
 
-        val results: ResultSet = repl.interpreter!!.query(query)!!
+            val results: ResultSet = repl.interpreter!!.query(query)!!
 
-        if(!results.hasNext()) {
-            return null
+            if (!results.hasNext()) {
+                return null
+            }
+
+            while (results.hasNext()) {
+                val result: QuerySolution = results.nextSolution()
+                val hospitalName = result.get("hospitalName").toString()
+                val hospitalCode = result.get("hospitalCode").toString()
+                val city = cityService.getCityByName(result.get("cityName").toString()) ?: continue
+
+                hospitals.add(Hospital(hospitalName, hospitalCode, city))
+            }
+
+            return hospitals
+        } finally {
+            lock.readLock().unlock()
         }
-
-        while (results.hasNext()) {
-            val result: QuerySolution = results.nextSolution()
-            val hospitalName = result.get("hospitalName").toString()
-            val hospitalCode = result.get("hospitalCode").toString()
-            val city = cityService.getCityByName(result.get("cityName").toString()) ?: continue
-
-            hospitals.add(Hospital(hospitalName, hospitalCode, city))
-        }
-
-        return hospitals
     }
 
     @Cacheable("hospitals", key = "#hospitalCode")
     open fun getHospitalByCode (hospitalCode: String) : Hospital? {
-        val query = """
+        lock.readLock().lock()
+        try {
+            val query = """
             SELECT DISTINCT ?hospitalName ?cityName WHERE {
                 ?hospital a prog:Hospital ;
                     prog:Hospital_hospitalName ?hospitalName ;
@@ -106,26 +121,31 @@ open class HospitalService (
             }
         """.trimIndent()
 
-        val results: ResultSet = repl.interpreter!!.query(query)!!
+            val results: ResultSet = repl.interpreter!!.query(query)!!
 
-        if(!results.hasNext()) {
-            return null
+            if (!results.hasNext()) {
+                return null
+            }
+
+            val result: QuerySolution = results.nextSolution()
+            val hospitalName = result.get("hospitalName").toString()
+            val city = cityService.getCityByName(result.get("cityName").toString()) ?: return null
+
+            return Hospital(hospitalName, hospitalCode, city)
+        } finally {
+            lock.readLock().unlock()
         }
-
-        val result: QuerySolution = results.nextSolution()
-        val hospitalName = result.get("hospitalName").toString()
-        val city = cityService.getCityByName(result.get("cityName").toString()) ?: return null
-
-        return Hospital(hospitalName, hospitalCode, city)
     }
 
     @CacheEvict("hospitals", key = "#hospitalCode")
     @CachePut("hospitals", key = "#newHospitalName")
     open fun updateHospital (hospital: Hospital, newHospitalName: String) : Hospital? {
-        val oldName = hospital.hospitalName.split(" ").joinToString("")
-        val newName = newHospitalName.split(" ").joinToString("")
+        lock.writeLock().lock()
+        try {
+            val oldName = hospital.hospitalName.split(" ").joinToString("")
+            val newName = newHospitalName.split(" ").joinToString("")
 
-        val query = """
+            val query = """
             PREFIX bedreflyt: <$prefix>
             PREFIX brick: <https://brickschema.org/schema/Brick#>
             
@@ -149,21 +169,27 @@ open class HospitalService (
             }
         """.trimIndent()
 
-        val updateRequest: UpdateRequest = UpdateFactory.create(query)
-        val fusekiEndpoint = "$tripleStore/update"
-        val updateProcessor: UpdateProcessor = UpdateExecutionFactory.createRemote(updateRequest, fusekiEndpoint)
+            val updateRequest: UpdateRequest = UpdateFactory.create(query)
+            val fusekiEndpoint = "$tripleStore/update"
+            val updateProcessor: UpdateProcessor = UpdateExecutionFactory.createRemote(updateRequest, fusekiEndpoint)
 
-        try {
-            updateProcessor.execute()
-            return Hospital(newHospitalName, hospital.hospitalCode, hospital.hospitalCity)
-        } catch (e: Exception) {
-            return null
+            try {
+                updateProcessor.execute()
+                replConfig.regenerateSingleModel().invoke("hospitals")
+                return Hospital(newHospitalName, hospital.hospitalCode, hospital.hospitalCity)
+            } catch (_: Exception) {
+                return null
+            }
+        } finally {
+            lock.writeLock().unlock()
         }
     }
 
     @CacheEvict("hospitals", allEntries = true)
     open fun deleteHospital (hospitalCode: String) : Boolean {
-        val query = """
+        lock.writeLock().lock()
+        try {
+            val query = """
             PREFIX bedreflyt: <$prefix>
             PREFIX brick: <https://brickschema.org/schema/Brick#>
             
@@ -177,15 +203,18 @@ open class HospitalService (
             }
         """.trimIndent()
 
-        val updateRequest: UpdateRequest = UpdateFactory.create(query)
-        val fusekiEndpoint = "$tripleStore/update"
-        val updateProcessor: UpdateProcessor = UpdateExecutionFactory.createRemote(updateRequest, fusekiEndpoint)
+            val updateRequest: UpdateRequest = UpdateFactory.create(query)
+            val fusekiEndpoint = "$tripleStore/update"
+            val updateProcessor: UpdateProcessor = UpdateExecutionFactory.createRemote(updateRequest, fusekiEndpoint)
 
-        try {
-            updateProcessor.execute()
-            return true
-        } catch (e: Exception) {
-            return false
+            try {
+                updateProcessor.execute()
+                return true
+            } catch (_: Exception) {
+                return false
+            }
+        } finally {
+            lock.writeLock().unlock()
         }
     }
 }

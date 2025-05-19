@@ -15,10 +15,11 @@ import org.springframework.cache.annotation.CacheEvict
 import org.springframework.cache.annotation.CachePut
 import org.springframework.cache.annotation.Cacheable
 import org.springframework.stereotype.Service
+import java.util.concurrent.locks.ReentrantReadWriteLock
 
 @Service
 open class TaskService (
-    replConfig: REPLConfig,
+    private val replConfig: REPLConfig,
     triplestoreProperties: TriplestoreProperties
 ) {
 
@@ -29,11 +30,14 @@ open class TaskService (
     private val prefix = triplestoreProperties.prefix
     private val ttlPrefix = triplestoreProperties.ttlPrefix
     private val repl = replConfig.repl()
+    private val lock = ReentrantReadWriteLock()
 
     @CachePut("tasks", key = "#taskName")
     open fun createTask(taskName: String) : Task? {
-        val name = taskName.replace(" ", "")
-        val query = """
+        lock.writeLock().lock()
+        try {
+            val name = taskName.replace(" ", "")
+            val query = """
             PREFIX bedreflyt: <$prefix>
             PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
             PREFIX owl: <http://www.w3.org/2002/07/owl#>
@@ -45,47 +49,58 @@ open class TaskService (
             }
         """
 
-        val updateRequest: UpdateRequest = UpdateFactory.create(query)
-        val fusekiEndpoint = "$tripleStore/update"
-        val updateProcessor: UpdateProcessor = UpdateExecutionFactory.createRemote(updateRequest, fusekiEndpoint)
+            val updateRequest: UpdateRequest = UpdateFactory.create(query)
+            val fusekiEndpoint = "$tripleStore/update"
+            val updateProcessor: UpdateProcessor = UpdateExecutionFactory.createRemote(updateRequest, fusekiEndpoint)
 
-        try {
-            updateProcessor.execute()
-            return Task(taskName)
-        } catch (e: Exception) {
-            return null
+            try {
+                updateProcessor.execute()
+                replConfig.regenerateSingleModel().invoke("tasks")
+                return Task(taskName)
+            } catch (_: Exception) {
+                return null
+            }
+        } finally {
+            lock.writeLock().unlock()
         }
     }
 
     @Cacheable("tasks")
     open fun getAllTasks() : List<Task>? {
-        val tasks: MutableList<Task> = mutableListOf()
+        lock.readLock().lock()
+        try {
+            val tasks: MutableList<Task> = mutableListOf()
 
-        val query =
-            """
+            val query =
+                """
            SELECT DISTINCT ?taskName ?averageDuration ?bedCategory WHERE {
             ?obj a prog:Task ;
                 prog:Task_taskName ?taskName .
         }"""
 
-        val resultTasks: ResultSet = repl.interpreter!!.query(query)!!
+            val resultTasks: ResultSet = repl.interpreter!!.query(query)!!
 
-        if (!resultTasks.hasNext()) {
-            return null
+            if (!resultTasks.hasNext()) {
+                return null
+            }
+
+            while (resultTasks.hasNext()) {
+                val solution: QuerySolution = resultTasks.next()
+                val taskName = solution.get("?taskName").asLiteral().toString()
+                tasks.add(Task(taskName))
+            }
+
+            return tasks
+        } finally {
+            lock.readLock().unlock()
         }
-
-        while (resultTasks.hasNext()) {
-            val solution: QuerySolution = resultTasks.next()
-            val taskName = solution.get("?taskName").asLiteral().toString()
-            tasks.add(Task(taskName))
-        }
-
-        return tasks
     }
 
     @Cacheable("tasks", key = "#taskName")
     open fun getTaskByTaskName(taskName: String) : Task? {
-        val query = """
+        lock.readLock().lock()
+        try {
+            val query = """
             SELECT DISTINCT ?taskName WHERE {
                 ?obj a prog:Task ;
                     prog:Task_taskName ?taskName .
@@ -93,23 +108,28 @@ open class TaskService (
             }
         """
 
-        val resultTask: ResultSet = repl.interpreter!!.query(query)!!
+            val resultTask: ResultSet = repl.interpreter!!.query(query)!!
 
-        if (!resultTask.hasNext()) {
-            return null
+            if (!resultTask.hasNext()) {
+                return null
+            }
+
+            val solution: QuerySolution = resultTask.next()
+
+            return Task(taskName)
+        } finally {
+            lock.readLock().unlock()
         }
-
-        val solution: QuerySolution = resultTask.next()
-
-        return Task(taskName)
     }
 
     @CacheEvict("tasks", key = "#task.taskName")
     @CachePut("tasks", key = "#newTaskName")
     open fun updateTask(task: Task, newTaskName: String) : Task? {
-        val oldName = task.taskName.replace(" ", "")
-        val newName = newTaskName.replace(" ", "")
-        val query = """
+        lock.writeLock().lock()
+        try {
+            val oldName = task.taskName.replace(" ", "")
+            val newName = newTaskName.replace(" ", "")
+            val query = """
             PREFIX bedreflyt: <$prefix>
             PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
             PREFIX owl: <http://www.w3.org/2002/07/owl#>
@@ -131,22 +151,28 @@ open class TaskService (
             }
         """
 
-        val updateRequest: UpdateRequest = UpdateFactory.create(query)
-        val fusekiEndpoint = "$tripleStore/update"
-        val updateProcessor: UpdateProcessor = UpdateExecutionFactory.createRemote(updateRequest, fusekiEndpoint)
+            val updateRequest: UpdateRequest = UpdateFactory.create(query)
+            val fusekiEndpoint = "$tripleStore/update"
+            val updateProcessor: UpdateProcessor = UpdateExecutionFactory.createRemote(updateRequest, fusekiEndpoint)
 
-        try {
-            updateProcessor.execute()
-            return Task(newTaskName)
-        } catch (e: Exception) {
-            return null
+            try {
+                updateProcessor.execute()
+                replConfig.regenerateSingleModel().invoke("tasks")
+                return Task(newTaskName)
+            } catch (_: Exception) {
+                return null
+            }
+        } finally {
+            lock.writeLock().unlock()
         }
     }
 
     @CacheEvict("tasks", allEntries = true)
     open fun deleteTask(task: Task) : Boolean {
-        val name = task.taskName.replace(" ", "")
-        val query = """
+        lock.writeLock().lock()
+        try {
+            val name = task.taskName.replace(" ", "")
+            val query = """
             PREFIX bedreflyt: <$prefix>
             PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
             PREFIX owl: <http://www.w3.org/2002/07/owl#>
@@ -163,15 +189,19 @@ open class TaskService (
             }
         """
 
-        val updateRequest: UpdateRequest = UpdateFactory.create(query)
-        val fusekiEndpoint = "$tripleStore/update"
-        val updateProcessor: UpdateProcessor = UpdateExecutionFactory.createRemote(updateRequest, fusekiEndpoint)
+            val updateRequest: UpdateRequest = UpdateFactory.create(query)
+            val fusekiEndpoint = "$tripleStore/update"
+            val updateProcessor: UpdateProcessor = UpdateExecutionFactory.createRemote(updateRequest, fusekiEndpoint)
 
-        try {
-            updateProcessor.execute()
-            return true
-        } catch (e: Exception) {
-            return false
+            try {
+                updateProcessor.execute()
+                replConfig.regenerateSingleModel().invoke("tasks")
+                return true
+            } catch (_: Exception) {
+                return false
+            }
+        } finally {
+            lock.writeLock().unlock()
         }
     }
 }

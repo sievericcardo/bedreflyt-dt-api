@@ -16,10 +16,11 @@ import org.springframework.cache.annotation.CacheEvict
 import org.springframework.cache.annotation.CachePut
 import org.springframework.cache.annotation.Cacheable
 import org.springframework.stereotype.Service
+import java.util.concurrent.locks.ReentrantReadWriteLock
 
 @Service
 open class MonitoringCategoryService (
-    replConfig: REPLConfig,
+    private val replConfig: REPLConfig,
     triplestoreProperties: TriplestoreProperties
 ) {
 
@@ -30,12 +31,15 @@ open class MonitoringCategoryService (
     private val prefix = triplestoreProperties.prefix
     private val ttlPrefix = triplestoreProperties.ttlPrefix
     private val repl = replConfig.repl()
+    private val lock = ReentrantReadWriteLock()
 
     @CachePut("monitoringCategories", key = "#monitoringCategoryRequest.description")
     open fun createCategory(monitoringCategoryRequest: MonitoringCategoryRequest): MonitoringCategory? {
-        val name = monitoringCategoryRequest.description.split(" ").joinToString("")
+        lock.writeLock().lock()
+        try {
+            val name = monitoringCategoryRequest.description.split(" ").joinToString("")
 
-        val query = """
+            val query = """
             PREFIX bedreflyt: <$prefix>
             
             INSERT DATA {
@@ -45,95 +49,116 @@ open class MonitoringCategoryService (
             }
         """.trimIndent()
 
-        val updateRequest: UpdateRequest = UpdateFactory.create(query)
-        val fusekiEndpoint = "$tripleStore/update"
-        val updateProcessor: UpdateProcessor = UpdateExecutionFactory.createRemote(updateRequest, fusekiEndpoint)
+            val updateRequest: UpdateRequest = UpdateFactory.create(query)
+            val fusekiEndpoint = "$tripleStore/update"
+            val updateProcessor: UpdateProcessor = UpdateExecutionFactory.createRemote(updateRequest, fusekiEndpoint)
 
-        try {
-            updateProcessor.execute()
-            return MonitoringCategory(monitoringCategoryRequest.category, monitoringCategoryRequest.description)
-        } catch (e: Exception) {
-            return null
+            try {
+                updateProcessor.execute()
+                replConfig.regenerateSingleModel().invoke("monitoring categories")
+                return MonitoringCategory(monitoringCategoryRequest.category, monitoringCategoryRequest.description)
+            } catch (_: Exception) {
+                return null
+            }
+        }  finally {
+            lock.writeLock().unlock()
         }
     }
 
     @Cacheable("monitoringCategories")
     open fun getAllCategories() : List<MonitoringCategory>? {
-        val categories = mutableListOf<MonitoringCategory>()
+        lock.readLock().lock()
+        try {
+            val categories = mutableListOf<MonitoringCategory>()
 
-        val query =
-            """
+            val query =
+                """
                SELECT DISTINCT ?description ?category WHERE {
                 ?obj a prog:MonitoringCategory ;
                     prog:MonitoringCategory_description ?description ;
                     prog:MonitoringCategory_category ?category .
             }"""
 
-        val resultRooms: ResultSet = repl.interpreter!!.query(query)!!
-        if (!resultRooms.hasNext()) {
-            return null
+            val resultRooms: ResultSet = repl.interpreter!!.query(query)!!
+            if (!resultRooms.hasNext()) {
+                return null
+            }
+
+            while (resultRooms.hasNext()) {
+                val solution: QuerySolution = resultRooms.next()
+                val description = solution.get("description").toString()
+                val category = solution.get("category").asLiteral().toString().split("^^")[0].toInt()
+
+                categories.add(MonitoringCategory(category, description))
+            }
+
+            return categories
+        } finally {
+            lock.readLock().unlock()
         }
-
-        while (resultRooms.hasNext()) {
-            val solution: QuerySolution = resultRooms.next()
-            val description = solution.get("description").toString()
-            val category = solution.get("category").asLiteral().toString().split("^^")[0].toInt()
-
-            categories.add(MonitoringCategory(category, description))
-        }
-
-        return categories
     }
 
     @Cacheable("monitoringCategories", key = "#category")
     open fun getCategoryByCategory(category: Int) : MonitoringCategory? {
-        val query =
-            """
+        lock.readLock().lock()
+        try {
+            val query =
+                """
                SELECT DISTINCT ?description WHERE {
                 ?obj a prog:MonitoringCategory ;
                     prog:MonitoringCategory_description ?description ;
                     prog:MonitoringCategory_category $category .
             }"""
 
-        val resultRooms: ResultSet = repl.interpreter!!.query(query)!!
-        if (!resultRooms.hasNext()) {
-            return null
+            val resultRooms: ResultSet = repl.interpreter!!.query(query)!!
+            if (!resultRooms.hasNext()) {
+                return null
+            }
+
+            val solution: QuerySolution = resultRooms.next()
+            val description = solution.get("description").toString()
+
+            return MonitoringCategory(category, description)
+        } finally {
+            lock.readLock().unlock()
         }
-
-        val solution: QuerySolution = resultRooms.next()
-        val description = solution.get("description").toString()
-
-        return MonitoringCategory(category, description)
     }
 
     @Cacheable("monitoringCategories", key = "#description")
     open fun getCategoryByDescription(description: String) : MonitoringCategory? {
-        val query =
-            """
+        lock.readLock().lock()
+        try {
+            val query =
+                """
                SELECT DISTINCT ?category WHERE {
                 ?obj a prog:MonitoringCategory ;
                     prog:MonitoringCategory_description "$description" ;
                     prog:MonitoringCategory_category ?category .
             }"""
 
-        val resultRooms: ResultSet = repl.interpreter!!.query(query)!!
-        if (!resultRooms.hasNext()) {
-            return null
+            val resultRooms: ResultSet = repl.interpreter!!.query(query)!!
+            if (!resultRooms.hasNext()) {
+                return null
+            }
+
+            val solution: QuerySolution = resultRooms.next()
+            val category = solution.get("category").asLiteral().toString().split("^^")[0].toInt()
+
+            return MonitoringCategory(category, description)
+        } finally {
+            lock.readLock().unlock()
         }
-
-        val solution: QuerySolution = resultRooms.next()
-        val category = solution.get("category").asLiteral().toString().split("^^")[0].toInt()
-
-        return MonitoringCategory(category, description)
     }
 
     @CacheEvict("monitoringCategories", key = "#monitoringCategory.description")
     @CachePut("monitoringCategories", key = "#newDescription")
     open fun updateCategory(monitoringCategory: MonitoringCategory, newDescription: String) : MonitoringCategory? {
-        val oldName = monitoringCategory.description.split(" ").joinToString("")
-        val newName = newDescription.split(" ").joinToString("")
+        lock.writeLock().lock()
+        try {
+            val oldName = monitoringCategory.description.split(" ").joinToString("")
+            val newName = newDescription.split(" ").joinToString("")
 
-        val query = """
+            val query = """
             PREFIX bedreflyt: <$prefix>
             
             DELETE {
@@ -153,23 +178,29 @@ open class MonitoringCategoryService (
             }
         """.trimIndent()
 
-        val updateRequest: UpdateRequest = UpdateFactory.create(query)
-        val fusekiEndpoint = "$tripleStore/update"
-        val updateProcessor: UpdateProcessor = UpdateExecutionFactory.createRemote(updateRequest, fusekiEndpoint)
+            val updateRequest: UpdateRequest = UpdateFactory.create(query)
+            val fusekiEndpoint = "$tripleStore/update"
+            val updateProcessor: UpdateProcessor = UpdateExecutionFactory.createRemote(updateRequest, fusekiEndpoint)
 
-        try {
-            updateProcessor.execute()
-            return MonitoringCategory(monitoringCategory.category, newDescription)
-        } catch (e: Exception) {
-            return null
+            try {
+                updateProcessor.execute()
+                replConfig.regenerateSingleModel().invoke("monitoring categories")
+                return MonitoringCategory(monitoringCategory.category, newDescription)
+            } catch (_: Exception) {
+                return null
+            }
+        } finally {
+            lock.writeLock().unlock()
         }
     }
 
     @CacheEvict("monitoringCategories", allEntries = true)
     open fun deleteCategory(monitoringCategory: MonitoringCategory) : Boolean {
-        val name = monitoringCategory.description.split(" ").joinToString("")
+        lock.writeLock().lock()
+        try {
+            val name = monitoringCategory.description.split(" ").joinToString("")
 
-        val query = """
+            val query = """
             PREFIX bedreflyt: <$prefix>
             
             DELETE {
@@ -184,15 +215,19 @@ open class MonitoringCategoryService (
             }
         """.trimIndent()
 
-        val updateRequest: UpdateRequest = UpdateFactory.create(query)
-        val fusekiEndpoint = "$tripleStore/update"
-        val updateProcessor: UpdateProcessor = UpdateExecutionFactory.createRemote(updateRequest, fusekiEndpoint)
+            val updateRequest: UpdateRequest = UpdateFactory.create(query)
+            val fusekiEndpoint = "$tripleStore/update"
+            val updateProcessor: UpdateProcessor = UpdateExecutionFactory.createRemote(updateRequest, fusekiEndpoint)
 
-        try {
-            updateProcessor.execute()
-            return true
-        } catch (e: Exception) {
-            return false
+            try {
+                updateProcessor.execute()
+                replConfig.regenerateSingleModel().invoke("monitoring categories")
+                return true
+            } catch (_: Exception) {
+                return false
+            }
+        } finally {
+            lock.writeLock().unlock()
         }
     }
 }

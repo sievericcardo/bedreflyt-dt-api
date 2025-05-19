@@ -38,7 +38,6 @@ class TaskController (
         log.info("Creating task $taskRequest")
 
         val newTask = taskService.createTask(taskRequest.taskName) ?: return ResponseEntity.badRequest().build()
-        replConfig.regenerateSingleModel().invoke("tasks")
 
         return ResponseEntity.ok(newTask)
     }
@@ -94,8 +93,6 @@ class TaskController (
             taskService.updateTask(task, it) ?: return ResponseEntity.badRequest().build()
         } ?: return ResponseEntity.noContent().build()
 
-        replConfig.regenerateSingleModel().invoke("tasks")
-
         return ResponseEntity.ok(updatedTask)
     }
 
@@ -115,7 +112,6 @@ class TaskController (
         if(!taskService.deleteTask(task)) {
             return ResponseEntity.badRequest().build()
         }
-        replConfig.regenerateSingleModel().invoke("tasks")
 
         return ResponseEntity.ok("Task $taskName deleted")
     }

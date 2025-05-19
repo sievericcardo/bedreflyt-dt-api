@@ -42,7 +42,6 @@ class TreatmentController (
 
         val diagnosis = diagnosisService.getDiagnosisByName(request.diagnosis) ?: return ResponseEntity.badRequest().build()
         val newTreatment = treatmentService.createTreatment(request) ?: return ResponseEntity.badRequest().build()
-        replConfig.regenerateSingleModel().invoke("treatments")
 
         return ResponseEntity.ok(newTreatment)
     }
@@ -128,7 +127,6 @@ class TreatmentController (
         if (!treatmentService.deleteTreatment(treatmentName)) {
             return ResponseEntity.badRequest().build()
         }
-        replConfig.regenerateSingleModel().invoke("treatments")
 
         return ResponseEntity.ok("Treatment $treatmentName deleted")
     }

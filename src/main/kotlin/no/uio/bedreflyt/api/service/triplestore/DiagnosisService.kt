@@ -15,10 +15,11 @@ import org.springframework.cache.annotation.CacheEvict
 import org.springframework.cache.annotation.CachePut
 import org.springframework.cache.annotation.Cacheable
 import org.springframework.stereotype.Service
+import java.util.concurrent.locks.ReentrantReadWriteLock
 
 @Service
 open class DiagnosisService (
-    replConfig: REPLConfig,
+    private val replConfig: REPLConfig,
     triplestoreProperties: TriplestoreProperties
 ) {
 
@@ -29,10 +30,12 @@ open class DiagnosisService (
     private val prefix = triplestoreProperties.prefix
     private val ttlPrefix = triplestoreProperties.ttlPrefix
     private val repl = replConfig.repl()
+    private val lock = ReentrantReadWriteLock()
 
-    @CachePut("diagnosis", key = "#diagnosisName")
     open fun createDiagnosis(diagnosisName: String) : Diagnosis? {
-        val query = """
+        lock.writeLock().lock()
+        try {
+            val query = """
             PREFIX bedreflyt: <$prefix>
             
             INSERT DATA {
@@ -40,66 +43,85 @@ open class DiagnosisService (
                     bedreflyt:diagnosisCode "$diagnosisName" .
             }"""
 
-        val updateRequest: UpdateRequest = UpdateFactory.create(query)
-        val fusekiEndpoint = "$tripleStore/update"
-        val updateProcessor: UpdateProcessor = UpdateExecutionFactory.createRemote(updateRequest, fusekiEndpoint)
+            val updateRequest: UpdateRequest = UpdateFactory.create(query)
+            val fusekiEndpoint = "$tripleStore/update"
+            val updateProcessor: UpdateProcessor = UpdateExecutionFactory.createRemote(updateRequest, fusekiEndpoint)
 
-        try {
-            updateProcessor.execute()
-            return Diagnosis(diagnosisName)
-        } catch (e: Exception) {
-            return null
+            try {
+                updateProcessor.execute()
+                replConfig.regenerateSingleModel().invoke("diagnoses")
+                val diagnosis = Diagnosis(diagnosisName)
+
+                cacheManager.getCache("diagnosis")?.put(diagnosisName, diagnosis)
+                return diagnosis
+            } catch (_: Exception) {
+                return null
+            }
+        } finally {
+            lock.writeLock().unlock()
         }
     }
 
-    @Cacheable("diagnosis")
     open fun getAllDiagnosis(): List<Diagnosis>? {
-        val diagnosis: MutableList<Diagnosis> = mutableListOf()
+        lock.readLock().lock()
+        try {
+            val diagnosis: MutableList<Diagnosis> = mutableListOf()
 
-        val query = """
+            val query = """
             SELECT DISTINCT ?name WHERE {
                 ?obj a prog:Diagnosis ;
                     prog:Diagnosis_diagnosisCode ?name .
             }"""
 
-        val resultDiagnosis: ResultSet = repl.interpreter!!.query(query)!!
+            val resultDiagnosis: ResultSet = repl.interpreter!!.query(query)!!
 
-        if (!resultDiagnosis.hasNext()) {
-            return null
+            if (!resultDiagnosis.hasNext()) {
+                return null
+            }
+
+            while (resultDiagnosis.hasNext()) {
+                val solution: QuerySolution = resultDiagnosis.next()
+                val name = solution.get("?name").asLiteral().toString()
+                diagnosis.add(Diagnosis(name))
+            }
+
+            cacheManager.getCache("diagnosis")?.put("allDiagnosis", diagnosis)
+            return diagnosis
+        } finally {
+            lock.readLock().unlock()
         }
-
-        while (resultDiagnosis.hasNext()) {
-            val solution: QuerySolution = resultDiagnosis.next()
-            val name = solution.get("?name").asLiteral().toString()
-            diagnosis.add(Diagnosis(name))
-        }
-
-        return diagnosis
     }
 
-    @Cacheable("diagnosis", key = "#diagnosis")
     open fun getDiagnosisByName(diagnosis: String) : Diagnosis? {
-        val query = """
+        lock.readLock().lock()
+        try {
+            val query = """
             SELECT DISTINCT ?diagnosis WHERE {
                 ?obj a prog:Diagnosis ;
                     prog:Diagnosis_diagnosisCode ?diagnosis .
                 FILTER (?diagnosis = "$diagnosis")
             }"""
 
-        val resultDiagnosis: ResultSet = repl.interpreter!!.query(query)!!
-        if (!resultDiagnosis.hasNext()) {
-            return null
-        }
+            val resultDiagnosis: ResultSet = repl.interpreter!!.query(query)!!
+            if (!resultDiagnosis.hasNext()) {
+                return null
+            }
 
-        val solution: QuerySolution = resultDiagnosis.next()
-        val name = solution.get("?diagnosis").asLiteral().toString()
-        return Diagnosis(name)
+            val solution: QuerySolution = resultDiagnosis.next()
+            val name = solution.get("?diagnosis").asLiteral().toString()
+            val diagnosis = Diagnosis(name)
+
+            cacheManager.getCache("diagnosis")?.put(name, diagnosis)
+            return diagnosis
+        } finally {
+            lock.readLock().unlock()
+        }
     }
 
-    @CacheEvict("diagnosis", key = "#diagnosisName")
-    @CachePut("diagnosis", key = "#newDiagnosisName")
     open fun updateDiagnosis(oldDiagnosisName: String, newDiagnosisName: String) : Diagnosis? {
-        val query = """
+        lock.writeLock().lock()
+        try {
+            val query = """
             PREFIX bedreflyt: <$prefix>
             
             DELETE {
@@ -118,21 +140,29 @@ open class DiagnosisService (
             }
         """.trimIndent()
 
-        val updateRequest: UpdateRequest = UpdateFactory.create(query)
-        val fusekiEndpoint = "$tripleStore/update"
-        val updateProcessor: UpdateProcessor = UpdateExecutionFactory.createRemote(updateRequest, fusekiEndpoint)
+            val updateRequest: UpdateRequest = UpdateFactory.create(query)
+            val fusekiEndpoint = "$tripleStore/update"
+            val updateProcessor: UpdateProcessor = UpdateExecutionFactory.createRemote(updateRequest, fusekiEndpoint)
 
-        try {
-            updateProcessor.execute()
-            return Diagnosis(newDiagnosisName)
-        } catch (e: Exception) {
-            return null
+            try {
+                updateProcessor.execute()
+                val diagnosis = Diagnosis(newDiagnosisName)
+                replConfig.regenerateSingleModel().invoke("diagnoses")
+
+                cacheManager.getCache("diagnosis")?.put(newDiagnosisName, diagnosis)
+                return diagnosis
+            } catch (e: Exception) {
+                return null
+            }
+        } finally {
+            lock.writeLock().unlock()
         }
     }
 
-    @CacheEvict("diagnosis", allEntries = true)
     open fun deleteDiagnosis(diagnosisName: String) : Boolean {
-        val query = """
+        lock.writeLock().lock()
+        try {
+            val query = """
             PREFIX bedreflyt: <$prefix>
             
             DELETE {
@@ -146,15 +176,20 @@ open class DiagnosisService (
             }
         """.trimIndent()
 
-        val updateRequest: UpdateRequest = UpdateFactory.create(query)
-        val fusekiEndpoint = "$tripleStore/update"
-        val updateProcessor: UpdateProcessor = UpdateExecutionFactory.createRemote(updateRequest, fusekiEndpoint)
+            val updateRequest: UpdateRequest = UpdateFactory.create(query)
+            val fusekiEndpoint = "$tripleStore/update"
+            val updateProcessor: UpdateProcessor = UpdateExecutionFactory.createRemote(updateRequest, fusekiEndpoint)
 
-        try {
-            updateProcessor.execute()
-            return true
-        } catch (e: Exception) {
-            return false
+            try {
+                updateProcessor.execute()
+                replConfig.regenerateSingleModel().invoke("diagnoses")
+                cacheManager.getCache("diagnosis")?.evict(diagnosisName)
+                return true
+            } catch (_: Exception) {
+                return false
+            }
+        } finally {
+            lock.writeLock().unlock()
         }
     }
 }

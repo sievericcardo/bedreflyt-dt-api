@@ -16,11 +16,12 @@ import org.springframework.cache.annotation.CacheEvict
 import org.springframework.cache.annotation.CachePut
 import org.springframework.cache.annotation.Cacheable
 import org.springframework.stereotype.Service
+import java.util.concurrent.locks.ReentrantReadWriteLock
 import java.util.logging.Logger
 
 @Service
 open class CityService (
-    replConfig: REPLConfig,
+    private val replConfig: REPLConfig,
     triplestoreProperties: TriplestoreProperties,
 ) {
 
@@ -32,11 +33,13 @@ open class CityService (
     private val ttlPrefix = triplestoreProperties.ttlPrefix
     private val repl = replConfig.repl()
     private val log: Logger = Logger.getLogger(CityService::class.java.name)
+    private val lock = ReentrantReadWriteLock()
 
-    @Cacheable("cities")
     open fun createCity(request: CityRequest) : City? {
-        val name = request.cityName.split(" ").joinToString("_")
-        val query = """
+        lock.writeLock().lock()
+        try {
+            val name = request.cityName.split(" ").joinToString("_")
+            val query = """
             PREFIX bedreflyt: <$prefix>
             
             INSERT DATA {
@@ -45,47 +48,60 @@ open class CityService (
             }
         """.trimIndent()
 
-        val updateRequest: UpdateRequest = UpdateFactory.create(query)
-        val fusekiEndpoint = "$tripleStore/update"
-        val updateProcessor: UpdateProcessor = UpdateExecutionFactory.createRemote(updateRequest, fusekiEndpoint)
+            val updateRequest: UpdateRequest = UpdateFactory.create(query)
+            val fusekiEndpoint = "$tripleStore/update"
+            val updateProcessor: UpdateProcessor = UpdateExecutionFactory.createRemote(updateRequest, fusekiEndpoint)
 
-        try {
-            updateProcessor.execute()
-            return City(request.cityName)
-        } catch (e: Exception) {
-            return null
+            try {
+                updateProcessor.execute()
+                replConfig.regenerateSingleModel().invoke("cities")
+
+                val city = City(request.cityName)
+                cacheManager.getCache("cities")?.put(request.cityName, city)
+                return city
+            } catch (_: Exception) {
+                return null
+            }
+        } finally {
+            lock.writeLock().unlock()
         }
     }
 
-    @Cacheable("cities")
     open fun getAllCities() : List<City>? {
-        val cities = mutableListOf<City>()
+        lock.readLock().lock()
+        try {
+            val cities = mutableListOf<City>()
 
-        val query =
-            """
+            val query =
+                """
                 SELECT DISTINCT ?cityName WHERE {
                     ?city a prog:City ;
                         prog:City_cityName ?cityName .
             }"""
 
-        val resultSet: ResultSet = repl.interpreter!!.query(query)!!
-        if(!resultSet.hasNext()) {
-            return null
-        }
+            val resultSet: ResultSet = repl.interpreter!!.query(query)!!
+            if (!resultSet.hasNext()) {
+                return null
+            }
 
-        while (resultSet.hasNext()) {
-            val result: QuerySolution = resultSet.next()
-            val cityName = result.get("cityName").toString()
-            cities.add(City(cityName))
-        }
+            while (resultSet.hasNext()) {
+                val result: QuerySolution = resultSet.next()
+                val cityName = result.get("cityName").toString()
+                cities.add(City(cityName))
+            }
 
-        return cities
+            cacheManager.getCache("cities")?.put("allCities", cities)
+            return cities
+        } finally {
+            lock.readLock().unlock()
+        }
     }
 
-    @Cacheable("cities")
     open fun getCityByName(cityName: String) : City? {
-        log.info("Retrieving city $cityName")
-        val query = """
+        lock.readLock().lock()
+        try {
+            log.info("Retrieving city $cityName")
+            val query = """
             SELECT DISTINCT ?cityName WHERE {
                 ?city a prog:City ;
                     prog:City_cityName ?cityName .
@@ -93,22 +109,27 @@ open class CityService (
             }
         """.trimIndent()
 
-        val resultSet: ResultSet = repl.interpreter!!.query(query)!!
-        if(!resultSet.hasNext()) {
-            return null
-        }
+            val resultSet: ResultSet = repl.interpreter!!.query(query)!!
+            if (!resultSet.hasNext()) {
+                return null
+            }
 
-        val result: QuerySolution = resultSet.next()
-        val name = result.get("cityName").toString()
-        return City(name)
+            val result: QuerySolution = resultSet.next()
+            val name = result.get("cityName").toString()
+
+            cacheManager.getCache("cities")?.put(name, City(name))
+            return City(name)
+        } finally {
+            lock.readLock().unlock()
+        }
     }
 
-    @CacheEvict("cities", allEntries = true)
-    @CachePut("cities")
     open fun updateCity(cityName: String, newCityName: String) : City? {
-        val name = cityName.split(" ").joinToString("_")
-        val newName = newCityName.split(" ").joinToString("_")
-        val query = """
+        lock.writeLock().lock()
+        try {
+            val name = cityName.split(" ").joinToString("_")
+            val newName = newCityName.split(" ").joinToString("_")
+            val query = """
             PREFIX bedreflyt: <$prefix>
             
             DELETE {
@@ -125,22 +146,30 @@ open class CityService (
             }
         """.trimIndent()
 
-        val updateRequest: UpdateRequest = UpdateFactory.create(query)
-        val fusekiEndpoint = "$tripleStore/update"
-        val updateProcessor: UpdateProcessor = UpdateExecutionFactory.createRemote(updateRequest, fusekiEndpoint)
+            val updateRequest: UpdateRequest = UpdateFactory.create(query)
+            val fusekiEndpoint = "$tripleStore/update"
+            val updateProcessor: UpdateProcessor = UpdateExecutionFactory.createRemote(updateRequest, fusekiEndpoint)
 
-        try {
-            updateProcessor.execute()
-            return City(newCityName)
-        } catch (e: Exception) {
-            return null
+            try {
+                updateProcessor.execute()
+                replConfig.regenerateSingleModel().invoke("cities")
+                val city = City(newCityName)
+
+                cacheManager.getCache("cities")?.put(newCityName, city)
+                return city
+            } catch (_: Exception) {
+                return null
+            }
+        } finally {
+            lock.writeLock().unlock()
         }
     }
 
-    @CacheEvict("cities", allEntries = true)
     open fun deleteCity(cityName: String) : Boolean {
-        val name = cityName.split(" ").joinToString("_")
-        val query = """
+        lock.writeLock().lock()
+        try {
+            val name = cityName.split(" ").joinToString("_")
+            val query = """
             PREFIX bedreflyt: <$prefix>
             
             DELETE WHERE {
@@ -149,15 +178,21 @@ open class CityService (
             }
         """.trimIndent()
 
-        val updateRequest: UpdateRequest = UpdateFactory.create(query)
-        val fusekiEndpoint = "$tripleStore/update"
-        val updateProcessor: UpdateProcessor = UpdateExecutionFactory.createRemote(updateRequest, fusekiEndpoint)
+            val updateRequest: UpdateRequest = UpdateFactory.create(query)
+            val fusekiEndpoint = "$tripleStore/update"
+            val updateProcessor: UpdateProcessor = UpdateExecutionFactory.createRemote(updateRequest, fusekiEndpoint)
 
-        try {
-            updateProcessor.execute()
-            return true
-        } catch (e: Exception) {
-            return false
+            try {
+                updateProcessor.execute()
+                replConfig.regenerateSingleModel().invoke("cities")
+
+                cacheManager.getCache("cities")?.evict(cityName)
+                return true
+            } catch (_: Exception) {
+                return false
+            }
+        } finally {
+            lock.writeLock().unlock()
         }
     }
 }

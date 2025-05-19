@@ -97,7 +97,6 @@ class HospitalController (
         val updatedHospital = updateHospitalRequest.newHospitalName?.let {
             hospitalService.updateHospital(hospital, it) ?: return ResponseEntity.badRequest().build()
         } ?: return ResponseEntity.noContent().build()
-        replConfig.regenerateSingleModel().invoke("hospitals")
 
         return ResponseEntity.ok(updatedHospital)
     }
@@ -120,7 +119,6 @@ class HospitalController (
         if (!hospitalService.deleteHospital(hospitalCode)) {
             return ResponseEntity.badRequest().build()
         }
-        replConfig.regenerateSingleModel().invoke("hospitals")
 
         return ResponseEntity.ok("Hospital deleted")
     }

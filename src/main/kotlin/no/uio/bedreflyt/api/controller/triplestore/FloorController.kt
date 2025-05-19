@@ -38,7 +38,6 @@ class FloorController (
         log.info("Creating floor $floorRequest")
 
         val newFloor = floorService.createFloor(floorRequest) ?: return ResponseEntity.badRequest().build()
-        replConfig.regenerateSingleModel().invoke("floors")
 
         return ResponseEntity.ok(newFloor)
     }
@@ -96,7 +95,6 @@ class FloorController (
         val updatedFloor = updateFloorRequest.newFloorNumber?.let {
             floorService.updateFloor(floorNumber, it) ?: return ResponseEntity.badRequest().build()
         } ?: return ResponseEntity.noContent().build()
-        replConfig.regenerateSingleModel().invoke("floors")
 
         return ResponseEntity.ok(updatedFloor)
     }
@@ -119,7 +117,6 @@ class FloorController (
         if (!floorService.deleteFloor(floorNumber)) {
             return ResponseEntity.notFound().build()
         }
-        replConfig.regenerateSingleModel().invoke("floors")
 
         return ResponseEntity.ok("Floor deleted")
     }

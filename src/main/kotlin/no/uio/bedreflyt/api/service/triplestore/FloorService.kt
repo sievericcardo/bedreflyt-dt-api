@@ -17,10 +17,11 @@ import org.springframework.cache.annotation.CacheEvict
 import org.springframework.cache.annotation.CachePut
 import org.springframework.cache.annotation.Cacheable
 import org.springframework.stereotype.Service
+import java.util.concurrent.locks.ReentrantReadWriteLock
 
 @Service
 open class FloorService (
-    replConfig: REPLConfig,
+    private val replConfig: REPLConfig,
     triplestoreProperties: TriplestoreProperties,
 ) {
 
@@ -31,10 +32,12 @@ open class FloorService (
     private val prefix = triplestoreProperties.prefix
     private val ttlPrefix = triplestoreProperties.ttlPrefix
     private val repl = replConfig.repl()
+    private val lock = ReentrantReadWriteLock()
 
-    @CachePut("floors", key = "#request.floorNumber")
     open fun createFloor(request: FloorRequest) : Floor? {
-        val query = """
+        lock.writeLock().lock()
+        try {
+            val query = """
             PREFIX bedreflyt: <$prefix>
             PREFIX brick: <https://brickschema.org/schema/Brick#>
             
@@ -44,46 +47,58 @@ open class FloorService (
             }
         """.trimIndent()
 
-        val updateRequest: UpdateRequest = UpdateFactory.create(query)
-        val fusekiEndpoint = "$tripleStore/update"
-        val updateProcessor: UpdateProcessor = UpdateExecutionFactory.createRemote(updateRequest, fusekiEndpoint)
+            val updateRequest: UpdateRequest = UpdateFactory.create(query)
+            val fusekiEndpoint = "$tripleStore/update"
+            val updateProcessor: UpdateProcessor = UpdateExecutionFactory.createRemote(updateRequest, fusekiEndpoint)
 
-        try {
-            updateProcessor.execute()
-            return Floor(request.floorNumber)
-        } catch (e: Exception) {
-            return null
+            try {
+                updateProcessor.execute()
+                val floor = Floor(request.floorNumber)
+                replConfig.regenerateSingleModel().invoke("floors")
+                cacheManager.getCache("floors")?.put(request.floorNumber, floor)
+                return floor
+            } catch (_: Exception) {
+                return null
+            }
+        } finally {
+            lock.writeLock().unlock()
         }
     }
 
-    @Cacheable("floors")
     open fun getAllFloors() : List<Floor>? {
-        val floors = mutableListOf<Floor>()
+        lock.readLock().lock()
+        try {
+            val floors = mutableListOf<Floor>()
 
-        val query =
-            """
+            val query =
+                """
                 SELECT DISTINCT ?floorNumber WHERE {
                     ?floor a prog:Floor ;
                         prog:Floor_floorNumber ?floorNumber .
             }"""
 
-        val resultSet: ResultSet = repl.interpreter!!.query(query)!!
-        if(!resultSet.hasNext()) {
-            return null
-        }
+            val resultSet: ResultSet = repl.interpreter!!.query(query)!!
+            if (!resultSet.hasNext()) {
+                return null
+            }
 
-        while(resultSet.hasNext()) {
-            val result: QuerySolution = resultSet.next()
-            val floorNumber = result.get("floorNumber").asLiteral().int
-            floors.add(Floor(floorNumber))
-        }
+            while (resultSet.hasNext()) {
+                val result: QuerySolution = resultSet.next()
+                val floorNumber = result.get("floorNumber").asLiteral().int
+                floors.add(Floor(floorNumber))
+            }
 
-        return floors
+            cacheManager.getCache("floors")?.put("allFloors", floors)
+            return floors
+        } finally {
+            lock.readLock().unlock()
+        }
     }
 
-    @Cacheable("floors", key = "#number")
     open fun getFloorByNumber (number: Int) : Floor? {
-        val query = """
+        lock.readLock().lock()
+        try {
+            val query = """
             SELECT DISTINCT ?floorNumber WHERE {
                 ?floor a prog:Floor ;
                     prog:Floor_floorNumber ?floorNumber .
@@ -91,26 +106,31 @@ open class FloorService (
             }
         """.trimIndent()
 
-        val resultSet: ResultSet = repl.interpreter!!.query(query)!!
-        if(!resultSet.hasNext()) {
-            return null
-        }
-
-        while(resultSet.hasNext()) {
-            val result: QuerySolution = resultSet.next()
-            val floorNumber = result.get("floorNumber").asLiteral().toString().split("^^")[0].toInt()
-            if (floorNumber == number) {
-                return Floor(floorNumber)
+            val resultSet: ResultSet = repl.interpreter!!.query(query)!!
+            if (!resultSet.hasNext()) {
+                return null
             }
-        }
 
-        return null
+            while (resultSet.hasNext()) {
+                val result: QuerySolution = resultSet.next()
+                val floorNumber = result.get("floorNumber").asLiteral().toString().split("^^")[0].toInt()
+                if (floorNumber == number) {
+                    val floor = Floor(floorNumber)
+                    cacheManager.getCache("floors")?.put(number, floor)
+                    return floor
+                }
+            }
+
+            return null
+        } finally {
+            lock.readLock().unlock()
+        }
     }
 
-    @CacheEvict("floors", key = "#request.floorNumber")
-    @CachePut("floors", key = "#request.newFloorNumber")
     open fun updateFloor(oldFloorNumber: Int, newFloorNumber: Int) : Floor? {
-        val query = """
+        lock.writeLock().lock()
+        try {
+            val query = """
             PREFIX bedreflyt: <$prefix>
             PREFIX brick: <https://brickschema.org/schema/Brick#>
             
@@ -128,21 +148,30 @@ open class FloorService (
             }
         """.trimIndent()
 
-        val updateRequest: UpdateRequest = UpdateFactory.create(query)
-        val fusekiEndpoint = "$tripleStore/update"
-        val updateProcessor: UpdateProcessor = UpdateExecutionFactory.createRemote(updateRequest, fusekiEndpoint)
+            val updateRequest: UpdateRequest = UpdateFactory.create(query)
+            val fusekiEndpoint = "$tripleStore/update"
+            val updateProcessor: UpdateProcessor = UpdateExecutionFactory.createRemote(updateRequest, fusekiEndpoint)
 
-        try {
-            updateProcessor.execute()
-            return Floor(newFloorNumber)
-        } catch (e: Exception) {
-            return null
+            try {
+                updateProcessor.execute()
+                val floor = Floor(newFloorNumber)
+                replConfig.regenerateSingleModel().invoke("floors")
+                cacheManager.getCache("floors")?.evict(oldFloorNumber)
+                cacheManager.getCache("floors")?.put(newFloorNumber, floor)
+
+                return floor
+            } catch (_: Exception) {
+                return null
+            }
+        } finally {
+            lock.writeLock().unlock()
         }
     }
 
-    @CacheEvict("floors", allEntries = true)
     open fun deleteFloor(floorNumber: Int) : Boolean {
-        val query = """
+        lock.writeLock().lock()
+        try {
+            val query = """
             PREFIX bedreflyt: <$prefix>
             PREFIX brick: <https://brickschema.org/schema/Brick#>
             
@@ -152,15 +181,21 @@ open class FloorService (
             }
         """.trimIndent()
 
-        val updateRequest: UpdateRequest = UpdateFactory.create(query)
-        val fusekiEndpoint = "$tripleStore/update"
-        val updateProcessor: UpdateProcessor = UpdateExecutionFactory.createRemote(updateRequest, fusekiEndpoint)
+            val updateRequest: UpdateRequest = UpdateFactory.create(query)
+            val fusekiEndpoint = "$tripleStore/update"
+            val updateProcessor: UpdateProcessor = UpdateExecutionFactory.createRemote(updateRequest, fusekiEndpoint)
 
-        try {
-            updateProcessor.execute()
-            return true
-        } catch (e: Exception) {
-            return false
+            try {
+                updateProcessor.execute()
+                replConfig.regenerateSingleModel().invoke("floors")
+                cacheManager.getCache("floors")?.evict(floorNumber)
+
+                return true
+            } catch (_: Exception) {
+                return false
+            }
+        } finally {
+            lock.writeLock().unlock()
         }
     }
 }
