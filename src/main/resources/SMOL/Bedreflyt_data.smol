@@ -166,6 +166,14 @@ class Room extends Twin (
 )
 end
 
+class Office extends Room (
+    Ward officeWard,
+    Hospital hospital,
+    Boolean available,
+    MonitoringCategory monitoringCategory
+)
+end
+
 class Bathroom extends Room ()
 end
 
