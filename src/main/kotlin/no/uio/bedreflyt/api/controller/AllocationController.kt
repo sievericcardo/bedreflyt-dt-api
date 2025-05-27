@@ -185,7 +185,7 @@ class AllocationController (
                                         patientAllocationService.updatePatientAllocation(patientAllocation)
                                     }
                                 } else {
-                                    log.warning("Could not find allocation for patient ${singlePatient.patientId}")
+                                    log.warn("Could not find allocation for patient ${singlePatient.patientId}")
                                 }
                             }
                         }
@@ -347,7 +347,7 @@ class AllocationController (
                                         patientAllocationService.updatePatientAllocation(patientAllocation)
                                     }
                                 } else {
-                                    log.warning("Could not find allocation for patient ${singlePatient.patientId}")
+                                    log.warn("Could not find allocation for patient ${singlePatient.patientId}")
                                 }
                             }
                         }
