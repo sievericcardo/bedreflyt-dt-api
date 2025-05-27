@@ -55,6 +55,7 @@ main
     TreatmentStepModel m2 = new TreatmentStepModel("treatment steps");
     // BedModel m3 = new BedModel("beds");
     RoomModel m4 = new RoomModel("rooms");
+    OfficeModel m13 = new OfficeModel("offices");
     // BathroomModel m5 = new BathroomModel("bathrooms");
     WardModel m6 = new WardModel("wards");
     FloorModel m7 = new FloorModel("floors");
@@ -68,6 +69,7 @@ main
     assetModel.register(m2);
     // assetModel.register(m3);
     assetModel.register(m4);
+    assetModel.register(m13);
     // assetModel.register(m5);
     assetModel.register(m6);
     assetModel.register(m7);
