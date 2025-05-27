@@ -1,7 +1,12 @@
 package no.uio.bedreflyt.api.model.triplestore
 
-class Task (
-    val taskName: String,
-    val averageDuration: Double,
-    val bed: Int
-)
+import java.io.Serializable
+
+data class Task (
+    val taskName: String
+) : Serializable
+{
+    override fun toString(): String {
+        return "Task(taskName='$taskName')"
+    }
+}

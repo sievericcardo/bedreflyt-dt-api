@@ -9,172 +9,199 @@ import org.apache.jena.update.UpdateExecutionFactory
 import org.apache.jena.update.UpdateFactory
 import org.apache.jena.update.UpdateProcessor
 import org.apache.jena.update.UpdateRequest
+import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.cache.CacheManager
 import org.springframework.cache.annotation.CacheEvict
 import org.springframework.cache.annotation.CachePut
 import org.springframework.cache.annotation.Cacheable
 import org.springframework.stereotype.Service
+import java.util.concurrent.locks.ReentrantReadWriteLock
 
 @Service
-class TaskService (
+open class TaskService (
     private val replConfig: REPLConfig,
-    private val triplestoreProperties: TriplestoreProperties
+    triplestoreProperties: TriplestoreProperties
 ) {
+
+    @Autowired
+    private lateinit var cacheManager: CacheManager
 
     private val tripleStore = triplestoreProperties.tripleStore
     private val prefix = triplestoreProperties.prefix
     private val ttlPrefix = triplestoreProperties.ttlPrefix
     private val repl = replConfig.repl()
+    private val lock = ReentrantReadWriteLock()
 
     @CachePut("tasks", key = "#taskName")
-    fun createTask(taskName: String, averageDuration: Double, bed: Int) : Boolean {
-        val query = """
-            PREFIX : <$prefix>
+    open fun createTask(taskName: String) : Task? {
+        lock.writeLock().lock()
+        try {
+            val name = taskName.replace(" ", "")
+            val query = """
+            PREFIX bedreflyt: <$prefix>
+            PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+            PREFIX owl: <http://www.w3.org/2002/07/owl#>
             
             INSERT DATA {
-                :task_$taskName a :Task ;
-                    :taskName "$taskName" ;
-                    :averageDuration $averageDuration ;
-                    :bed $bed .
+                bedreflyt:$name rdf:type owl:NamedIndividual , 
+                        <http://purl.org/net/p-plan#Step> ;
+                    bedreflyt:taskName "$taskName" .
             }
         """
 
-        val updateRequest: UpdateRequest = UpdateFactory.create(query)
-        val fusekiEndpoint = "$tripleStore/update"
-        val updateProcessor: UpdateProcessor = UpdateExecutionFactory.createRemote(updateRequest, fusekiEndpoint)
+            val updateRequest: UpdateRequest = UpdateFactory.create(query)
+            val fusekiEndpoint = "$tripleStore/update"
+            val updateProcessor: UpdateProcessor = UpdateExecutionFactory.createRemote(updateRequest, fusekiEndpoint)
 
-        try {
-            updateProcessor.execute()
-            return true
-        } catch (e: Exception) {
-            return false
+            try {
+                updateProcessor.execute()
+                replConfig.regenerateSingleModel().invoke("tasks")
+                return Task(taskName)
+            } catch (_: Exception) {
+                return null
+            }
+        } finally {
+            lock.writeLock().unlock()
         }
     }
 
     @Cacheable("tasks")
-    fun getAllTasks() : List<Task>? {
-        val tasks: MutableList<Task> = mutableListOf()
+    open fun getAllTasks() : List<Task>? {
+        lock.readLock().lock()
+        try {
+            val tasks: MutableList<Task> = mutableListOf()
 
-        val query =
-            """
+            val query =
+                """
            SELECT DISTINCT ?taskName ?averageDuration ?bedCategory WHERE {
             ?obj a prog:Task ;
-                prog:Task_taskName ?taskName ;
-                prog:Task_durationAverage ?averageDuration ;
-                prog:Task_bed ?bedCategory .
+                prog:Task_taskName ?taskName .
         }"""
 
-        val resultTasks: ResultSet = repl.interpreter!!.query(query)!!
+            val resultTasks: ResultSet = repl.interpreter!!.query(query)!!
 
-        if (!resultTasks.hasNext()) {
-            return null
+            if (!resultTasks.hasNext()) {
+                return null
+            }
+
+            while (resultTasks.hasNext()) {
+                val solution: QuerySolution = resultTasks.next()
+                val taskName = solution.get("?taskName").asLiteral().toString()
+                tasks.add(Task(taskName))
+            }
+
+            return tasks
+        } finally {
+            lock.readLock().unlock()
         }
-
-        while (resultTasks.hasNext()) {
-            val solution: QuerySolution = resultTasks.next()
-            val taskName = solution.get("?taskName").asLiteral().toString()
-            val averageDuration = solution.get("?averageDuration").asLiteral().toString().split("^^")[0].toDouble()
-            val bedCategory = solution.get("?bedCategory").asLiteral().toString().split("^^")[0].toInt()
-            tasks.add(Task(taskName, averageDuration, bedCategory))
-        }
-
-        return tasks
     }
 
     @Cacheable("tasks", key = "#taskName")
-    fun getTaskByTaskName(taskName: String) : Task? {
-        val query = """
-            PREFIX : <$prefix>
-            
-            SELECT DISTINCT ?taskName ?averageDuration ?bed WHERE {
+    open fun getTaskByTaskName(taskName: String) : Task? {
+        lock.readLock().lock()
+        try {
+            val query = """
+            SELECT DISTINCT ?taskName WHERE {
                 ?obj a prog:Task ;
-                    prog:Task_taskName ?taskName ;
-                    prog:Task_durationAverage ?averageDuration ;
-                    prog:Task_bed ?bed .
+                    prog:Task_taskName ?taskName .
                 FILTER (?taskName = "$taskName")
             }
         """
 
-        val resultTask: ResultSet = repl.interpreter!!.query(query)!!
+            val resultTask: ResultSet = repl.interpreter!!.query(query)!!
 
-        if (!resultTask.hasNext()) {
-            return null
+            if (!resultTask.hasNext()) {
+                return null
+            }
+
+            val solution: QuerySolution = resultTask.next()
+
+            return Task(taskName)
+        } finally {
+            lock.readLock().unlock()
         }
-
-        val solution: QuerySolution = resultTask.next()
-        val averageDuration = solution.get("?averageDuration").asLiteral().toString().split("^^")[0].toDouble()
-        val bed = solution.get("?bed").asLiteral().toString().split("^^")[0].toInt()
-
-        return Task(taskName, averageDuration, bed)
     }
 
-    @CacheEvict(value = ["tasks"], key = "#task.taskName")
-    @CachePut(value = ["tasks"], key = "#task.taskName")
-    fun updateTask(task: Task, newAverageDuration: Double, newBed: Int) : Boolean {
-        val query = """
-            PREFIX : <$prefix>
-            PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+    @CacheEvict("tasks", key = "#task.taskName")
+    @CachePut("tasks", key = "#newTaskName")
+    open fun updateTask(task: Task, newTaskName: String) : Task? {
+        lock.writeLock().lock()
+        try {
+            val oldName = task.taskName.replace(" ", "")
+            val newName = newTaskName.replace(" ", "")
+            val query = """
+            PREFIX bedreflyt: <$prefix>
+            PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+            PREFIX owl: <http://www.w3.org/2002/07/owl#>
             
             DELETE {
-                :task_${task.taskName} a :Task ;
-                    :taskName "${task.taskName}" ;
-                    :averageDuration "${task.averageDuration}"^^xsd:double ;
-                    :bed ${task.bed} .
+                bedreflyt:$oldName rdf:type owl:NamedIndividual , 
+                        <http://purl.org/net/p-plan#Step> ;
+                    bedreflyt:taskName "${task.taskName}" .
             }
             INSERT {
-                :task_${task.taskName} a :Task ;
-                    :taskName "${task.taskName}" ;
-                    :averageDuration "$newAverageDuration"^^xsd:double ;
-                    :bed $newBed .
+                bedreflyt:$newName rdf:type owl:NamedIndividual , 
+                        <http://purl.org/net/p-plan#Step> ;
+                    bedreflyt:taskName "$newTaskName" .
             }
             WHERE {
-               :task_${task.taskName} a :Task ;
-                    :taskName "${task.taskName}" ;
-                    :averageDuration "${task.averageDuration}"^^xsd:double ;
-                    :bed ${task.bed} .
+               bedreflyt:$oldName rdf:type owl:NamedIndividual , 
+                        <http://purl.org/net/p-plan#Step> ;
+                    bedreflyt:taskName "${task.taskName}" .
             }
         """
 
-        val updateRequest: UpdateRequest = UpdateFactory.create(query)
-        val fusekiEndpoint = "$tripleStore/update"
-        val updateProcessor: UpdateProcessor = UpdateExecutionFactory.createRemote(updateRequest, fusekiEndpoint)
+            val updateRequest: UpdateRequest = UpdateFactory.create(query)
+            val fusekiEndpoint = "$tripleStore/update"
+            val updateProcessor: UpdateProcessor = UpdateExecutionFactory.createRemote(updateRequest, fusekiEndpoint)
 
-        try {
-            updateProcessor.execute()
-            return true
-        } catch (e: Exception) {
-            return false
+            try {
+                updateProcessor.execute()
+                replConfig.regenerateSingleModel().invoke("tasks")
+                return Task(newTaskName)
+            } catch (_: Exception) {
+                return null
+            }
+        } finally {
+            lock.writeLock().unlock()
         }
     }
 
-    @CacheEvict(value = ["tasks"], key = "#task.taskName")
-    fun deleteTask(task: Task) : Boolean {
-        val query = """
-            PREFIX : <$prefix>
-            PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+    @CacheEvict("tasks", allEntries = true)
+    open fun deleteTask(task: Task) : Boolean {
+        lock.writeLock().lock()
+        try {
+            val name = task.taskName.replace(" ", "")
+            val query = """
+            PREFIX bedreflyt: <$prefix>
+            PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+            PREFIX owl: <http://www.w3.org/2002/07/owl#>
             
             DELETE {
-                :task_${task.taskName} a :Task ;
-                    :taskName "${task.taskName}" ;
-                    :averageDuration "${task.averageDuration}"^^xsd:double ;
-                    :bed ${task.bed} .
+                bedreflyt:$name rdf:type owl:NamedIndividual , 
+                        <http://purl.org/net/p-plan#Step> ;
+                    bedreflyt:taskName "${task.taskName}" .
             }
             WHERE {
-                :task_${task.taskName} a :Task ;
-                    :taskName "${task.taskName}" ;
-                    :averageDuration "${task.averageDuration}"^^xsd:double ;
-                    :bed ${task.bed} .
+                bedreflyt:$name rdf:type owl:NamedIndividual , 
+                        <http://purl.org/net/p-plan#Step> ;
+                    bedreflyt:taskName "${task.taskName}" .
             }
         """
 
-        val updateRequest: UpdateRequest = UpdateFactory.create(query)
-        val fusekiEndpoint = "$tripleStore/update"
-        val updateProcessor: UpdateProcessor = UpdateExecutionFactory.createRemote(updateRequest, fusekiEndpoint)
+            val updateRequest: UpdateRequest = UpdateFactory.create(query)
+            val fusekiEndpoint = "$tripleStore/update"
+            val updateProcessor: UpdateProcessor = UpdateExecutionFactory.createRemote(updateRequest, fusekiEndpoint)
 
-        try {
-            updateProcessor.execute()
-            return true
-        } catch (e: Exception) {
-            return false
+            try {
+                updateProcessor.execute()
+                replConfig.regenerateSingleModel().invoke("tasks")
+                return true
+            } catch (_: Exception) {
+                return false
+            }
+        } finally {
+            lock.writeLock().unlock()
         }
     }
 }

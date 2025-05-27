@@ -106,7 +106,6 @@ open class REPLConfig (
 
         val smolPath = environmentConfig.getOrDefault("SMOL_PATH", "Bedreflyt.smol")
         repl = REPL(settings)
-        repl.command("verbose", "false")
         repl.command("multiread", smolPath)
         repl.command("auto", "")
     }

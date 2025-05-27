@@ -1,7 +1,7 @@
 plugins {
     id 'org.jetbrains.kotlin.jvm' version '2.0.0'
     id 'com.github.johnrengelman.shadow' version '8.1.1'
-    id 'org.springframework.boot' version '3.3.5'
+    id 'org.springframework.boot' version '3.4.2'
     id 'io.spring.dependency-management' version '1.1.5'
 }
 
@@ -18,15 +18,15 @@ repositories {
 
 java {
     toolchain {
-        languageVersion.set(JavaLanguageVersion.of(17))
+        languageVersion.set(JavaLanguageVersion.of(21))
     }
 }
 
 ext {
-    springBootVersion = '3.3.5'
-    springDocVersion = '2.6.0'
-    jacksonVersion = '2.16.2'
-    lombokVersion = '1.18.34'
+    springBootVersion = '3.4.2'
+    springDocVersion = '2.8.4'
+    jacksonVersion = '2.18.2'
+    lombokVersion = '1.18.36'
     logbackVersion = '1.5.6'
     sl4jVersion = '2.0.16'
     jwtVersion = '0.12.6'
@@ -42,7 +42,7 @@ dependencies {
     implementation("org.slf4j:slf4j-api:${sl4jVersion}")
     implementation("org.slf4j:slf4j-simple:${sl4jVersion}")
     // SMOL
-    implementation("com.github.smolang:SemanticObjects:8c57e63cb9") {
+    implementation("com.github.smolang:SemanticObjects:3f09377115") {
         exclude group: 'org.slf4j', module: 'slf4j-simple'
         exclude group: 'org.jetbrains.kotlin', module: 'kotlin-reflect'
         exclude group: 'com.fasterxml.jackson.module', module: 'jackson-module-kotlin'
@@ -112,5 +112,5 @@ tasks.test {
     useJUnitPlatform()
 }
 kotlin {
-    jvmToolchain(17)
+    jvmToolchain(21)
 }

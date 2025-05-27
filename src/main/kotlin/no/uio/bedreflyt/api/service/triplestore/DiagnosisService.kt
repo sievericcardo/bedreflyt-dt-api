@@ -9,147 +9,187 @@ import org.apache.jena.update.UpdateExecutionFactory
 import org.apache.jena.update.UpdateFactory
 import org.apache.jena.update.UpdateProcessor
 import org.apache.jena.update.UpdateRequest
+import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.cache.CacheManager
 import org.springframework.cache.annotation.CacheEvict
 import org.springframework.cache.annotation.CachePut
 import org.springframework.cache.annotation.Cacheable
 import org.springframework.stereotype.Service
+import java.util.concurrent.locks.ReentrantReadWriteLock
 
 @Service
-class DiagnosisService (
+open class DiagnosisService (
     private val replConfig: REPLConfig,
-    private val triplestoreProperties: TriplestoreProperties
+    triplestoreProperties: TriplestoreProperties
 ) {
+
+    @Autowired
+    private lateinit var cacheManager: CacheManager
 
     private val tripleStore = triplestoreProperties.tripleStore
     private val prefix = triplestoreProperties.prefix
     private val ttlPrefix = triplestoreProperties.ttlPrefix
     private val repl = replConfig.repl()
+    private val lock = ReentrantReadWriteLock()
 
-    fun createDiagnosis(diagnosisName: String) : Boolean {
-        val query = """
-            PREFIX : <$prefix>
+    open fun createDiagnosis(diagnosisName: String) : Diagnosis? {
+        lock.writeLock().lock()
+        try {
+            val query = """
+            PREFIX bedreflyt: <$prefix>
             
             INSERT DATA {
-                :diagnosis_$diagnosisName a :Diagnosis ;
-                    :diagnosisName "$diagnosisName" .
+                bedreflyt:$diagnosisName a bedreflyt:Diagnosis ;
+                    bedreflyt:diagnosisCode "$diagnosisName" .
             }"""
 
-        val updateRequest: UpdateRequest = UpdateFactory.create(query)
-        val fusekiEndpoint = "$tripleStore/update"
-        val updateProcessor: UpdateProcessor = UpdateExecutionFactory.createRemote(updateRequest, fusekiEndpoint)
+            val updateRequest: UpdateRequest = UpdateFactory.create(query)
+            val fusekiEndpoint = "$tripleStore/update"
+            val updateProcessor: UpdateProcessor = UpdateExecutionFactory.createRemote(updateRequest, fusekiEndpoint)
 
+            try {
+                updateProcessor.execute()
+                replConfig.regenerateSingleModel().invoke("diagnoses")
+                val diagnosis = Diagnosis(diagnosisName)
+
+                cacheManager.getCache("diagnosis")?.put(diagnosisName, diagnosis)
+                return diagnosis
+            } catch (_: Exception) {
+                return null
+            }
+        } finally {
+            lock.writeLock().unlock()
+        }
+    }
+
+    open fun getAllDiagnosis(): List<Diagnosis>? {
+        lock.readLock().lock()
         try {
-            updateProcessor.execute()
-            return true
-        } catch (e: Exception) {
-            return false
+            val diagnosis: MutableList<Diagnosis> = mutableListOf()
+
+            val query = """
+            SELECT DISTINCT ?name WHERE {
+                ?obj a prog:Diagnosis ;
+                    prog:Diagnosis_diagnosisCode ?name .
+            }"""
+
+            val resultDiagnosis: ResultSet = repl.interpreter!!.query(query)!!
+
+            if (!resultDiagnosis.hasNext()) {
+                return null
+            }
+
+            while (resultDiagnosis.hasNext()) {
+                val solution: QuerySolution = resultDiagnosis.next()
+                val name = solution.get("?name").asLiteral().toString()
+                diagnosis.add(Diagnosis(name))
+            }
+
+            cacheManager.getCache("diagnosis")?.put("allDiagnosis", diagnosis)
+            return diagnosis
+        } finally {
+            lock.readLock().unlock()
         }
     }
 
-    @Cacheable("diagnosis")
-    fun getAllDiagnosis(): List<Diagnosis>? {
-        val diagnosis: MutableList<Diagnosis> = mutableListOf()
-
-        val query = """
-            SELECT DISTINCT ?name WHERE {
+    open fun getDiagnosisByName(diagnosis: String) : Diagnosis? {
+        lock.readLock().lock()
+        try {
+            val query = """
+            SELECT DISTINCT ?diagnosis WHERE {
                 ?obj a prog:Diagnosis ;
-                    prog:Diagnosis_diagnosisName ?name .
+                    prog:Diagnosis_diagnosisCode ?diagnosis .
+                FILTER (?diagnosis = "$diagnosis")
             }"""
 
-        val resultDiagnosis: ResultSet = repl.interpreter!!.query(query)!!
+            val resultDiagnosis: ResultSet = repl.interpreter!!.query(query)!!
+            if (!resultDiagnosis.hasNext()) {
+                return null
+            }
 
-        if (!resultDiagnosis.hasNext()) {
-            return null
-        }
-
-        while (resultDiagnosis.hasNext()) {
             val solution: QuerySolution = resultDiagnosis.next()
-            val name = solution.get("?name").asLiteral().toString()
-            diagnosis.add(Diagnosis(name))
-        }
+            val name = solution.get("?diagnosis").asLiteral().toString()
+            val diagnosis = Diagnosis(name)
 
-        return diagnosis
+            cacheManager.getCache("diagnosis")?.put(name, diagnosis)
+            return diagnosis
+        } finally {
+            lock.readLock().unlock()
+        }
     }
 
-    @Cacheable("diagnosis", key = "#diagnosis")
-    fun getDiagnosisByName(diagnosisName: String) : Diagnosis? {
-        val query = """
-            SELECT DISTINCT ?name WHERE {
-                ?obj a prog:Diagnosis ;
-                    prog:Diagnosis_diagnosisName ?diagnosis .
-                FILTER (?diagnosis = "$diagnosisName")
-            }"""
-
-        val resultDiagnosis: ResultSet = repl.interpreter!!.query(query)!!
-
-        if (!resultDiagnosis.hasNext()) {
-            return null
-        }
-
-        val solution: QuerySolution = resultDiagnosis.next()
-        val name = solution.get("?name").asLiteral().toString()
-        return Diagnosis(name)
-    }
-
-    @CacheEvict(value = ["diagnosis"], key = "#oldDiagnosisName")
-    @CachePut(value = ["diagnosis"], key = "#newDiagnosisName")
-    fun updateDiagnosis(oldDiagnosisName: String, newDiagnosisName: String) : Boolean {
-        val query = """
-            PREFIX : <$prefix>
+    open fun updateDiagnosis(oldDiagnosisName: String, newDiagnosisName: String) : Diagnosis? {
+        lock.writeLock().lock()
+        try {
+            val query = """
+            PREFIX bedreflyt: <$prefix>
             
             DELETE {
-                :diagnosis_$oldDiagnosisName a :Diagnosis ;
-                 :diagnosisName "$oldDiagnosisName" .
+                bedreflyt:$oldDiagnosisName a bedreflyt:Diagnosis ;
+                 bedreflyt:diagnosisCode "$oldDiagnosisName" .
             }
             
             INSERT {
-                :diagnosis_$newDiagnosisName a :Diagnosis ;
-                 :diagnosisName "$newDiagnosisName" .
+                bedreflyt:$newDiagnosisName a bedreflyt:Diagnosis ;
+                 bedreflyt:diagnosisCode "$newDiagnosisName" .
             }
             
             WHERE {
-                :diagnosis_$oldDiagnosisName a :Diagnosis ;
-                 :diagnosisName "$oldDiagnosisName" .
+                bedreflyt:$oldDiagnosisName a bedreflyt:Diagnosis ;
+                 bedreflyt:diagnosisCode "$oldDiagnosisName" .
             }
         """.trimIndent()
 
-        val updateRequest: UpdateRequest = UpdateFactory.create(query)
-        val fusekiEndpoint = "$tripleStore/update"
-        val updateProcessor: UpdateProcessor = UpdateExecutionFactory.createRemote(updateRequest, fusekiEndpoint)
+            val updateRequest: UpdateRequest = UpdateFactory.create(query)
+            val fusekiEndpoint = "$tripleStore/update"
+            val updateProcessor: UpdateProcessor = UpdateExecutionFactory.createRemote(updateRequest, fusekiEndpoint)
 
-        try {
-            updateProcessor.execute()
-            return true
-        } catch (e: Exception) {
-            return false
+            try {
+                updateProcessor.execute()
+                val diagnosis = Diagnosis(newDiagnosisName)
+                replConfig.regenerateSingleModel().invoke("diagnoses")
+
+                cacheManager.getCache("diagnosis")?.put(newDiagnosisName, diagnosis)
+                return diagnosis
+            } catch (e: Exception) {
+                return null
+            }
+        } finally {
+            lock.writeLock().unlock()
         }
     }
 
-    @CacheEvict("diagnosis", key = "#diagnosisName")
-    fun deleteDiagnosis(diagnosisName: String) : Boolean {
-        val query = """
-            PREFIX : <$prefix>
+    open fun deleteDiagnosis(diagnosisName: String) : Boolean {
+        lock.writeLock().lock()
+        try {
+            val query = """
+            PREFIX bedreflyt: <$prefix>
             
             DELETE {
-                :diagnosis_$diagnosisName a :Diagnosis ;
-                 :diagnosisName "$diagnosisName" .
+                bedreflyt:$diagnosisName a bedreflyt:Diagnosis ;
+                 bedreflyt:diagnosisCode "$diagnosisName" .
             }
             
             WHERE {
-                :diagnosis_$diagnosisName a :Diagnosis ;
-                 :diagnosisName "$diagnosisName" .
+                bedreflyt:$diagnosisName a bedreflyt:Diagnosis ;
+                 bedreflyt:diagnosisCode "$diagnosisName" .
             }
         """.trimIndent()
 
-        val updateRequest: UpdateRequest = UpdateFactory.create(query)
-        val fusekiEndpoint = "$tripleStore/update"
-        val updateProcessor: UpdateProcessor = UpdateExecutionFactory.createRemote(updateRequest, fusekiEndpoint)
+            val updateRequest: UpdateRequest = UpdateFactory.create(query)
+            val fusekiEndpoint = "$tripleStore/update"
+            val updateProcessor: UpdateProcessor = UpdateExecutionFactory.createRemote(updateRequest, fusekiEndpoint)
 
-        try {
-            updateProcessor.execute()
-            return true
-        } catch (e: Exception) {
-            return false
+            try {
+                updateProcessor.execute()
+                replConfig.regenerateSingleModel().invoke("diagnoses")
+                cacheManager.getCache("diagnosis")?.evict(diagnosisName)
+                return true
+            } catch (_: Exception) {
+                return false
+            }
+        } finally {
+            lock.writeLock().unlock()
         }
     }
 }

@@ -1,9 +1,13 @@
 package no.uio.bedreflyt.api.model.triplestore
 
-class Room (
+import java.io.Serializable
+
+open class Room (
     val roomNumber : Int,
-    val roomNumberModel : Int,
-    val roomCategory: Long,
-    val capacity: Int,
-    val bathroom: Boolean
-)
+    val capacity: Int
+) : Serializable
+{
+    override fun toString(): String {
+        return "Room(roomNumber=$roomNumber, capacity=$capacity)"
+    }
+}

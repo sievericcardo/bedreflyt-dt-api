@@ -4,8 +4,15 @@ import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
 import no.uio.bedreflyt.api.config.EnvironmentConfig
 import no.uio.bedreflyt.api.model.live.Patient
-import no.uio.bedreflyt.api.model.simulation.Room
+import no.uio.bedreflyt.api.model.live.PatientAllocation
+import no.uio.bedreflyt.api.model.triplestore.TreatmentRoom
+import no.uio.bedreflyt.api.model.triplestore.Ward
+import no.uio.bedreflyt.api.service.live.PatientAllocationService
+import no.uio.bedreflyt.api.service.live.PatientService
+import no.uio.bedreflyt.api.service.triplestore.RoomService
 import no.uio.bedreflyt.api.types.*
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import java.io.BufferedReader
 import java.io.InputStreamReader
@@ -16,24 +23,51 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
 import java.nio.file.StandardCopyOption
-import java.util.logging.Level
-import java.util.logging.Logger
+import kotlin.text.toInt
 
 @Service
 class Simulator (
-    private val environmentConfig: EnvironmentConfig
+    private val environmentConfig: EnvironmentConfig,
+    private val patientService: PatientService,
+    private val patientAllocationService: PatientAllocationService,
+    private val roomService: RoomService
 ) {
 
-    private val log: Logger = Logger.getLogger(Simulator::class.java.name)
+    private val log: Logger = LoggerFactory.getLogger(Simulator::class.java.name)
+    private var roomMap: MutableMap<Int, Int> = mutableMapOf()
+    private var indexRoomMap : MutableMap<Int, Int> = mutableMapOf()
+
+    fun setRoomMap(roomMap: Map<Int, Int>) {
+        this.roomMap = roomMap.toMutableMap()
+    }
+
+    fun setIndexRoomMap(indexRoomMap: Map<Int, Int>) {
+        this.indexRoomMap = indexRoomMap.toMutableMap()
+    }
+
+    private fun processDailyNeeds(needs: String) : SimulationNeeds {
+        val information = needs.split("------").filter { it.isNotEmpty() } // EB - split data over ------
+        val groupedInformation: List<List<String>> =
+            information.map { it -> it.split("\n").filter { it.isNotEmpty() } }.filter { it.isNotEmpty() }
+
+        return groupedInformation.map { group ->
+            group.map { line ->
+                val patientData = line.split(",")
+                val patientId = patientData[0]
+                val patientDistance = patientData[1]
+                Pair(patientService.findByPatientId(patientId)!!, patientDistance.toInt())
+            }.toMutableList()
+        }
+    }
 
     /**
      * Execute the JAR
      *
      * Execute the JAR file to get the ABS model output
      *
-     * @return String - Output of the JAR file
+     * @return String - Output of the JAR file -- we will use to get the whole trace of days
      */
-    private fun executeJar(tempDir: Path): String {
+    fun computeDailyNeeds(tempDir: Path): SimulationNeeds? {
         val jarFileName = "bedreflyt.jar"
         val jarFilePath = tempDir.resolve(jarFileName)
         Files.copy(Paths.get(jarFileName), jarFilePath, StandardCopyOption.REPLACE_EXISTING)
@@ -77,28 +111,28 @@ class Simulator (
 
         // Return combined output or error output based on the exit code
         return if (exitCode == 0) {
-            output.toString()
+            processDailyNeeds(output.toString())
         } else {
-            "Error executing JAR. Exit code: $exitCode\nError Output:\n$errorOutput"
+            null
         }
     }
 
-    private fun processSolverOutput(patientMap: Map<Int, Patient>, allocations: List<Map<String, Any>>) : List<Allocation> {
+    private fun processSolverOutput(patientMap: Map<Int, Patient>, allocations: List<Map<String, Any>>, rooms: List<TreatmentRoom>) : List<Allocation> {
         return allocations.flatMap { roomData ->
             roomData.map { (roomNumber, roomInfo) ->
                 val roomInfoMap = roomInfo as Map<String, Any>
                 val patientNumbersMap = (roomInfoMap["patients"] as List<String>).map { it.toInt() }
                 val patients = patientNumbersMap.map { number ->
                     val singlePatientMap = patientMap[number]!!
-                    Patient(
-                        patientId = singlePatientMap.patientId,
-                        age = singlePatientMap.age
-                    )
+                    patientService.findByPatientId(singlePatientMap.patientId)!!
                 }
                 val gender = if (roomInfoMap["gender"] as String == "True") "Male" else "Female"
 
+                val treatmentRoom = rooms.find { it.roomNumber == roomMap[roomNumber.toInt()] }
+                    ?: throw IllegalArgumentException("Room with number $roomNumber not found in the provided rooms list")
+
                 mapOf(
-                    "${roomNumber.toInt()}" to RoomInfo(patients, gender)
+                    WardRoom(treatmentRoom.roomNumber, treatmentRoom.treatmentWard.wardName, treatmentRoom.treatmentWard.wardHospital.hospitalCode) to RoomInfo(patients, gender)
                 )
             }
         }
@@ -107,6 +141,7 @@ class Simulator (
     private fun invokeSolver(
         solverRequest: SolverRequest,
         patientMap: Map<Int, Patient>, // Map of patient based on the order that is passed to the solver
+        rooms: List<TreatmentRoom>
     ) : SolverResponse {
         val solverEndpoint = environmentConfig.getOrDefault("SOLVER_ENDPOINT", "localhost")
         val solverUrl = "http://$solverEndpoint:8000/api/solve"
@@ -124,14 +159,14 @@ class Simulator (
         }
 
         if (connection.responseCode != 200) {
-            log.warning("Solver returned status code ${connection.responseCode}")
-            return SolverResponse(listOf(mapOf("error" to null)), -1)
+            log.warn("Solver returned status code ${connection.responseCode}")
+            return SolverResponse(listOf(), -1)
         }
 
         val response = connection.inputStream.bufferedReader().use { it.readText() }
 
         if (response.contains("Model is unsat")) {
-            return SolverResponse(listOf(mapOf("error" to null)), -1)
+            return SolverResponse(listOf(), -1)
         }
 
         val mapper = jacksonObjectMapper()
@@ -142,40 +177,58 @@ class Simulator (
         val allocations = responseMap["allocations"] as List<Map<String, Any>>
 
         // Transform the allocations into the desired structure
-        val transformedData: List<Allocation> = processSolverOutput(patientMap, allocations)
+        val transformedData: List<Allocation> = processSolverOutput(patientMap, allocations, rooms)
 
         // Return the transformed data along with the changes
         return SolverResponse(transformedData, changes)
     }
 
     private fun solve(
-        patientListForDay: List<String>,
+        dailyNeeds: DailyNeeds,
         patientsSimulated: Map<String, Patient>, // All patients that are simulated
-        rooms: List<Room>,
+        allocations: Map<Patient, PatientAllocation>,
+        rooms: List<TreatmentRoom>,
+        ward: Ward,
         smtMode: String
     ): SolverResponse {
         val numberOfRooms = rooms.size
         val capacities = rooms.map { it.capacity ?: 0 }
-        val roomCategories: List<Long> = rooms.map { it.roomCategory ?: 0 }
+        val roomCategories: List<Long> = rooms.map { it.monitoringCategory.category.toLong() ?: 0 }
+        val penalties: List<Int> = rooms.map {
+            if (it.monitoringCategory.description == "Korridor") {
+                ward.corridorPenalty.toInt()
+            } else if (it.monitoringCategory.description == "Midlertidig") {
+                ward.officePenalty.toInt()
+            } else {
+                0
+            }
+        }
+        val allowContagious : List<Boolean> = rooms.map { it.monitoringCategory.description != "Korridor" }
         var patientNumbers = 0
         val genders = mutableListOf<Boolean>()
-        val infectious = mutableListOf<Boolean>()
+        val contagious = mutableListOf<Boolean>()
         val patientDistances = mutableListOf<Int>()
         val previous = mutableListOf<Int>()
         val patientMap = mutableMapOf<Int, Patient>()
 
-        patientListForDay.forEach { line ->
-            val patientData = line.split(",")
-            val patientId = patientData[0]
-            val patientDistance = patientData[1]
+        dailyNeeds.forEach { dailyNeed ->
+            val patientId = dailyNeed.first.patientId
+            val patientDistance = dailyNeed.second
 
             patientsSimulated[patientId]?.let { patientInfo ->
-                if (patientDistance.toInt() > 0) {
+                if (patientDistance.toInt() > 0 && allocations.containsKey(patientInfo)) {
                     val gender = patientInfo.gender == "Male"
                     genders.add(gender)
-                    infectious.add(patientInfo.infectious)
+                    val singlePatient = patientService.findByPatientId(patientInfo.patientId)!!
+                    contagious.add(allocations[singlePatient]!!.contagious)
                     patientDistances.add(patientDistance.toInt())
-                    previous.add(if (patientsSimulated.containsKey(patientId)) patientInfo.roomNumber else -1)
+                    val previousRoom = allocations[singlePatient]!!.roomNumber
+                    if (previousRoom == -1) {
+                        previous.add(-1)
+                    } else {
+                        val roomNumber = indexRoomMap[previousRoom] ?: previousRoom
+                        previous.add(roomNumber)
+                    }
                     patientMap[patientNumbers] = patientInfo
                     patientNumbers += 1
                 }
@@ -189,35 +242,37 @@ class Simulator (
             roomCategories,
             patientNumbers,
             genders,
-            infectious,
+            contagious,
             patientDistances,
             previous,
-            smtMode
+            smtMode,
+            penalties,
+            allowContagious
         )
 
         log.info("Invoking solver with  ${solverRequest.no_rooms} rooms, ${solverRequest.no_patients} patients in mode ${solverRequest.mode}")
 
         return if (patientNumbers > 0) {
-            invokeSolver(solverRequest, patientMap)
+            invokeSolver(solverRequest, patientMap, rooms)
         } else {
-            SolverResponse(listOf(mapOf("warning" to null)), -1)
+            SolverResponse(listOf(), -1)
         }
     }
 
-    private fun processPatientMap(patients: Map<String, Patient>, solveData: List<Allocation>) {
+    private fun processPatientMap(patients: Map<String, Patient>, allocations: Map<Patient, PatientAllocation>, solveData: List<Allocation>) {
         solveData.forEach { roomData ->
-            roomData.forEach { (roomNumber, roomInfo) ->
+            roomData.forEach { (room, roomInfo) ->
                 if (roomInfo == null) {
-                    log.warning("No room info for $roomNumber in $roomData")
+                    log.warn("No room info for ${room.roomNumber} in $roomData")
                     throw Exception("No room info")
                 }
                 val allPatients = roomInfo.patients
                 // We use strings to index the map. Convert it to int
-                val patientRoom = roomNumber.toInt()
+                val patientRoom = room.roomNumber
                 // Insert patient data
                 allPatients.forEach { patient ->
-                    patients[patient.patientId]?.let { patientInfo ->
-                        patientInfo.roomNumber = patientRoom
+                    patients[patient.patientId]?.let {
+                        allocations[patient]!!.roomNumber = indexRoomMap[patientRoom]!!
                     }
                 }
             }
@@ -225,65 +280,63 @@ class Simulator (
     }
 
     fun simulate(
+        needs: SimulationNeeds,
         patients: Map<String, Patient>,
-        rooms: List<Room>,
+        allocations: Map<Patient, PatientAllocation>,
+        rooms: List<TreatmentRoom>,
+        ward: Ward,
         tempDir: Path,
         smtMode: String
     ): SimulationResponse {
+        val scenarios = mutableListOf<List<Map<WardRoom, RoomInfo>>>()
         try {
-            val data = executeJar(tempDir)
-
-            // If I got error from the JAR, return the error
-            if (data.contains("Error executing JAR")) {
-                throw RuntimeException(data)
-            }
-
-            // We need an Element Breaker to separate the information
-            val information = data.split("------").filter { it.isNotEmpty() } // EB - split data over ------
-            val groupedInformation: List<List<String>> =
-                information.map { it -> it.split("\n").filter { it.isNotEmpty() } }.filter { it.isNotEmpty() }
-            val scenarios = mutableListOf<List<Map<SingleRoom, RoomInfo>>>()
-
             var totalChanges = 0
-            groupedInformation.forEach { group ->
+            needs.forEach { group ->
                 // Solve each day
-                val response = solve(group, patients, rooms, smtMode)
+                val response = solve(group, patients, allocations, rooms, ward, smtMode)
                 log.info("Solved day with ${response.changes} changes")
                 if (response.changes != -1) {totalChanges += response.changes}
                 val solveData = response.allocations
                 // We ignore the day that had an unsat model
-                if (solveData.isNotEmpty() && !solveData[0].containsKey("error") && !solveData[0].containsKey("warning")) {
-                    processPatientMap(patients, solveData)
+                if (solveData.isNotEmpty()) {
+                    processPatientMap(patients, allocations, solveData)
                 }
-                scenarios.add(solveData as List<Map<SingleRoom, RoomInfo>>)
+                scenarios.add(solveData as List<Map<WardRoom, RoomInfo>>)
                 log.info(solveData.toString())
             }
+
             return SimulationResponse(scenarios, totalChanges)
         } catch (e: Exception) {
-            "Error executing JAR: ${e.message}"
-            log.log(Level.SEVERE, "Error executing JAR", e)
-            return SimulationResponse(listOf(listOf(mapOf("error" to null))), -1)
+            "Error executing Solver: ${e.message}"
+            log.error("Error executing solver", e)
+            return SimulationResponse(listOf(), -1)
         }
     }
 
     private fun invokeGlobal(
-        patientsSimulated: List<Map<Patient, Int>>,
-        rooms: List<Room>,
+        patientsSimulated: SimulationNeeds,
+        rooms: List<TreatmentRoom>,
         smtMode: String
     ): String? {
-//            List<SolverResponse> {
         val capacities = rooms.map { it.capacity ?: 0 }
-        val roomCategories: List<Long> = rooms.map { it.roomCategory ?: 0 }
+        val roomCategories: List<Long> = rooms.map { it.monitoringCategory.category.toLong() ?: 0 }
         val genders = mutableMapOf<String, Boolean>()
         val infectious = mutableMapOf<String, Boolean>()
+        val penalties = mutableListOf<MutableMap<String, Int>>()
+        val contegiousUse = mutableListOf<MutableMap<String, Int>>()
         val patientCategories: List<Map<String, Int>> = patientsSimulated.map { day ->
-            day.mapKeys { it.key.patientId }
+            day.map { patientDistance ->
+                val patientId = patientDistance.first.patientId
+                val distance = patientDistance.second
+                mapOf(patientId to distance)
+            }.reduce { acc, map -> acc + map }
         }
 
-        for (day in patientsSimulated) {
-            for (patient in day.keys) {
-                genders[patient.patientId] = patient.gender == "Male"
-                infectious[patient.patientId] = patient.infectious
+        patientsSimulated.forEach { day ->
+            day.forEach { patientDistance ->
+                genders[patientDistance.first.patientId] = patientDistance.first.gender == "Male"
+                infectious[patientDistance.first.patientId] =
+                    patientAllocationService.findByPatientId(patientDistance.first)!!.contagious
             }
         }
 
@@ -300,12 +353,12 @@ class Simulator (
 
         val solverEndpoint = environmentConfig.getOrDefault("SOLVER_ENDPOINT", "localhost")
         val solverUrl = "http://$solverEndpoint:8000/api/solve-global"
+        log.info("Invoking global solver")
         val connection = URI(solverUrl).toURL().openConnection() as HttpURLConnection
 
         connection.requestMethod = "POST"
         connection.setRequestProperty("Content-Type", "application/json")
         connection.doOutput = true
-        log.info("Invoking global solver")
 
         val jsonBody = jacksonObjectMapper().writeValueAsString(req)
 
@@ -315,7 +368,7 @@ class Simulator (
         }
 
         if (connection.responseCode != 200) {
-            log.warning("Solver returned status code ${connection.responseCode}")
+            log.warn("Solver returned status code ${connection.responseCode}")
             return "error"
         }
 
@@ -330,43 +383,19 @@ class Simulator (
     }
 
     fun globalSolution(
+        needs: SimulationNeeds,
         patients: Map<String, Patient>,
-        rooms: List<Room>,
+        rooms: List<TreatmentRoom>,
         tempDir: Path,
         smtMode: String
     ): String {
         //List<SimulationResponse> {
         try {
-            val data = executeJar(tempDir)
-
-            // If I got error from the JAR, return the error
-            if (data.contains("Error executing JAR")) {
-                throw RuntimeException(data)
-            }
-
-            // The ABS model retuns a string consisting of:
-            // - a list of days, seperated by "------" where each day is
-            // - a list of \n-separated patients, each consisting of [patientId, category]
-            // we construct, for each day, a mapping of patientIds to categories
-            val days = mutableListOf<Map<Patient, Int>>()
-            for (day in data.split("------").filter { it.isNotEmpty() }) {
-                val dayMap = mutableMapOf<Patient, Int>()
-                for (patient in day.split("\n").filter {it.isNotEmpty()}) {
-                    patient.split(",").let {
-                        patients[it[0]]?.let { p ->
-                            if (it[1].toInt() > 0) {
-                                dayMap.put(p, it[1].toInt())
-                            }
-                        }
-                    }
-                }
-                if (dayMap.isNotEmpty()) { days.add(dayMap) }
-            }
-            val solverResponse = invokeGlobal(days, rooms, smtMode)
+            val solverResponse = invokeGlobal(needs, rooms, smtMode)
             return solverResponse?: "error"
         } catch (e: Exception) {
             "Error executing JAR: ${e.message}"
-            log.log(Level.SEVERE, "Error executing JAR", e)
+            log.error("Error executing JAR", e)
             return "error"
             //return listOf(listOf(listOf(mapOf("error" to null))))
         }
