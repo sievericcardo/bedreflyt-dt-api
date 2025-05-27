@@ -10,10 +10,11 @@ import no.uio.bedreflyt.api.model.triplestore.MonitoringCategory
 import no.uio.bedreflyt.api.service.triplestore.MonitoringCategoryService
 import no.uio.bedreflyt.api.types.MonitoringCategoryRequest
 import no.uio.bedreflyt.api.types.UpdateMonitoringCategoryRequest
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
 import org.springframework.web.bind.annotation.RequestBody
-import java.util.logging.Logger
 import io.swagger.v3.oas.annotations.parameters.RequestBody as SwaggerRequestBody
 
 @RestController
@@ -23,7 +24,7 @@ class MonitoringCategoryController (
     private val monitoringCategoryService: MonitoringCategoryService
 ) {
 
-    private val log : Logger = Logger.getLogger(MonitoringCategoryController::class.java.name)
+    private val log : Logger = LoggerFactory.getLogger(MonitoringCategoryController::class.java.name)
 
     @Operation(summary = "Add a monitoring category")
     @ApiResponses(value = [

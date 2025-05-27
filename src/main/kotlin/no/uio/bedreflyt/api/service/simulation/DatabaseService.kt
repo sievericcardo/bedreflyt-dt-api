@@ -3,18 +3,17 @@ package no.uio.bedreflyt.api.service.simulation
 import no.uio.bedreflyt.api.model.live.Patient
 import no.uio.bedreflyt.api.model.live.PatientAllocation
 import no.uio.bedreflyt.api.model.simulation.Room
-import no.uio.bedreflyt.api.model.triplestore.Task
-import no.uio.bedreflyt.api.model.triplestore.TreatmentStep
 import no.uio.bedreflyt.api.model.triplestore.Ward
 import no.uio.bedreflyt.api.service.live.PatientAllocationService
 import no.uio.bedreflyt.api.service.live.PatientService
 import no.uio.bedreflyt.api.service.triplestore.*
 import no.uio.bedreflyt.api.types.ScenarioRequest
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
 import org.springframework.dao.EmptyResultDataAccessException
 import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.jdbc.datasource.DriverManagerDataSource
 import org.springframework.stereotype.Service
-import java.util.logging.Logger
 
 @Service
 class DatabaseService (
@@ -26,7 +25,7 @@ class DatabaseService (
     private val roomService: RoomService
 ) {
 
-    private val log: Logger = Logger.getLogger(DatabaseService::class.java.name)
+    private val log: Logger = LoggerFactory.getLogger(DatabaseService::class.java.name)
 
     private fun getJdbcTemplate(dbPath: String): JdbcTemplate {
         val dataSource = DriverManagerDataSource()

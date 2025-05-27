@@ -10,9 +10,10 @@ import no.uio.bedreflyt.api.model.triplestore.Diagnosis
 import no.uio.bedreflyt.api.service.triplestore.DiagnosisService
 import no.uio.bedreflyt.api.types.DiagnosisRequest
 import no.uio.bedreflyt.api.types.UpdateDiagnosisRequest
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
-import java.util.logging.Logger
 import io.swagger.v3.oas.annotations.parameters.RequestBody as SwaggerRequestBody
 
 @RestController
@@ -22,7 +23,7 @@ class DiagnosisController (
     private val diagnosisService: DiagnosisService
 ) {
 
-    private val log : Logger = Logger.getLogger(DiagnosisController::class.java.name)
+    private val log: Logger = LoggerFactory.getLogger(DiagnosisController::class.java)
 
     @Operation(summary = "Add a new diagnosis")
     @ApiResponses(value = [

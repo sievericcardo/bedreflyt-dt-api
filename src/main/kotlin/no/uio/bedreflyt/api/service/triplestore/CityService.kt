@@ -10,14 +10,12 @@ import org.apache.jena.update.UpdateExecutionFactory
 import org.apache.jena.update.UpdateFactory
 import org.apache.jena.update.UpdateProcessor
 import org.apache.jena.update.UpdateRequest
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.cache.CacheManager
-import org.springframework.cache.annotation.CacheEvict
-import org.springframework.cache.annotation.CachePut
-import org.springframework.cache.annotation.Cacheable
 import org.springframework.stereotype.Service
 import java.util.concurrent.locks.ReentrantReadWriteLock
-import java.util.logging.Logger
 
 @Service
 open class CityService (
@@ -32,7 +30,7 @@ open class CityService (
     private val prefix = triplestoreProperties.prefix
     private val ttlPrefix = triplestoreProperties.ttlPrefix
     private val repl = replConfig.repl()
-    private val log: Logger = Logger.getLogger(CityService::class.java.name)
+    private val log: Logger = LoggerFactory.getLogger(CityService::class.java.name)
     private val lock = ReentrantReadWriteLock()
 
     open fun createCity(request: CityRequest) : City? {

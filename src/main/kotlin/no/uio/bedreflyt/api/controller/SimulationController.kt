@@ -11,13 +11,14 @@ import no.uio.bedreflyt.api.service.triplestore.RoomService
 import no.uio.bedreflyt.api.service.triplestore.WardService
 import no.uio.bedreflyt.api.types.*
 import no.uio.bedreflyt.api.utils.Simulator
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
 import java.nio.file.Files
 import java.nio.file.Path
 import java.util.*
 import io.swagger.v3.oas.annotations.parameters.RequestBody as SwaggerRequestBody
-import java.util.logging.Logger
 import kotlin.random.Random
 
 @RestController
@@ -29,7 +30,7 @@ class SimulationController(
     private val roomService: RoomService
 ) {
 
-    private val log: Logger = Logger.getLogger(SimulationController::class.java.name)
+    private val log: Logger = LoggerFactory.getLogger(SimulationController::class.java.name)
 
     @Operation(summary = "Simulate a scenario for room allocation using smol")
     @ApiResponses(

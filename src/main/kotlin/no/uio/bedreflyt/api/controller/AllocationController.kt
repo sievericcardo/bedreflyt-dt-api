@@ -18,12 +18,13 @@ import no.uio.bedreflyt.api.service.triplestore.WardService
 import no.uio.bedreflyt.api.utils.Simulator
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
-import java.util.logging.Logger
 import no.uio.bedreflyt.api.types.AllocationRequest
 import no.uio.bedreflyt.api.types.AllocationResponse
 import no.uio.bedreflyt.api.types.AllocationSimulationRequest
 import no.uio.bedreflyt.api.types.DailyNeeds
 import no.uio.bedreflyt.api.types.SimulationRequest
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
@@ -44,7 +45,7 @@ class AllocationController (
     private val roomService: RoomService
 ) {
 
-    private val log: Logger = Logger.getLogger(AllocationController::class.java.name)
+    private val log: Logger = LoggerFactory.getLogger(AllocationController::class.java.name)
     private val roomMap: MutableMap<Int, Int> = mutableMapOf()
     private val indexRoomMap : MutableMap<Int, Int> = mutableMapOf()
 

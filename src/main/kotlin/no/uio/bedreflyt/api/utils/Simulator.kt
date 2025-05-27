@@ -11,6 +11,8 @@ import no.uio.bedreflyt.api.service.live.PatientAllocationService
 import no.uio.bedreflyt.api.service.live.PatientService
 import no.uio.bedreflyt.api.service.triplestore.RoomService
 import no.uio.bedreflyt.api.types.*
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import java.io.BufferedReader
 import java.io.InputStreamReader
@@ -21,8 +23,6 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
 import java.nio.file.StandardCopyOption
-import java.util.logging.Level
-import java.util.logging.Logger
 import kotlin.text.toInt
 
 @Service
@@ -33,7 +33,7 @@ class Simulator (
     private val roomService: RoomService
 ) {
 
-    private val log: Logger = Logger.getLogger(Simulator::class.java.name)
+    private val log: Logger = LoggerFactory.getLogger(Simulator::class.java.name)
     private var roomMap: MutableMap<Int, Int> = mutableMapOf()
     private var indexRoomMap : MutableMap<Int, Int> = mutableMapOf()
 
@@ -159,7 +159,7 @@ class Simulator (
         }
 
         if (connection.responseCode != 200) {
-            log.warning("Solver returned status code ${connection.responseCode}")
+            log.warn("Solver returned status code ${connection.responseCode}")
             return SolverResponse(listOf(), -1)
         }
 
@@ -263,7 +263,7 @@ class Simulator (
         solveData.forEach { roomData ->
             roomData.forEach { (room, roomInfo) ->
                 if (roomInfo == null) {
-                    log.warning("No room info for ${room.roomNumber} in $roomData")
+                    log.warn("No room info for ${room.roomNumber} in $roomData")
                     throw Exception("No room info")
                 }
                 val allPatients = roomInfo.patients
@@ -308,7 +308,7 @@ class Simulator (
             return SimulationResponse(scenarios, totalChanges)
         } catch (e: Exception) {
             "Error executing Solver: ${e.message}"
-            log.log(Level.SEVERE, "Error executing solver", e)
+            log.error("Error executing solver", e)
             return SimulationResponse(listOf(), -1)
         }
     }
@@ -368,7 +368,7 @@ class Simulator (
         }
 
         if (connection.responseCode != 200) {
-            log.warning("Solver returned status code ${connection.responseCode}")
+            log.warn("Solver returned status code ${connection.responseCode}")
             return "error"
         }
 
@@ -395,7 +395,7 @@ class Simulator (
             return solverResponse?: "error"
         } catch (e: Exception) {
             "Error executing JAR: ${e.message}"
-            log.log(Level.SEVERE, "Error executing JAR", e)
+            log.error("Error executing JAR", e)
             return "error"
             //return listOf(listOf(listOf(mapOf("error" to null))))
         }

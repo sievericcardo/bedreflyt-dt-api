@@ -6,6 +6,8 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses
 import jakarta.validation.Valid
 import no.uio.bedreflyt.api.config.EnvironmentConfig
 import no.uio.bedreflyt.api.config.REPLConfig
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.GetMapping
 import io.swagger.v3.oas.annotations.parameters.RequestBody as SwaggerRequestBody
@@ -17,7 +19,6 @@ import org.springframework.web.multipart.MultipartFile
 import java.io.File
 import java.net.HttpURLConnection
 import java.net.URI
-import java.util.logging.Logger
 
 @RestController
 @RequestMapping("/api/v1/fuseki")
@@ -26,7 +27,7 @@ class FusekiController (
     private val replConfig: REPLConfig
 ) {
 
-    private val log : Logger = Logger.getLogger(FusekiController::class.java.name)
+    private val log : Logger = LoggerFactory.getLogger(FusekiController::class.java.name)
 
     @Operation(summary = "Update the model")
     @ApiResponses(value = [

@@ -12,11 +12,12 @@ import no.uio.bedreflyt.api.service.live.PatientService
 import no.uio.bedreflyt.api.service.live.PatientTrajectoryService
 import no.uio.bedreflyt.api.types.PatientAllocationRequest
 import no.uio.bedreflyt.api.types.UpdatePatientAllocationRequest
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
-import java.util.logging.Logger
 
 @RestController
 @RequestMapping("/api/v1/patient-allocations")
@@ -26,7 +27,7 @@ class PatientAllocationController (
     private val patientTrajectoryService: PatientTrajectoryService
 ) {
 
-    private val log : Logger = Logger.getLogger(PatientAllocationController::class.java.name)
+    private val log : Logger = LoggerFactory.getLogger(PatientAllocationController::class.java.name)
 
     @Operation(summary = "Create a new patient allocation")
     @ApiResponses(value = [

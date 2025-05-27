@@ -9,12 +9,13 @@ import no.uio.bedreflyt.api.model.live.Patient
 import no.uio.bedreflyt.api.service.live.PatientService
 import no.uio.bedreflyt.api.types.PatientRequest
 import no.uio.bedreflyt.api.types.UpdatePatientRequest
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
 import org.springframework.web.bind.annotation.RequestBody
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
-import java.util.logging.Logger
 import io.swagger.v3.oas.annotations.parameters.RequestBody as SwaggerRequestBody
 
 @RestController
@@ -23,7 +24,7 @@ class PatientController (
     private val patientService : PatientService
 ) {
 
-    private val log : Logger = Logger.getLogger(HomeController::class.java.name)
+    private val log : Logger = LoggerFactory.getLogger(HomeController::class.java.name)
 
     @Operation(summary = "Create a new patient")
     @ApiResponses(value = [
