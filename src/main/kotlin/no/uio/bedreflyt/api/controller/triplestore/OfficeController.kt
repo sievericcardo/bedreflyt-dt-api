@@ -18,15 +18,17 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.responses.ApiResponses
 import jakarta.validation.Valid
 import no.uio.bedreflyt.api.model.triplestore.Office
+import no.uio.bedreflyt.api.service.triplestore.MonitoringCategoryService
 import no.uio.bedreflyt.api.service.triplestore.WardService
 import org.springframework.http.ResponseEntity
 import io.swagger.v3.oas.annotations.parameters.RequestBody as SwaggerRequestBody
 
 @RestController
-@RequestMapping("/api/v1/fuseki/cities")
+@RequestMapping("/api/v1/fuseki/offices")
 class OfficeController (
     private val officeService: OfficeService,
-    private val wardService: WardService
+    private val wardService: WardService,
+    private val monitoringCategoryService: MonitoringCategoryService
 ) {
 
     private val log: Logger = LoggerFactory.getLogger(OfficeController::class.java)
@@ -43,7 +45,13 @@ class OfficeController (
     fun createOffice(@SwaggerRequestBody(description = "Request to add a new office") @Valid @RequestBody officeRequest: OfficeRequest): ResponseEntity<Office> {
         log.info("Creating office $officeRequest")
 
+        wardService.getWardByNameAndHospital(officeRequest.ward, officeRequest.hospital) ?: return ResponseEntity.badRequest().build()
+        monitoringCategoryService.getCategoryByDescription(officeRequest.categoryDescription)
+            ?: return ResponseEntity.badRequest().build()
+
         val newOffice = officeService.createOffice(officeRequest) ?: return ResponseEntity.badRequest().build()
+
+        log.info("Office created successfully: $newOffice")
 
         return ResponseEntity.ok(newOffice)
     }

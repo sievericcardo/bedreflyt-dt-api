@@ -43,8 +43,8 @@ open class OfficeService (
             
             INSERT DATA {
                 bedreflyt:${officeRequest.hospital}_${officeRequest.ward}_Office${officeRequest.roomNumber} a bedreflyt:Office ;
-                    bedreflyt:hasMonitoringStatus "${officeRequest.categoryDescription}" ;
-                    bedreflyt:isAssignWard "${officeRequest.ward}" ;
+                    bedreflyt:hasMonitoringStatus bedreflyt:${officeRequest.categoryDescription} ;
+                    bedreflyt:isAssignWard bedreflyt:${officeRequest.ward} ;
                     bedreflyt:available "${officeRequest.available}"^^xsd:boolean ;
                     bedreflyt:hasCapacityNrBeds ${officeRequest.capacity} ;
                     bedreflyt:hasRoomNr ${officeRequest.roomNumber} ;
@@ -77,6 +77,7 @@ open class OfficeService (
                 cacheManager.getCache("offices")?.put(officeRequest.roomNumber, office)
                 return office
             } catch (_: Exception) {
+                log.error("Error creating office: ${officeRequest.roomNumber} in ${officeRequest.ward} at ${officeRequest.hospital}")
                 return null
             }
         } catch (e: Exception) {
@@ -93,19 +94,18 @@ open class OfficeService (
             val offices = mutableListOf<Office>()
 
             val query = """
-            SELECT ?roomNumber ?capacity ?available ?wardName ?hospitalName ?categoryDescription WHERE {
+            SELECT ?roomNumber ?capacity ?available ?wardName ?hospitalCode ?categoryDescription WHERE {
                 ?office a prog:Office ;
                     prog:Office_roomNumber ?roomNumber ;
                     prog:Office_capacity ?capacity ;
                     prog:Office_available ?available ;
-                    prog:Office_ward ?wardObj ;
+                    prog:Office_officeWard ?wardObj ;
                     prog:Office_hospital ?hospitalObj ;
-                    prog:Office_category ?categoryObj .
+                    prog:Office_monitoringCategory ?categoryObj .
                 ?wardObj a prog:Ward ;
                     prog:Ward_wardName ?wardName .
                 ?hospitalObj a prog:Hospital ;
-                    prog:Hospital_hospitalCode ?hospitalCode ;
-                    prog:Hospital_hospitalName ?hospitalName .
+                    prog:Hospital_hospitalCode ?hospitalCode .
                 ?categoryObj a prog:MonitoringCategory ;
                     prog:MonitoringCategory_description ?categoryDescription .
             }
@@ -119,7 +119,7 @@ open class OfficeService (
                 val capacity = result.get("capacity").asLiteral().toString().split("^^")[0].toInt()
                 val available = result.get("available").asLiteral().toString().split("^^")[0].toBoolean()
                 val wardName = result.get("wardName").toString()
-                val hospitalCode = result.get("hospitalName").toString()
+                val hospitalCode = result.get("hospitalCode").toString()
                 val categoryDescription = result.get("categoryDescription").toString()
 
                 val ward = wardService.getWardByNameAndHospital(wardName, hospitalCode) ?: continue
@@ -145,13 +145,13 @@ open class OfficeService (
                     prog:Office_roomNumber $roomNumber ;
                     prog:Office_capacity ?capacity ;
                     prog:Office_available ?available ;
-                    prog:Office_ward ?wardObj ;
+                    prog:Office_officeWard ?wardObj ;
                     prog:Office_hospital ?hospitalObj ;
-                    prog:Office_category ?categoryObj .
+                    prog:Office_monitoringCategory ?categoryObj .
                 ?wardObj a prog:Ward ;
                     prog:Ward_wardName "$wardName" .
                 ?hospitalObj a prog:Hospital ;
-                    prog:Hospital_hospitalCde "$hospitalCode" .
+                    prog:Hospital_hospitalCode "$hospitalCode" .
                 ?categoryObj a prog:MonitoringCategory ;
                     prog:MonitoringCategory_description ?categoryDescription .
             }
@@ -186,12 +186,12 @@ open class OfficeService (
             val query = """
             SELECT ?roomNumber ?capacity ?available ?categoryDescription WHERE {
                 ?office a prog:Office ;
-                    prog:Office_ward ?wardObj ;
+                    prog:Office_officeWard ?wardObj ;
                     prog:Office_hospital ?hospitalObj ;
                     prog:Office_roomNumber ?roomNumber ;
                     prog:Office_capacity ?capacity ;
                     prog:Office_available ?available ;
-                    prog:Office_category ?categoryObj .
+                    prog:Office_monitoringCategory ?categoryObj .
                 ?wardObj a prog:Ward ;
                     prog:Ward_wardName "$wardName" .
                 ?hospitalObj a prog:Hospital ;
@@ -240,8 +240,8 @@ open class OfficeService (
             }
             INSERT {
                 bedreflyt:${office.hospital.hospitalCode}_${office.treatmentWard.wardName}_Office${office.roomNumber} a bedreflyt:Office ;
-                    bedreflyt:hasMonitoringStatus "$newCategory" ;
-                    bedreflyt:isAssignWard "$newWard" ;
+                    bedreflyt:hasMonitoringStatus bedreflyt:$newCategory ;
+                    bedreflyt:isAssignWard bedreflyt:$newWard ;
                     bedreflyt:available "$newAvailable"^^xsd:boolean ;
                     bedreflyt:hasCapacityNrBeds $newCapacity ;
             }
