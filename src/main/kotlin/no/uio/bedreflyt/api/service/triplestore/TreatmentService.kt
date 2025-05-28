@@ -10,12 +10,10 @@ import org.apache.jena.update.UpdateExecutionFactory
 import org.apache.jena.update.UpdateFactory
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
-import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.cache.CacheManager
-import org.springframework.stereotype.Service
 import org.springframework.cache.annotation.CacheEvict
 import org.springframework.cache.annotation.CachePut
 import org.springframework.cache.annotation.Cacheable
+import org.springframework.stereotype.Service
 import java.util.concurrent.locks.ReentrantReadWriteLock
 import kotlin.random.Random
 
@@ -27,16 +25,13 @@ open class TreatmentService(
     private val treatmentStepService: TreatmentStepService
 ) {
 
-    @Autowired
-    private lateinit var cacheManager: CacheManager
-
     private val tripleStore = triplestoreProperties.tripleStore
     private val prefix = triplestoreProperties.prefix
     private val repl = replConfig.repl()
     private val log: Logger = LoggerFactory.getLogger(TreatmentService::class.java.name)
     private val lock = ReentrantReadWriteLock()
 
-    @Cacheable("treatments")
+    @CachePut("treatments", key = "#request.treatmentName")
     open fun createTreatment (request: TreatmentRequest) : Treatment? {
         lock.writeLock().lock()
         try {
@@ -124,7 +119,7 @@ open class TreatmentService(
         }
     }
 
-    @Cacheable("treatments")
+    @Cacheable("treatments", key = "'allTreatments'")
     open fun getAllTreatments(): List<Pair<Treatment, List<TreatmentStep>>>? {
         lock.readLock().lock()
         try {
@@ -193,7 +188,7 @@ open class TreatmentService(
         }
     }
 
-    @Cacheable("treatments")
+    @Cacheable("treatments", key = "#treatmentName")
     open fun getTreatmentsByTreatmentName(treatmentName: String) : Pair<Treatment, List<TreatmentStep>>? {
         lock.readLock().lock()
         try {
@@ -255,7 +250,7 @@ open class TreatmentService(
         }
     }
 
-    @Cacheable("treatments")
+    @Cacheable("treatments", key = "'treatmentsByDiagnosis_' + #diagnosisName")
     open fun getTreatmentByDiagnosisName(diagnosisName: String) : List<Treatment>? {
         lock.readLock().lock()
         try {
@@ -332,7 +327,7 @@ open class TreatmentService(
         return this.last()
     }
 
-    @Cacheable("treatments")
+    @Cacheable("treatments", key = "'treatmentByDiagnosisAndMode_' + #diagnosisName + '_' + #mode")
     fun getTreatmentByDiagnosisAndMode(diagnosisName: String, mode: String) : Treatment {
         lock.readLock().lock()
         try {

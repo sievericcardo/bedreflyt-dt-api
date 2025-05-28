@@ -9,9 +9,9 @@ import org.apache.jena.query.QuerySolution
 import org.apache.jena.query.ResultSet
 import org.apache.jena.update.UpdateExecutionFactory
 import org.apache.jena.update.UpdateFactory
-import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.cache.CacheManager
 import org.springframework.cache.annotation.Cacheable
+import org.springframework.cache.annotation.CachePut
+import org.springframework.cache.annotation.CacheEvict
 import org.springframework.stereotype.Service
 import java.util.concurrent.locks.ReentrantReadWriteLock
 
@@ -23,15 +23,13 @@ open class WardService (
     private val floorService: FloorService
 ) {
 
-    @Autowired
-    private lateinit var cacheManager: CacheManager
-
     private val tripleStore = triplestoreProperties.tripleStore
     private val prefix = triplestoreProperties.prefix
     private val ttlPrefix = triplestoreProperties.ttlPrefix
     private val repl = replConfig.repl()
     private val lock = ReentrantReadWriteLock()
 
+    @CachePut("wards", key = "#request.wardName + '_' + #hospital.hospitalCode")
     open fun createWard (request: WardRequest, hospital: Hospital) : Ward? {
         lock.writeLock().lock()
         try {
@@ -74,7 +72,6 @@ open class WardService (
                 )
                 replConfig.regenerateSingleModel().invoke("wards")
 
-                cacheManager.getCache("wards")?.put("${request.wardName}_${hospital.hospitalCode}", ward)
                 return ward
             } catch (_: Exception) {
                 return null
@@ -84,6 +81,7 @@ open class WardService (
         }
     }
 
+    @Cacheable("wards", key = "'allWards'")
     open fun getAllWards() : List<Ward>? {
         lock.readLock().lock()
         try {
@@ -129,13 +127,13 @@ open class WardService (
                 wards.add(Ward(wardName, wardCode, capacityThreshold, corridorPenalty, officePenalty,  corridorCapacity, hospital, floor))
             }
 
-            cacheManager.getCache("wards")?.put("allWards", wards)
             return wards
         } finally {
             lock.readLock().unlock()
         }
     }
 
+    @Cacheable("wards", key = "'allWardsExcept_' + #wardName + '_' + #hospitalCode")
     open fun getAllWardsExcept(wardName: String, hospitalCode: String) : List<Ward>? {
         lock.readLock().lock()
         try {
@@ -193,7 +191,6 @@ open class WardService (
                 )
             }
 
-            cacheManager.getCache("wards")?.put("allWardsExcept", wards)
             return wards
         } finally {
             lock.readLock().unlock()
@@ -248,13 +245,14 @@ open class WardService (
                 floor
             )
 
-            cacheManager.getCache("wards")?.put("${wardName}_${wardHospital}", ward)
             return ward
         } finally {
             lock.readLock().unlock()
         }
     }
 
+    @CacheEvict("wards", key = "#ward.wardName + '_' + #ward.wardHospital.hospitalCode")
+    @CachePut("wards", key = "#ward.wardName + '_' + #ward.wardHospital.hospitalCode")
     open fun updateWard (ward: Ward,  newFloorNumber: Int) : Ward? {
         lock.writeLock().lock()
         try {
@@ -302,7 +300,6 @@ open class WardService (
                     floorService.getFloorByNumber(newFloorNumber)!!
                 )
 
-                cacheManager.getCache("wards")?.put("${ward.wardName}_${ward.wardHospital.hospitalCode}", ward)
                 return ward
             } catch (_: Exception) {
                 return null
@@ -312,6 +309,7 @@ open class WardService (
         }
     }
 
+    @CacheEvict("wards", allEntries = true)
     open fun deleteWard (ward: Ward) : Boolean {
         lock.writeLock().lock()
         try {
@@ -335,7 +333,6 @@ open class WardService (
 
             try {
                 updateProcessor.execute()
-                cacheManager.getCache("wards")?.evict("${ward.wardName}_${ward.wardHospital.hospitalCode}")
 
                 replConfig.regenerateSingleModel().invoke("wards")
                 return true

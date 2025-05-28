@@ -11,8 +11,6 @@ import org.apache.jena.update.UpdateExecutionFactory
 import org.apache.jena.update.UpdateFactory
 import org.apache.jena.update.UpdateProcessor
 import org.apache.jena.update.UpdateRequest
-import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.cache.CacheManager
 import org.springframework.cache.annotation.CacheEvict
 import org.springframework.cache.annotation.CachePut
 import org.springframework.cache.annotation.Cacheable
@@ -25,15 +23,13 @@ open class FloorService (
     triplestoreProperties: TriplestoreProperties,
 ) {
 
-    @Autowired
-    private lateinit var cacheManager: CacheManager
-
     private val tripleStore = triplestoreProperties.tripleStore
     private val prefix = triplestoreProperties.prefix
     private val ttlPrefix = triplestoreProperties.ttlPrefix
     private val repl = replConfig.repl()
     private val lock = ReentrantReadWriteLock()
 
+    @CachePut("floors", key = "#request.floorNumber")
     open fun createFloor(request: FloorRequest) : Floor? {
         lock.writeLock().lock()
         try {
@@ -55,7 +51,6 @@ open class FloorService (
                 updateProcessor.execute()
                 val floor = Floor(request.floorNumber)
                 replConfig.regenerateSingleModel().invoke("floors")
-                cacheManager.getCache("floors")?.put(request.floorNumber, floor)
                 return floor
             } catch (_: Exception) {
                 return null
@@ -65,6 +60,7 @@ open class FloorService (
         }
     }
 
+    @Cacheable("floors", key = "'allFloors'")
     open fun getAllFloors() : List<Floor>? {
         lock.readLock().lock()
         try {
@@ -88,13 +84,13 @@ open class FloorService (
                 floors.add(Floor(floorNumber))
             }
 
-            cacheManager.getCache("floors")?.put("allFloors", floors)
             return floors
         } finally {
             lock.readLock().unlock()
         }
     }
 
+    @Cacheable("floors", key = "#number")
     open fun getFloorByNumber (number: Int) : Floor? {
         lock.readLock().lock()
         try {
@@ -116,7 +112,6 @@ open class FloorService (
                 val floorNumber = result.get("floorNumber").asLiteral().toString().split("^^")[0].toInt()
                 if (floorNumber == number) {
                     val floor = Floor(floorNumber)
-                    cacheManager.getCache("floors")?.put(number, floor)
                     return floor
                 }
             }
@@ -127,6 +122,8 @@ open class FloorService (
         }
     }
 
+    @CacheEvict("floors", key = "#oldFloorNumber")
+    @CachePut("floors", key = "#newFloorNumber")
     open fun updateFloor(oldFloorNumber: Int, newFloorNumber: Int) : Floor? {
         lock.writeLock().lock()
         try {
@@ -156,8 +153,6 @@ open class FloorService (
                 updateProcessor.execute()
                 val floor = Floor(newFloorNumber)
                 replConfig.regenerateSingleModel().invoke("floors")
-                cacheManager.getCache("floors")?.evict(oldFloorNumber)
-                cacheManager.getCache("floors")?.put(newFloorNumber, floor)
 
                 return floor
             } catch (_: Exception) {
@@ -168,6 +163,7 @@ open class FloorService (
         }
     }
 
+    @CacheEvict("floors", allEntries = true)
     open fun deleteFloor(floorNumber: Int) : Boolean {
         lock.writeLock().lock()
         try {
@@ -188,7 +184,6 @@ open class FloorService (
             try {
                 updateProcessor.execute()
                 replConfig.regenerateSingleModel().invoke("floors")
-                cacheManager.getCache("floors")?.evict(floorNumber)
 
                 return true
             } catch (_: Exception) {

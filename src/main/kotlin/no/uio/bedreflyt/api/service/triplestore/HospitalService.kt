@@ -10,8 +10,6 @@ import org.apache.jena.update.UpdateExecutionFactory
 import org.apache.jena.update.UpdateFactory
 import org.apache.jena.update.UpdateProcessor
 import org.apache.jena.update.UpdateRequest
-import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.cache.CacheManager
 import org.springframework.cache.annotation.CacheEvict
 import org.springframework.cache.annotation.CachePut
 import org.springframework.cache.annotation.Cacheable
@@ -24,9 +22,6 @@ open class HospitalService (
     triplestoreProperties: TriplestoreProperties,
     private val cityService: CityService
 ) {
-
-    @Autowired
-    private lateinit var cacheManager: CacheManager
 
     private val tripleStore = triplestoreProperties.tripleStore
     private val prefix = triplestoreProperties.prefix
@@ -67,7 +62,7 @@ open class HospitalService (
         }
     }
 
-    @Cacheable("hospitals")
+    @Cacheable("hospitals", key = "'allHospitals'")
     open fun getAllHospitals() : List<Hospital>? {
         lock.readLock().lock()
         try {
@@ -137,8 +132,8 @@ open class HospitalService (
         }
     }
 
-    @CacheEvict("hospitals", key = "#hospitalCode")
-    @CachePut("hospitals", key = "#newHospitalName")
+    @CacheEvict("hospitals", key = "#hospital.hospitalCode")
+    @CachePut("hospitals", key = "#hospital.hospitalCode")
     open fun updateHospital (hospital: Hospital, newHospitalName: String) : Hospital? {
         lock.writeLock().lock()
         try {

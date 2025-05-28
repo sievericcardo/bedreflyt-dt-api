@@ -12,8 +12,9 @@ import org.apache.jena.update.UpdateProcessor
 import org.apache.jena.update.UpdateRequest
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
-import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.cache.CacheManager
+import org.springframework.cache.annotation.CacheEvict
+import org.springframework.cache.annotation.CachePut
+import org.springframework.cache.annotation.Cacheable
 import org.springframework.stereotype.Service
 import java.util.concurrent.locks.ReentrantReadWriteLock
 
@@ -23,9 +24,6 @@ open class CityService (
     triplestoreProperties: TriplestoreProperties,
 ) {
 
-    @Autowired
-    private lateinit var cacheManager: CacheManager
-
     private val tripleStore = triplestoreProperties.tripleStore
     private val prefix = triplestoreProperties.prefix
     private val ttlPrefix = triplestoreProperties.ttlPrefix
@@ -33,6 +31,7 @@ open class CityService (
     private val log: Logger = LoggerFactory.getLogger(CityService::class.java.name)
     private val lock = ReentrantReadWriteLock()
 
+    @CachePut("cities", key = "#request.cityName")
     open fun createCity(request: CityRequest) : City? {
         lock.writeLock().lock()
         try {
@@ -54,9 +53,7 @@ open class CityService (
                 updateProcessor.execute()
                 replConfig.regenerateSingleModel().invoke("cities")
 
-                val city = City(request.cityName)
-                cacheManager.getCache("cities")?.put(request.cityName, city)
-                return city
+                return City(request.cityName)
             } catch (_: Exception) {
                 return null
             }
@@ -65,6 +62,7 @@ open class CityService (
         }
     }
 
+    @Cacheable("cities", key = "'allCities'")
     open fun getAllCities() : List<City>? {
         lock.readLock().lock()
         try {
@@ -88,13 +86,13 @@ open class CityService (
                 cities.add(City(cityName))
             }
 
-            cacheManager.getCache("cities")?.put("allCities", cities)
             return cities
         } finally {
             lock.readLock().unlock()
         }
     }
 
+    @Cacheable("cities", key = "#cityName")
     open fun getCityByName(cityName: String) : City? {
         lock.readLock().lock()
         try {
@@ -115,13 +113,14 @@ open class CityService (
             val result: QuerySolution = resultSet.next()
             val name = result.get("cityName").toString()
 
-            cacheManager.getCache("cities")?.put(name, City(name))
             return City(name)
         } finally {
             lock.readLock().unlock()
         }
     }
 
+    @CacheEvict("cities", key = "#cityName")
+    @CachePut("cities", key = "#newCityName")
     open fun updateCity(cityName: String, newCityName: String) : City? {
         lock.writeLock().lock()
         try {
@@ -151,10 +150,7 @@ open class CityService (
             try {
                 updateProcessor.execute()
                 replConfig.regenerateSingleModel().invoke("cities")
-                val city = City(newCityName)
-
-                cacheManager.getCache("cities")?.put(newCityName, city)
-                return city
+                return City(newCityName)
             } catch (_: Exception) {
                 return null
             }
@@ -163,6 +159,7 @@ open class CityService (
         }
     }
 
+    @CacheEvict("cities", allEntries = true)
     open fun deleteCity(cityName: String) : Boolean {
         lock.writeLock().lock()
         try {
@@ -184,7 +181,6 @@ open class CityService (
                 updateProcessor.execute()
                 replConfig.regenerateSingleModel().invoke("cities")
 
-                cacheManager.getCache("cities")?.evict(cityName)
                 return true
             } catch (_: Exception) {
                 return false
