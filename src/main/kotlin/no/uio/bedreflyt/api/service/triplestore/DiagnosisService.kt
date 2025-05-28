@@ -9,8 +9,6 @@ import org.apache.jena.update.UpdateExecutionFactory
 import org.apache.jena.update.UpdateFactory
 import org.apache.jena.update.UpdateProcessor
 import org.apache.jena.update.UpdateRequest
-import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.cache.CacheManager
 import org.springframework.cache.annotation.CacheEvict
 import org.springframework.cache.annotation.CachePut
 import org.springframework.cache.annotation.Cacheable
@@ -23,15 +21,13 @@ open class DiagnosisService (
     triplestoreProperties: TriplestoreProperties
 ) {
 
-    @Autowired
-    private lateinit var cacheManager: CacheManager
-
     private val tripleStore = triplestoreProperties.tripleStore
     private val prefix = triplestoreProperties.prefix
     private val ttlPrefix = triplestoreProperties.ttlPrefix
     private val repl = replConfig.repl()
     private val lock = ReentrantReadWriteLock()
 
+    @CachePut("diagnosis", key = "#diagnosisName")
     open fun createDiagnosis(diagnosisName: String) : Diagnosis? {
         lock.writeLock().lock()
         try {
@@ -50,10 +46,7 @@ open class DiagnosisService (
             try {
                 updateProcessor.execute()
                 replConfig.regenerateSingleModel().invoke("diagnoses")
-                val diagnosis = Diagnosis(diagnosisName)
-
-                cacheManager.getCache("diagnosis")?.put(diagnosisName, diagnosis)
-                return diagnosis
+                return Diagnosis(diagnosisName)
             } catch (_: Exception) {
                 return null
             }
@@ -62,6 +55,7 @@ open class DiagnosisService (
         }
     }
 
+    @Cacheable("diagnosis", key = "'allDiagnosis'")
     open fun getAllDiagnosis(): List<Diagnosis>? {
         lock.readLock().lock()
         try {
@@ -85,13 +79,13 @@ open class DiagnosisService (
                 diagnosis.add(Diagnosis(name))
             }
 
-            cacheManager.getCache("diagnosis")?.put("allDiagnosis", diagnosis)
             return diagnosis
         } finally {
             lock.readLock().unlock()
         }
     }
 
+    @Cacheable("diagnosis", key = "#diagnosis")
     open fun getDiagnosisByName(diagnosis: String) : Diagnosis? {
         lock.readLock().lock()
         try {
@@ -109,15 +103,14 @@ open class DiagnosisService (
 
             val solution: QuerySolution = resultDiagnosis.next()
             val name = solution.get("?diagnosis").asLiteral().toString()
-            val diagnosis = Diagnosis(name)
-
-            cacheManager.getCache("diagnosis")?.put(name, diagnosis)
-            return diagnosis
+            return Diagnosis(name)
         } finally {
             lock.readLock().unlock()
         }
     }
 
+    @CacheEvict("diagnosis", key = "#oldDiagnosisName")
+    @CachePut("diagnosis", key = "#newDiagnosisName")
     open fun updateDiagnosis(oldDiagnosisName: String, newDiagnosisName: String) : Diagnosis? {
         lock.writeLock().lock()
         try {
@@ -146,11 +139,8 @@ open class DiagnosisService (
 
             try {
                 updateProcessor.execute()
-                val diagnosis = Diagnosis(newDiagnosisName)
                 replConfig.regenerateSingleModel().invoke("diagnoses")
-
-                cacheManager.getCache("diagnosis")?.put(newDiagnosisName, diagnosis)
-                return diagnosis
+                return Diagnosis(newDiagnosisName)
             } catch (e: Exception) {
                 return null
             }
@@ -159,6 +149,7 @@ open class DiagnosisService (
         }
     }
 
+    @CacheEvict("diagnosis", allEntries = true)
     open fun deleteDiagnosis(diagnosisName: String) : Boolean {
         lock.writeLock().lock()
         try {
@@ -183,7 +174,6 @@ open class DiagnosisService (
             try {
                 updateProcessor.execute()
                 replConfig.regenerateSingleModel().invoke("diagnoses")
-                cacheManager.getCache("diagnosis")?.evict(diagnosisName)
                 return true
             } catch (_: Exception) {
                 return false

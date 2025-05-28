@@ -9,8 +9,6 @@ import org.apache.jena.update.UpdateExecutionFactory
 import org.apache.jena.update.UpdateFactory
 import org.apache.jena.update.UpdateProcessor
 import org.apache.jena.update.UpdateRequest
-import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.cache.CacheManager
 import org.springframework.cache.annotation.CacheEvict
 import org.springframework.cache.annotation.CachePut
 import org.springframework.cache.annotation.Cacheable
@@ -22,9 +20,6 @@ open class TaskService (
     private val replConfig: REPLConfig,
     triplestoreProperties: TriplestoreProperties
 ) {
-
-    @Autowired
-    private lateinit var cacheManager: CacheManager
 
     private val tripleStore = triplestoreProperties.tripleStore
     private val prefix = triplestoreProperties.prefix
@@ -65,7 +60,7 @@ open class TaskService (
         }
     }
 
-    @Cacheable("tasks")
+    @Cacheable("tasks", key = "'allTasks'")
     open fun getAllTasks() : List<Task>? {
         lock.readLock().lock()
         try {

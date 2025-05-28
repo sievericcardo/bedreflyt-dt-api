@@ -10,8 +10,9 @@ import org.apache.jena.update.UpdateProcessor
 import org.apache.jena.update.UpdateRequest
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
-import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.cache.CacheManager
+import org.springframework.cache.annotation.CacheEvict
+import org.springframework.cache.annotation.CachePut
+import org.springframework.cache.annotation.Cacheable
 import org.springframework.stereotype.Service
 import java.util.concurrent.locks.ReentrantReadWriteLock
 
@@ -21,11 +22,9 @@ open class OfficeService (
     triplestoreProperties: TriplestoreProperties,
     private val wardService: WardService,
     private val hospitalService: HospitalService,
-    private val monitoringCategoryService: MonitoringCategoryService
+    private val monitoringCategoryService: MonitoringCategoryService,
+    private val cacheManager: org.springframework.cache.CacheManager
 ) {
-
-    @Autowired
-    private lateinit var cacheManager: CacheManager
 
     private val tripleStore = triplestoreProperties.tripleStore
     private val prefix = triplestoreProperties.prefix
@@ -34,6 +33,7 @@ open class OfficeService (
     private val log: Logger = LoggerFactory.getLogger(OfficeService::class.java.name)
     private val lock = ReentrantReadWriteLock()
 
+    @CachePut(value = ["offices"], key = "#officeRequest.roomNumber + '_' + #officeRequest.ward + '_' + #officeRequest.hospital")
     open fun createOffice(officeRequest: OfficeRequest): Office? {
         lock.writeLock().lock()
         try {
@@ -43,8 +43,8 @@ open class OfficeService (
             
             INSERT DATA {
                 bedreflyt:${officeRequest.hospital}_${officeRequest.ward}_Office${officeRequest.roomNumber} a bedreflyt:Office ;
-                    bedreflyt:hasMonitoringStatus "${officeRequest.categoryDescription}" ;
-                    bedreflyt:isAssignWard "${officeRequest.ward}" ;
+                    bedreflyt:hasMonitoringStatus bedreflyt:${officeRequest.categoryDescription} ;
+                    bedreflyt:isAssignWard bedreflyt:${officeRequest.ward} ;
                     bedreflyt:available "${officeRequest.available}"^^xsd:boolean ;
                     bedreflyt:hasCapacityNrBeds ${officeRequest.capacity} ;
                     bedreflyt:hasRoomNr ${officeRequest.roomNumber} ;
@@ -65,7 +65,7 @@ open class OfficeService (
                 replConfig.regenerateSingleModel().invoke("offices")
 
                 log.info("Office created successfully: ${officeRequest.roomNumber} in ${officeRequest.ward} at ${officeRequest.hospital}")
-                val office = Office(
+                return Office(
                     officeRequest.roomNumber,
                     officeRequest.capacity,
                     officeRequest.available,
@@ -73,10 +73,8 @@ open class OfficeService (
                     hospital,
                     category
                 )
-
-                cacheManager.getCache("offices")?.put(officeRequest.roomNumber, office)
-                return office
             } catch (_: Exception) {
+                log.error("Error creating office: ${officeRequest.roomNumber} in ${officeRequest.ward} at ${officeRequest.hospital}")
                 return null
             }
         } catch (e: Exception) {
@@ -87,25 +85,25 @@ open class OfficeService (
         }
     }
 
+    @Cacheable(value = ["offices"], key = "'allOffices'")
     open fun getAllOffices() : List<Office>? {
         lock.readLock().lock()
         try {
             val offices = mutableListOf<Office>()
 
             val query = """
-            SELECT ?roomNumber ?capacity ?available ?wardName ?hospitalName ?categoryDescription WHERE {
+            SELECT ?roomNumber ?capacity ?available ?wardName ?hospitalCode ?categoryDescription WHERE {
                 ?office a prog:Office ;
                     prog:Office_roomNumber ?roomNumber ;
                     prog:Office_capacity ?capacity ;
                     prog:Office_available ?available ;
-                    prog:Office_ward ?wardObj ;
+                    prog:Office_officeWard ?wardObj ;
                     prog:Office_hospital ?hospitalObj ;
-                    prog:Office_category ?categoryObj .
+                    prog:Office_monitoringCategory ?categoryObj .
                 ?wardObj a prog:Ward ;
                     prog:Ward_wardName ?wardName .
                 ?hospitalObj a prog:Hospital ;
-                    prog:Hospital_hospitalCode ?hospitalCode ;
-                    prog:Hospital_hospitalName ?hospitalName .
+                    prog:Hospital_hospitalCode ?hospitalCode .
                 ?categoryObj a prog:MonitoringCategory ;
                     prog:MonitoringCategory_description ?categoryDescription .
             }
@@ -119,23 +117,26 @@ open class OfficeService (
                 val capacity = result.get("capacity").asLiteral().toString().split("^^")[0].toInt()
                 val available = result.get("available").asLiteral().toString().split("^^")[0].toBoolean()
                 val wardName = result.get("wardName").toString()
-                val hospitalCode = result.get("hospitalName").toString()
+                val hospitalCode = result.get("hospitalCode").toString()
                 val categoryDescription = result.get("categoryDescription").toString()
 
                 val ward = wardService.getWardByNameAndHospital(wardName, hospitalCode) ?: continue
                 val hospital = hospitalService.getHospitalByCode(hospitalCode) ?: continue
                 val category = monitoringCategoryService.getCategoryByDescription(categoryDescription) ?: continue
 
-                offices.add(Office(roomNumber, capacity, available, ward, hospital, category))
+                val office = Office(roomNumber, capacity, available, ward, hospital, category)
+                if (!offices.any { it.roomNumber == office.roomNumber && it.treatmentWard.wardName == office.treatmentWard.wardName && it.hospital.hospitalCode == office.hospital.hospitalCode }) {
+                    offices.add(office)
+                }
             }
 
-            cacheManager.getCache("offices")?.put("allOffices", offices)
             return offices
         } finally {
             lock.readLock().unlock()
         }
     }
 
+    @Cacheable(value = ["offices"], key = "#roomNumber + '_' + #wardName + '_' + #hospitalCode")
     open fun getOfficeByRoonNumberWardHospital (roomNumber: Int, wardName: String, hospitalCode: String): Office? {
         lock.readLock().lock()
         try {
@@ -145,13 +146,13 @@ open class OfficeService (
                     prog:Office_roomNumber $roomNumber ;
                     prog:Office_capacity ?capacity ;
                     prog:Office_available ?available ;
-                    prog:Office_ward ?wardObj ;
+                    prog:Office_officeWard ?wardObj ;
                     prog:Office_hospital ?hospitalObj ;
-                    prog:Office_category ?categoryObj .
+                    prog:Office_monitoringCategory ?categoryObj .
                 ?wardObj a prog:Ward ;
                     prog:Ward_wardName "$wardName" .
                 ?hospitalObj a prog:Hospital ;
-                    prog:Hospital_hospitalCde "$hospitalCode" .
+                    prog:Hospital_hospitalCode "$hospitalCode" .
                 ?categoryObj a prog:MonitoringCategory ;
                     prog:MonitoringCategory_description ?categoryDescription .
             }
@@ -178,6 +179,7 @@ open class OfficeService (
         }
     }
 
+    @Cacheable(value = ["offices"], key = "'officesByWardHospital_' + #wardName + '_' + #hospitalCode")
     open fun getOfficeByWardHospital (wardName: String, hospitalCode: String): List<Office>? {
         lock.readLock().lock()
         try {
@@ -186,12 +188,12 @@ open class OfficeService (
             val query = """
             SELECT ?roomNumber ?capacity ?available ?categoryDescription WHERE {
                 ?office a prog:Office ;
-                    prog:Office_ward ?wardObj ;
+                    prog:Office_officeWard ?wardObj ;
                     prog:Office_hospital ?hospitalObj ;
                     prog:Office_roomNumber ?roomNumber ;
                     prog:Office_capacity ?capacity ;
                     prog:Office_available ?available ;
-                    prog:Office_category ?categoryObj .
+                    prog:Office_monitoringCategory ?categoryObj .
                 ?wardObj a prog:Ward ;
                     prog:Ward_wardName "$wardName" .
                 ?hospitalObj a prog:Hospital ;
@@ -214,16 +216,20 @@ open class OfficeService (
                 val hospital = hospitalService.getHospitalByCode(hospitalCode) ?: continue
                 val category = monitoringCategoryService.getCategoryByDescription(categoryDescription) ?: continue
 
-                offices.add(Office(roomNumber, capacity, available, ward, hospital, category))
+                val office = Office(roomNumber, capacity, available, ward, hospital, category)
+                if (!offices.any { it.roomNumber == office.roomNumber && it.treatmentWard.wardName == office.treatmentWard.wardName && it.hospital.hospitalCode == office.hospital.hospitalCode }) {
+                    offices.add(office)
+                }
             }
 
-            cacheManager.getCache("offices")?.put("$wardName-$hospitalCode", offices)
             return offices
         } finally {
             lock.readLock().unlock()
         }
     }
 
+    @CacheEvict(value = ["offices"], key = "#office.roomNumber + '_' + #office.treatmentWard.wardName + '_' + #office.hospital.hospitalCode")
+    @CachePut(value = ["offices"], key = "#office.roomNumber + '_' + #newWard + '_' + #office.hospital.hospitalCode")
     open fun updateOffice(office: Office, newCapacity: Int, newAvailable: Boolean, newWard: String, newCategory: String) : Office? {
         lock.writeLock().lock()
         try {
@@ -240,8 +246,8 @@ open class OfficeService (
             }
             INSERT {
                 bedreflyt:${office.hospital.hospitalCode}_${office.treatmentWard.wardName}_Office${office.roomNumber} a bedreflyt:Office ;
-                    bedreflyt:hasMonitoringStatus "$newCategory" ;
-                    bedreflyt:isAssignWard "$newWard" ;
+                    bedreflyt:hasMonitoringStatus bedreflyt:$newCategory ;
+                    bedreflyt:isAssignWard bedreflyt:$newWard ;
                     bedreflyt:available "$newAvailable"^^xsd:boolean ;
                     bedreflyt:hasCapacityNrBeds $newCapacity ;
             }
@@ -277,8 +283,6 @@ open class OfficeService (
                     category
                 )
 
-                cacheManager.getCache("offices")
-                    ?.put("${office.roomNumber}-${office.hospital.hospitalCode}-${office.treatmentWard.wardName}", updatedOffice)
                 return updatedOffice
             } catch (e: Exception) {
                 log.error("Error updating office: $e")
@@ -289,7 +293,7 @@ open class OfficeService (
         }
     }
 
-
+    @CacheEvict(value = ["offices"], allEntries = true)
     open fun deleteOffice(office: Office): Boolean {
         lock.writeLock().lock()
         try {
@@ -314,7 +318,6 @@ open class OfficeService (
                 replConfig.regenerateSingleModel().invoke("offices")
                 log.info("Office deleted successfully: ${office.roomNumber} in ${office.treatmentWard.wardName} at ${office.hospital.hospitalCode}")
 
-                cacheManager.getCache("offices")?.evict("${office.roomNumber}-${office.hospital.hospitalCode}-${office.treatmentWard.wardName}")
                 return true
             } catch (e: Exception) {
                 log.error("Error deleting office: $e")

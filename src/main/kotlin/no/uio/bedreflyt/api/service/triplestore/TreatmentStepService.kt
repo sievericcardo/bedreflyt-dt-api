@@ -6,10 +6,8 @@ import no.uio.bedreflyt.api.model.triplestore.TreatmentStep
 import org.apache.jena.query.ResultSet
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
-import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.cache.CacheManager
-import org.springframework.stereotype.Service
 import org.springframework.cache.annotation.Cacheable
+import org.springframework.stereotype.Service
 
 @Service
 open class TreatmentStepService(
@@ -19,15 +17,12 @@ open class TreatmentStepService(
     private val taskService: TaskService
 ) {
 
-    @Autowired
-    private lateinit var cacheManager: CacheManager
-
     private val tripleStore = triplestoreProperties.tripleStore
     private val prefix = triplestoreProperties.prefix
     private val repl = replConfig.repl()
     private val log : Logger = LoggerFactory.getLogger(TreatmentStepService::class.java.name)
 
-    @Cacheable("treatment-steps")
+    @Cacheable("treatment-steps", key = "#stepName + '_' + #treatmentName")
     open fun getTreatmentStep(stepName: String, treatmentName: String): TreatmentStep? {
         val query = """
         SELECT ?previousTask ?nextTask ?stepNumber ?monitoringCategory ?staffLoad ?averageDuration WHERE {
@@ -82,7 +77,7 @@ open class TreatmentStepService(
         )
     }
 
-    @Cacheable("treatment-steps")
+    @Cacheable("treatment-steps", key = "'allTreatmentSteps'")
     open fun getAllTreatmentSteps() : List<TreatmentStep>? {
         val steps = mutableListOf<TreatmentStep>()
 

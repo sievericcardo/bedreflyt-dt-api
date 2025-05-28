@@ -10,8 +10,9 @@ import org.apache.jena.update.UpdateExecutionFactory
 import org.apache.jena.update.UpdateFactory
 import org.apache.jena.update.UpdateProcessor
 import org.apache.jena.update.UpdateRequest
-import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.cache.CacheManager
+import org.springframework.cache.annotation.CacheEvict
+import org.springframework.cache.annotation.CachePut
+import org.springframework.cache.annotation.Cacheable
 import org.springframework.stereotype.Service
 import java.util.concurrent.locks.ReentrantReadWriteLock
 
@@ -24,15 +25,13 @@ open class RoomService (
     private val monitoringCategoryService: MonitoringCategoryService
 ) {
 
-    @Autowired
-    private lateinit var cacheManager: CacheManager
-
     private val tripleStore = triplestoreProperties.tripleStore
     private val prefix = triplestoreProperties.prefix
     private val ttlPrefix = triplestoreProperties.ttlPrefix
     private val repl = replConfig.repl()
     private val lock = ReentrantReadWriteLock()
 
+    @CachePut(value = ["rooms"], key = "#request.roomNumber + '_' + #request.ward + '_' + #request.hospital")
     open fun createRoom(request: RoomRequest) : TreatmentRoom? {
         lock.writeLock().lock()
         try {
@@ -63,10 +62,7 @@ open class RoomService (
                 val monitoringCategory = monitoringCategoryService.getCategoryByDescription(request.categoryDescription) ?: return null
                 replConfig.regenerateSingleModel().invoke("rooms")
 
-                // Explicitly update the cache
-                val treatmentRoom = TreatmentRoom(request.roomNumber, request.capacity, ward, hospital, monitoringCategory)
-                cacheManager.getCache("rooms")?.put(request.roomNumber, treatmentRoom)
-                return treatmentRoom
+                return TreatmentRoom(request.roomNumber, request.capacity, ward, hospital, monitoringCategory)
             } catch (_: Exception) {
                 return null
             }
@@ -75,6 +71,7 @@ open class RoomService (
         }
     }
 
+    @Cacheable(value = ["rooms"], key = "'allRooms'")
     open fun getAllRooms() : List<TreatmentRoom>? {
         lock.readLock().lock()
         try {
@@ -120,14 +117,13 @@ open class RoomService (
 //                rooms.add(TreatmentRoom(roomNumber, capacity, ward, hospital, monitoringCategory))
             }
 
-            // Explicitly update the cache
-            cacheManager.getCache("rooms")?.put("allRooms", rooms)
             return rooms
         } finally {
             lock.readLock().unlock()
         }
     }
 
+    @Cacheable(value = ["rooms"], key = "#roomNumber")
     open fun getRoomByRoomNumber(roomNumber: Int): TreatmentRoom? {
         lock.readLock().lock()
         try {
@@ -169,6 +165,7 @@ open class RoomService (
         }
     }
 
+    @Cacheable(value = ["rooms"], key = "#roomNumber + '_' + #wardName + '_' + #hospitalCode")
     open fun getRoomByRoomNumberWardHospital(roomNumber: Int, wardName: String, hospitalCode: String) : TreatmentRoom? {
         lock.readLock().lock()
         try {
@@ -208,6 +205,7 @@ open class RoomService (
         }
     }
 
+    @Cacheable(value = ["rooms"], key = "'roomsByWardHospital_' + #wardName + '_' + #hospitalCode")
     open fun getRoomsByWardHospital(wardName: String, hospitalCode: String) : List<TreatmentRoom>? {
         lock.readLock().lock()
         try {
@@ -256,6 +254,8 @@ open class RoomService (
         }
     }
 
+    @CacheEvict(value = ["rooms"], key = "#room.roomNumber + '_' + #room.treatmentWard.wardName + '_' + #room.hospital.hospitalCode")
+    @CachePut(value = ["rooms"], key = "#room.roomNumber + '_' + #newWard + '_' + #room.hospital.hospitalCode")
     open fun updateRoom(room: TreatmentRoom, newCapacity: Int, newWard: String, newCategory: String) : TreatmentRoom? {
         lock.writeLock().lock()
         try {
@@ -305,7 +305,6 @@ open class RoomService (
                     hospitalService.getHospitalByCode(room.hospital.hospitalCode) ?: return room,
                     monitoringCategoryService.getCategoryByDescription(newCategory) ?: return room)
 
-                cacheManager.getCache("rooms")?.put("${room.ward.wardName}_${room.hospital.hospitalCode}_${room.roomNumber}", room)
                 return room
             } catch (_: Exception) {
                 return null
@@ -315,6 +314,7 @@ open class RoomService (
         }
     }
 
+    @CacheEvict(value = ["rooms"], allEntries = true)
     open fun deleteRoom(room: TreatmentRoom) : Boolean {
         lock.writeLock().lock()
         try {
@@ -342,8 +342,6 @@ open class RoomService (
                 updateProcessor.execute()
                 replConfig.regenerateSingleModel().invoke("rooms")
 
-                // Explicitly clear the cache
-                cacheManager.getCache("rooms")?.clear()
                 return true
             } catch (_: Exception) {
                 return false
