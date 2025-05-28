@@ -108,6 +108,8 @@ class OfficeModel extends BaseModel()
                 wrongOffices = wrongOffices.next;
 
                 print("RECONFIG> Removing office " ++ intToString(wrongOffice.roomNumber));
+
+                destroy(wrongOffice);
                 destroy(lx);
             end
 
