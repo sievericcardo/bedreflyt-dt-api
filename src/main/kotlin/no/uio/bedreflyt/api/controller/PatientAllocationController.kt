@@ -134,6 +134,24 @@ class PatientAllocationController (
         return ResponseEntity.ok(allocations)
     }
 
+    @Operation(summary = "Get allocations for a specific ward and hospital")
+    @ApiResponses(value = [
+        ApiResponse(responseCode = "200", description = "Allocations found"),
+        ApiResponse(responseCode = "400", description = "Invalid allocations"),
+        ApiResponse(responseCode = "401", description = "Unauthorized"),
+        ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
+        ApiResponse(responseCode = "500", description = "Internal server error")
+    ])
+    @GetMapping("/simulated/{wardName}/{hospitalCode}", produces = ["application/json"])
+    fun getSimulatedAllocationsForWardAndHospital(@ApiParam(value = "Ward name", required = true) @Valid @PathVariable wardName: String,
+                                         @ApiParam(value = "Hospital code", required = true) @Valid @PathVariable hospitalCode: String) : ResponseEntity<List<PatientAllocation>> {
+        log.info("Getting allocations for ward $wardName and hospital $hospitalCode")
+
+        val allocations = patientAllocationService.findByWardNameAndHospitalCodeSimulated(wardName, hospitalCode) ?: return ResponseEntity.noContent().build()
+
+        return ResponseEntity.ok(allocations)
+    }
+
     @Operation(summary = "Update a patient allocation")
     @ApiResponses(value = [
         ApiResponse(responseCode = "200", description = "Patient allocation updated"),
