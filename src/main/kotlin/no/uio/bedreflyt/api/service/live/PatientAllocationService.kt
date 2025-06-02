@@ -32,6 +32,10 @@ open class PatientAllocationService (
         return patientAllocationRepository.findByWardNameAndHospitalCode(wardName, hospitalCode)
     }
 
+    open fun findByWardNameAndHospitalCodeSimulated(wardName: String, hospitalCode: String): List<PatientAllocation>? {
+        return patientAllocationRepository.findByWardNameAndHospitalCode(wardName, hospitalCode)?.filter { it.simulated }
+    }
+
     open fun savePatientAllocation(patientAllocation: PatientAllocation): PatientAllocation {
         return patientAllocationRepository.save(patientAllocation)
     }

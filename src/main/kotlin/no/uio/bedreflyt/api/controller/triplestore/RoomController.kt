@@ -87,6 +87,26 @@ class RoomController(
         return ResponseEntity.ok(room)
     }
 
+    @Operation(summary = "Get a room by number, ward and hospital")
+    @ApiResponses(value = [
+        ApiResponse(responseCode = "200", description = "Room retrieved"),
+        ApiResponse(responseCode = "400", description = "Invalid request"),
+        ApiResponse(responseCode = "401", description = "Unauthorized"),
+        ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
+        ApiResponse(responseCode = "500", description = "Internal server error")
+    ])
+    @GetMapping("/{wardName}/{hospitalCode}", produces= ["application/json"])
+    fun getRoomByWardAndHospital(
+            @ApiParam(value = "Ward name", required = true) @Valid @PathVariable wardName: String,
+            @ApiParam(value = "Hospital code", required = true) @Valid @PathVariable hospitalCode: String
+    ) : ResponseEntity<List<TreatmentRoom>> {
+        log.info("Retrieving rooms in ward $wardName")
+
+        val rooms = roomService.getRoomsByWardHospital(wardName, hospitalCode) ?: return ResponseEntity.badRequest().build()
+
+        return ResponseEntity.ok(rooms)
+    }
+
     @Operation(summary = "Update a room")
     @ApiResponses(value = [
         ApiResponse(responseCode = "200", description = "Room updated"),
