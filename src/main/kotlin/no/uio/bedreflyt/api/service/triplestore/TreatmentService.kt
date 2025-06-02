@@ -328,7 +328,7 @@ open class TreatmentService(
     }
 
     @Cacheable("treatments", key = "'treatmentByDiagnosisAndMode_' + #diagnosisName + '_' + #mode")
-    fun getTreatmentByDiagnosisAndMode(diagnosisName: String, mode: String) : Treatment {
+    open fun getTreatmentByDiagnosisAndMode(diagnosisName: String, mode: String) : Treatment {
         lock.readLock().lock()
         try {
             val treatments: List<Treatment> = getTreatmentByDiagnosisName(diagnosisName)
