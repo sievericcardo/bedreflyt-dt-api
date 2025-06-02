@@ -1,9 +1,11 @@
 package no.uio.bedreflyt.api.controller
 
+import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.responses.ApiResponses
 import jakarta.validation.Valid
+import no.uio.bedreflyt.api.config.EnvironmentConfig
 import no.uio.bedreflyt.api.model.live.Patient
 import no.uio.bedreflyt.api.model.live.PatientAllocation
 import no.uio.bedreflyt.api.model.live.PatientTrajectory
@@ -23,11 +25,14 @@ import no.uio.bedreflyt.api.types.AllocationResponse
 import no.uio.bedreflyt.api.types.AllocationSimulationRequest
 import no.uio.bedreflyt.api.types.DailyNeeds
 import no.uio.bedreflyt.api.types.SimulationRequest
+import no.uio.bedreflyt.api.types.TriggerAllocationRequest
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
+import java.net.HttpURLConnection
+import java.net.URI
 import java.nio.file.Files
 import java.nio.file.Path
 import java.time.LocalDateTime
@@ -43,7 +48,8 @@ class AllocationController (
     private val patientService: PatientService,
     private val patientTrajectoryService: PatientTrajectoryService,
     private val wardService: WardService,
-    private val roomService: RoomService
+    private val roomService: RoomService,
+    private val environmentConfig: EnvironmentConfig
 ) {
 
     private val log: Logger = LoggerFactory.getLogger(AllocationController::class.java.name)
@@ -87,6 +93,13 @@ class AllocationController (
 
             val incomingPatients = preparePatients(allocationRequest)
             if (incomingPatients.isEmpty()) return ResponseEntity.badRequest().build()
+
+            // Check if we have enough space
+            if (!checkRoomOpening(allocationRequest.wardName, allocationRequest.hospitalCode, incomingPatients.size)) {
+                log.warn("Not enough space in the ward ${allocationRequest.wardName} in hospital ${allocationRequest.hospitalCode}")
+                return ResponseEntity.badRequest().build()
+            }
+
             val rooms = roomService.getRoomsByWardHospital(allocationRequest.wardName, allocationRequest.hospitalCode)
                 ?: return ResponseEntity.badRequest().build()
             createMaps(rooms)
@@ -267,6 +280,13 @@ class AllocationController (
 
             val incomingPatients = preparePatients(request)
             if (incomingPatients.isEmpty()) return ResponseEntity.badRequest().build()
+
+            // Check if we have enough space
+            if (!checkRoomOpening(allocationRequest.wardName, allocationRequest.hospitalCode, incomingPatients.size)) {
+                log.warn("Not enough space in the ward ${allocationRequest.wardName} in hospital ${allocationRequest.hospitalCode}")
+                return ResponseEntity.badRequest().build()
+            }
+
             val rooms = roomService.getRoomsByWardHospital(allocationRequest.wardName, allocationRequest.hospitalCode)
                 ?: return ResponseEntity.badRequest().build()
             createMaps(rooms, true)
@@ -403,6 +423,31 @@ class AllocationController (
             }
         } finally {
             simulationLock.unlock()
+        }
+    }
+
+    private fun checkRoomOpening (wardName: String, hospitalCode: String, incomingPatients: Int) : Boolean {
+        val host = environmentConfig.getOrDefault("LM_HOST", "localhost")
+        val port = environmentConfig.getOrDefault("LM_PORT", "8091")
+        val endpoint = "http://$host:$port/api/v1/states/check/$wardName/$hospitalCode"
+
+        val requestBody = TriggerAllocationRequest(incomingPatients)
+
+        val connection = URI(endpoint).toURL().openConnection() as HttpURLConnection
+        connection.requestMethod = "POST"
+        connection.setRequestProperty("Content-Type", "application/json")
+        connection.doOutput = true
+        connection.outputStream.use { outputStream ->
+            val objectMapper = jacksonObjectMapper()
+            val jsonString = objectMapper.writeValueAsString(requestBody)
+            outputStream.write(jsonString.toByteArray(Charsets.UTF_8))
+        }
+
+        return if (connection.responseCode == HttpURLConnection.HTTP_OK) {
+            true
+        } else {
+            log.warn("API returned status code ${connection.responseCode}")
+            false
         }
     }
 
