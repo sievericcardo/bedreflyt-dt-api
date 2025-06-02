@@ -10,6 +10,10 @@ data class SimulationRequest(
     val hospitalCode: String
 )
 
+data class TriggerAllocationRequest (
+    val incomingPatients: Int
+)
+
 data class AllocationSimulationRequest(
     val scenario: List<ScenarioRequest>,
     val mode: String,
