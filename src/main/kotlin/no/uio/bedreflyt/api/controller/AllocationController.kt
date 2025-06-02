@@ -47,9 +47,11 @@ class AllocationController (
 ) {
 
     private val log: Logger = LoggerFactory.getLogger(AllocationController::class.java.name)
-    
+
     private val roomMap: MutableMap<Int, Int> = mutableMapOf()
     private val indexRoomMap : MutableMap<Int, Int> = mutableMapOf()
+    private val roomMapSim: MutableMap<Int, Int> = mutableMapOf()
+    private val indexRoomMapSim : MutableMap<Int, Int> = mutableMapOf()
 
     private val allocationLock: ReentrantLock = ReentrantLock()
     private val simulationLock: ReentrantLock = ReentrantLock()
@@ -267,7 +269,7 @@ class AllocationController (
             if (incomingPatients.isEmpty()) return ResponseEntity.badRequest().build()
             val rooms = roomService.getRoomsByWardHospital(allocationRequest.wardName, allocationRequest.hospitalCode)
                 ?: return ResponseEntity.badRequest().build()
-            createMaps(rooms)
+            createMaps(rooms, true)
 
             val (tempDir, bedreflytDB) = createTemporaryDatabase()
             val (patients, trajectories) = populateDatabase(bedreflytDB, request)
@@ -339,8 +341,8 @@ class AllocationController (
             }
 
             cleanAllocations()
-            simulator.setRoomMap(roomMap)
-            simulator.setIndexRoomMap(indexRoomMap)
+            simulator.setRoomMap(roomMapSim)
+            simulator.setIndexRoomMap(indexRoomMapSim)
             val allocationResponse = simulator.simulate(
                 patientsNeeds,
                 patients,
@@ -383,7 +385,7 @@ class AllocationController (
                                             patientAllocationService.updatePatientAllocation(patientAllocation)
                                         } else {
                                             patientAllocation.roomNumber =
-                                                roomMap[patientAllocation.roomNumber] ?: patientAllocation.roomNumber
+                                                roomMapSim[patientAllocation.roomNumber] ?: patientAllocation.roomNumber
                                             patientAllocationService.updatePatientAllocation(patientAllocation)
                                         }
                                     } else {
@@ -404,7 +406,11 @@ class AllocationController (
         }
     }
 
-    private fun createMaps(rooms: List<TreatmentRoom>) {
+    private fun createMaps(rooms: List<TreatmentRoom>, simulated: Boolean = false) {
+        if (simulated) {
+            rooms.forEachIndexed { index, room -> roomMapSim[index] = room.roomNumber }
+            roomMapSim.forEach { (key, value) -> indexRoomMapSim[value] = key }
+        }
         rooms.forEachIndexed { index, room -> roomMap[index] = room.roomNumber }
         roomMap.forEach { (key, value) -> indexRoomMap[value] = key }
     }
