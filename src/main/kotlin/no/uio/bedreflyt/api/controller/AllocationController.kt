@@ -174,6 +174,7 @@ class AllocationController (
             }
 
             cleanAllocations()
+            removeUnusedAllocations(simulationNeeds[0])
             simulator.setRoomMap(roomMap)
             simulator.setIndexRoomMap(indexRoomMap)
             val allocationResponse = simulator.simulate(
@@ -361,6 +362,7 @@ class AllocationController (
             }
 
             cleanAllocations()
+            removeUnusedAllocations(simulationNeeds[0])
             simulator.setRoomMap(roomMapSim)
             simulator.setIndexRoomMap(indexRoomMapSim)
             val allocationResponse = simulator.simulate(
@@ -544,6 +546,15 @@ class AllocationController (
             val patientAllocation = patientAllocationService.findByPatientId(patient.first)
             if (patientAllocation != null) {
                 patientAllocationService.deletePatientAllocation(patientAllocation)
+            }
+        }
+    }
+
+    private fun removeUnusedAllocations(needs: DailyNeeds) {
+        val allocations = patientAllocationService.findAll() ?: return
+        allocations.forEach { allocation ->
+            if (needs.none { it.first == allocation.patientId }) {
+                patientAllocationService.deletePatientAllocation(allocation)
             }
         }
     }
