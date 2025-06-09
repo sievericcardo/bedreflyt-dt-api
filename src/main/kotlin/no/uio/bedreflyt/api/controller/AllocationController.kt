@@ -553,8 +553,9 @@ class AllocationController (
     private fun removeUnusedAllocations(needs: DailyNeeds) {
         val allocations = patientAllocationService.findAll() ?: return
         allocations.forEach { allocation ->
-            if (needs.none { it.first == allocation.patientId }) {
-                patientAllocationService.deletePatientAllocation(allocation)
+            if (needs.none { it.first == allocation.patientId} || needs.any { it.first == allocation.patientId && it.second == 0 }) {
+                allocation.roomNumber = -1
+                patientAllocationService.updatePatientAllocation(allocation)
             }
         }
     }
