@@ -74,7 +74,7 @@ class PatientAllocationController (
 
         val patientAllocations = patientAllocationService.findAll()?.filter { !it.simulated } ?: return ResponseEntity.noContent().build()
 
-        return ResponseEntity.ok(patientAllocations)
+        return ResponseEntity.ok(patientAllocations.filter { it.roomNumber != -1 })
     }
 
     @Operation(summary = "Get all patient allocations")
@@ -89,9 +89,9 @@ class PatientAllocationController (
     fun getSimulatedAllocations() : ResponseEntity<List<PatientAllocation>?> {
         log.info("Retrieving all patient allocations")
 
-        val patientAllocations = patientAllocationService.findAllSimulated()
+        val patientAllocations = patientAllocationService.findAllSimulated() ?: return ResponseEntity.noContent().build()
 
-        return ResponseEntity.ok(patientAllocations)
+        return ResponseEntity.ok(patientAllocations.filter { it.roomNumber != -1 })
     }
 
     @Operation(summary = "Get patient allocation by patientId")
@@ -111,7 +111,7 @@ class PatientAllocationController (
         }
 
         val patient = patientService.findByPatientId(patientId) ?: return ResponseEntity.notFound().build()
-        val patientAllocation = patientAllocationService.findByPatientId(patient)
+        val patientAllocation = patientAllocationService.findByPatientId(patient) ?: return ResponseEntity.notFound().build()
 
         return ResponseEntity.ok(patientAllocation)
     }
@@ -129,9 +129,9 @@ class PatientAllocationController (
                                          @ApiParam(value = "Hospital code", required = true) @Valid @PathVariable hospitalCode: String) : ResponseEntity<List<PatientAllocation>> {
         log.info("Getting allocations for ward $wardName and hospital $hospitalCode")
 
-        val allocations = patientAllocationService.findByWardNameAndHospitalCode(wardName, hospitalCode)
+        val allocations = patientAllocationService.findByWardNameAndHospitalCode(wardName, hospitalCode) ?: return ResponseEntity.noContent().build()
 
-        return ResponseEntity.ok(allocations)
+        return ResponseEntity.ok(allocations.filter { !it.simulated && it.roomNumber != -1 })
     }
 
     @Operation(summary = "Get allocations for a specific ward and hospital")
@@ -149,7 +149,7 @@ class PatientAllocationController (
 
         val allocations = patientAllocationService.findByWardNameAndHospitalCodeSimulated(wardName, hospitalCode) ?: return ResponseEntity.noContent().build()
 
-        return ResponseEntity.ok(allocations)
+        return ResponseEntity.ok(allocations.filter { it.roomNumber != -1 })
     }
 
     @Operation(summary = "Update a patient allocation")
