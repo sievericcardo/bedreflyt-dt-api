@@ -139,11 +139,12 @@ class OfficeController (
             ?: return ResponseEntity.badRequest().build()
 
         val capacity = updateOfficeRequest.newCapacity ?: office.capacity
+        val penalty = updateOfficeRequest.newPenalty ?: office.penalty
         val available = updateOfficeRequest.newAvailable?: office.available
         val wardName = updateOfficeRequest.newWard ?: ward.wardName
         val monitoringCategory = updateOfficeRequest.newCategoryDescription ?: office.monitoringCategory.description
 
-        val updatedOffice = officeService.updateOffice(office, capacity, available, wardName, monitoringCategory)
+        val updatedOffice = officeService.updateOffice(office, capacity, penalty, available, wardName, monitoringCategory)
             ?: return ResponseEntity.badRequest().build()
 
         return ResponseEntity.ok(updatedOffice)

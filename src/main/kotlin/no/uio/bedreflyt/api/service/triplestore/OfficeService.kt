@@ -46,6 +46,7 @@ open class OfficeService (
                     bedreflyt:hasMonitoringStatus bedreflyt:${officeRequest.categoryDescription} ;
                     bedreflyt:isAssignWard bedreflyt:${officeRequest.ward} ;
                     bedreflyt:available "${officeRequest.available}"^^xsd:boolean ;
+                    bedreflyt:penalty "${officeRequest.penalty}"^^xsd:double ;
                     bedreflyt:hasCapacityNrBeds ${officeRequest.capacity} ;
                     bedreflyt:hasRoomNr ${officeRequest.roomNumber} ;
             }
@@ -68,6 +69,7 @@ open class OfficeService (
                 return Office(
                     officeRequest.roomNumber,
                     officeRequest.capacity,
+                    officeRequest.penalty,
                     officeRequest.available,
                     ward,
                     hospital,
@@ -92,10 +94,11 @@ open class OfficeService (
             val offices = mutableListOf<Office>()
 
             val query = """
-            SELECT ?roomNumber ?capacity ?available ?wardName ?hospitalCode ?categoryDescription WHERE {
+            SELECT ?roomNumber ?capacity ?penalty ?available ?wardName ?hospitalCode ?categoryDescription WHERE {
                 ?office a prog:Office ;
                     prog:Office_roomNumber ?roomNumber ;
                     prog:Office_capacity ?capacity ;
+                    prog:Office_penalty ?penalty ;
                     prog:Office_available ?available ;
                     prog:Office_officeWard ?wardObj ;
                     prog:Office_hospital ?hospitalObj ;
@@ -115,6 +118,7 @@ open class OfficeService (
                 val result = resultSet.next()
                 val roomNumber = result.get("roomNumber").toString().split("^^")[0].toInt()
                 val capacity = result.get("capacity").asLiteral().toString().split("^^")[0].toInt()
+                val penalty = result.get("penalty").asLiteral().toString().split("^^")[0].toDouble()
                 val available = result.get("available").asLiteral().toString().split("^^")[0].toBoolean()
                 val wardName = result.get("wardName").toString()
                 val hospitalCode = result.get("hospitalCode").toString()
@@ -124,7 +128,7 @@ open class OfficeService (
                 val hospital = hospitalService.getHospitalByCode(hospitalCode) ?: continue
                 val category = monitoringCategoryService.getCategoryByDescription(categoryDescription) ?: continue
 
-                val office = Office(roomNumber, capacity, available, ward, hospital, category)
+                val office = Office(roomNumber, capacity, penalty, available, ward, hospital, category)
                 if (!offices.any { it.roomNumber == office.roomNumber && it.treatmentWard.wardName == office.treatmentWard.wardName && it.hospital.hospitalCode == office.hospital.hospitalCode }) {
                     offices.add(office)
                 }
@@ -141,10 +145,11 @@ open class OfficeService (
         lock.readLock().lock()
         try {
             val query = """
-            SELECT ?capacity ?available ?categoryDescription WHERE {
+            SELECT ?capacity ?penalty ?available ?categoryDescription WHERE {
                 ?office a prog:Office ;
                     prog:Office_roomNumber $roomNumber ;
                     prog:Office_capacity ?capacity ;
+                    prog:Office_penalty ?penalty ;
                     prog:Office_available ?available ;
                     prog:Office_officeWard ?wardObj ;
                     prog:Office_hospital ?hospitalObj ;
@@ -166,6 +171,7 @@ open class OfficeService (
 
             val result = resultSet.next()
             val capacity = result.get("capacity").asLiteral().toString().split("^^")[0].toInt()
+            val penalty = result.get("penalty").asLiteral().toString().split("^^")[0].toDouble()
             val available = result.get("available").asLiteral().toString().split("^^")[0].toBoolean()
             val categoryDescription = result.get("categoryDescription").toString()
 
@@ -173,7 +179,7 @@ open class OfficeService (
             val hospital = hospitalService.getHospitalByCode(hospitalCode) ?: return null
             val category = monitoringCategoryService.getCategoryByDescription(categoryDescription) ?: return null
 
-            return Office(roomNumber, capacity, available, ward, hospital, category)
+            return Office(roomNumber, capacity, penalty, available, ward, hospital, category)
         } finally {
             lock.readLock().unlock()
         }
@@ -186,12 +192,13 @@ open class OfficeService (
             val offices = mutableListOf<Office>()
 
             val query = """
-            SELECT ?roomNumber ?capacity ?available ?categoryDescription WHERE {
+            SELECT ?roomNumber ?capacity ?penalty ?available ?categoryDescription WHERE {
                 ?office a prog:Office ;
                     prog:Office_officeWard ?wardObj ;
                     prog:Office_hospital ?hospitalObj ;
                     prog:Office_roomNumber ?roomNumber ;
                     prog:Office_capacity ?capacity ;
+                    prog:Office_penalty ?penalty ;
                     prog:Office_available ?available ;
                     prog:Office_monitoringCategory ?categoryObj .
                 ?wardObj a prog:Ward ;
@@ -209,6 +216,7 @@ open class OfficeService (
                 val result = resultSet.next()
                 val roomNumber = result.get("roomNumber").toString().split("^^")[0].toInt()
                 val capacity = result.get("capacity").asLiteral().toString().split("^^")[0].toInt()
+                val penalty = result.get("penalty").asLiteral().toString().split("^^")[0].toDouble()
                 val available = result.get("available").asLiteral().toString().split("^^")[0].toBoolean()
                 val categoryDescription = result.get("categoryDescription").toString()
 
@@ -216,7 +224,7 @@ open class OfficeService (
                 val hospital = hospitalService.getHospitalByCode(hospitalCode) ?: continue
                 val category = monitoringCategoryService.getCategoryByDescription(categoryDescription) ?: continue
 
-                val office = Office(roomNumber, capacity, available, ward, hospital, category)
+                val office = Office(roomNumber, capacity, penalty, available, ward, hospital, category)
                 if (!offices.any { it.roomNumber == office.roomNumber && it.treatmentWard.wardName == office.treatmentWard.wardName && it.hospital.hospitalCode == office.hospital.hospitalCode }) {
                     offices.add(office)
                 }
@@ -230,7 +238,7 @@ open class OfficeService (
 
     @CacheEvict(value = ["offices"], key = "#office.roomNumber + '_' + #office.treatmentWard.wardName + '_' + #office.hospital.hospitalCode")
     @CachePut(value = ["offices"], key = "#office.roomNumber + '_' + #newWard + '_' + #office.hospital.hospitalCode")
-    open fun updateOffice(office: Office, newCapacity: Int, newAvailable: Boolean, newWard: String, newCategory: String) : Office? {
+    open fun updateOffice(office: Office, newCapacity: Int, newPenalty: Double, newAvailable: Boolean, newWard: String, newCategory: String) : Office? {
         lock.writeLock().lock()
         try {
             val query = """
@@ -241,6 +249,7 @@ open class OfficeService (
                 bedreflyt:${office.hospital.hospitalCode}_${office.treatmentWard.wardName}_Office${office.roomNumber} a bedreflyt:Office ;
                     bedreflyt:hasMonitoringStatus ?oldCategory ;
                     bedreflyt:isAssignWard ?oldWard ;
+                    bedreflyt:penalty ?oldPenalty ;
                     bedreflyt:available ?oldAvailable ;
                     bedreflyt:hasCapacityNrBeds ?oldCapacity ;
             }
@@ -249,12 +258,14 @@ open class OfficeService (
                     bedreflyt:hasMonitoringStatus bedreflyt:$newCategory ;
                     bedreflyt:isAssignWard bedreflyt:$newWard ;
                     bedreflyt:available "$newAvailable"^^xsd:boolean ;
+                    bedreflyt:penalty "$newPenalty"^^xsd:double ;
                     bedreflyt:hasCapacityNrBeds $newCapacity ;
             }
             WHERE {
                 bedreflyt:${office.hospital.hospitalCode}_${office.treatmentWard.wardName}_Office${office.roomNumber} a bedreflyt:Office .;
                     bedreflyt:hasMonitoringStatus ?oldCategory ;
                     bedreflyt:isAssignWard ?oldWard ;
+                    bedreflyt:penalty ?oldPenalty ;
                     bedreflyt:available ?oldAvailable ;
                     bedreflyt:hasCapacityNrBeds ?oldCapacity .
                     bedreflyt:hasRoomNr ${office.roomNumber} .
@@ -277,6 +288,7 @@ open class OfficeService (
                 val updatedOffice = Office(
                     office.roomNumber,
                     newCapacity,
+                    newPenalty,
                     newAvailable,
                     ward,
                     hospital,
@@ -304,6 +316,7 @@ open class OfficeService (
                 bedreflyt:${office.hospital.hospitalCode}_${office.treatmentWard.wardName}_Office${office.roomNumber} a bedreflyt:Office ;
                     bedreflyt:hasMonitoringStatus ?category ;
                     bedreflyt:isAssignWard ?ward ;
+                    bedreflyt:penalty ?penalty ;
                     bedreflyt:available ?available ;
                     bedreflyt:hasCapacityNrBeds ?capacity .
             }
