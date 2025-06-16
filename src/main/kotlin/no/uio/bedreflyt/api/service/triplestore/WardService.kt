@@ -47,10 +47,7 @@ open class WardService (
                     brick:hasFloor bedreflyt:Floor${request.wardFloorNumber} ;
                     $wardCodeLine
                     bedreflyt:wardName "${request.wardName}" ;
-                    bedreflyt:capacityThreshold "${request.capacityThreshold}"^^xsd:double ;
-                    bedreflyt:corridorPenalty "${request.corridorPenalty}"^^xsd:double ;
-                    bedreflyt:officePenalty "${request.officePenalty}"^^xsd:double ;
-                    bedreflyt:corridorCapacity "${request.corridorCapacity}"^^xsd:integer ;
+                    bedreflyt:capacityThreshold "${request.capacityThreshold}"^^xsd:double .
             }
         """.trimIndent()
 
@@ -64,9 +61,6 @@ open class WardService (
                     request.wardName,
                     request.wardCode,
                     request.capacityThreshold,
-                    request.corridorPenalty,
-                    request.officePenalty,
-                    request.corridorCapacity,
                     hospitalService.getHospitalByCode(hospital.hospitalCode)!!,
                     floorService.getFloorByNumber(request.wardFloorNumber)!!
                 )
@@ -89,14 +83,11 @@ open class WardService (
 
             val query =
                 """
-                    SELECT DISTINCT ?wardName ?wardCode ?capacityThreshold ?corridorPenalty ?officePenalty ?corridorCapacity ?hospitalCode ?floorNumber WHERE {
+                    SELECT DISTINCT ?wardName ?wardCode ?capacityThreshold ?hospitalCode ?floorNumber WHERE {
                         ?ward a prog:Ward ;
                             prog:Ward_wardName ?wardName ;
                             prog:Ward_wardCode ?wardCode ;
                             prog:Ward_capacityThreshold ?capacityThreshold ;
-                            prog:Ward_corridorPenalty ?corridorPenalty ;
-                            prog:Ward_officePenalty ?officePenalty ;
-                            prog:Ward_corridorCapacity ?corridorCapacity ;
                             prog:Ward_wardHospital ?wardHospital ;
                             prog:Ward_wardFloor ?wardFloor .
                         ?wardHospital a prog:Hospital ;
@@ -115,16 +106,13 @@ open class WardService (
                 val wardName = result.get("wardName").toString()
                 val wardCode = result.get("wardCode")?.toString()
                 val capacityThreshold = result.get("capacityThreshold").asLiteral().toString().split("^^")[0].toDouble()
-                val corridorPenalty = result.get("corridorPenalty").asLiteral().toString().split("^^")[0].toDouble()
-                val officePenalty = result.get("officePenalty").asLiteral().toString().split("^^")[0].toDouble()
-                val corridorCapacity = result.get("corridorCapacity").asLiteral().toString().split("^^")[0].toInt()
                 val hospitalName = result.get("hospitalCode").toString()
                 val floorNumber = result.get("floorNumber").asLiteral().toString().split("^^")[0].toInt()
 
                 val hospital = hospitalService.getHospitalByCode(hospitalName) ?: continue
                 val floor = floorService.getFloorByNumber(floorNumber) ?: continue
 
-                wards.add(Ward(wardName, wardCode, capacityThreshold, corridorPenalty, officePenalty,  corridorCapacity, hospital, floor))
+                wards.add(Ward(wardName, wardCode, capacityThreshold, hospital, floor))
             }
 
             return wards
@@ -140,14 +128,11 @@ open class WardService (
             val wards = mutableListOf<Ward>()
 
             val query = """
-            SELECT DISTINCT ?wardName ?wardCode ?capacityThreshold ?corridorPenalty ?officePenalty ?corridorCapacity ?hospitalCode ?floorNumber WHERE {
+            SELECT DISTINCT ?wardName ?wardCode ?capacityThreshold ?hospitalCode ?floorNumber WHERE {
                 ?ward a prog:Ward ;
                     prog:Ward_wardName ?wardName ;
                     prog:Ward_wardCode ?wardCode ;
                     prog:Ward_capacityThreshold ?capacityThreshold ;
-                    prog:Ward_corridorPenalty ?corridorPenalty ;
-                    prog:Ward_officePenalty ?officePenalty ;
-                    prog:Ward_corridorCapacity ?corridorCapacity ;
                     prog:Ward_wardHospital ?wardHospital ;
                     prog:Ward_wardFloor ?wardFloor .
                 ?wardHospital a prog:Hospital ;
@@ -168,9 +153,6 @@ open class WardService (
                 val wardNameNew = result.get("wardName").toString()
                 val wardCode = result.get("wardCode")?.toString()
                 val capacityThreshold = result.get("capacityThreshold").asLiteral().toString().split("^^")[0].toDouble()
-                val corridorPenalty = result.get("corridorPenalty").asLiteral().toString().split("^^")[0].toDouble()
-                val officePenalty = result.get("officePenalty").asLiteral().toString().split("^^")[0].toDouble()
-                val corridorCapacity = result.get("corridorCapacity").asLiteral().toString().split("^^")[0].toInt()
                 val hospitalName = result.get("hospitalCode").toString()
                 val floorNumber = result.get("floorNumber").asLiteral().toString().split("^^")[0].toInt()
 
@@ -182,9 +164,6 @@ open class WardService (
                         wardNameNew,
                         wardCode,
                         capacityThreshold,
-                        corridorPenalty,
-                        officePenalty,
-                        corridorCapacity,
                         hospital,
                         floor
                     )
@@ -202,14 +181,11 @@ open class WardService (
         lock.readLock().lock()
         try {
             val query = """
-            SELECT DISTINCT ?wardName ?wardCode ?capacityThreshold ?corridorPenalty ?officePenalty ?corridorCapacity ?hospitalCode ?floorNumber WHERE {
+            SELECT DISTINCT ?wardName ?wardCode ?capacityThreshold ?hospitalCode ?floorNumber WHERE {
                 ?ward a prog:Ward ;
                     prog:Ward_wardName "$wardName" ;
                     prog:Ward_wardCode ?wardCode ;
                     prog:Ward_capacityThreshold ?capacityThreshold ;
-                    prog:Ward_corridorPenalty ?corridorPenalty ;
-                    prog:Ward_officePenalty ?officePenalty ;
-                    prog:Ward_corridorCapacity ?corridorCapacity ;
                     prog:Ward_wardHospital ?wardHospital ;
                     prog:Ward_wardFloor ?wardFloor .
                 ?wardHospital a prog:Hospital ;
@@ -227,9 +203,6 @@ open class WardService (
             val result: QuerySolution = resultSet.next()
             val wardCode = result.get("wardCode")?.toString()
             val capacityThreshold = result.get("capacityThreshold").asLiteral().toString().split("^^")[0].toDouble()
-            val corridorPenalty = result.get("corridorPenalty").asLiteral().toString().split("^^")[0].toDouble()
-            val officePenalty = result.get("officePenalty").asLiteral().toString().split("^^")[0].toDouble()
-            val corridorCapacity = result.get("corridorCapacity").asLiteral().toString().split("^^")[0].toInt()
             val floorNumber = result.get("floorNumber").toString().split("^^")[0].toInt()
 
             val hospital = hospitalService.getHospitalByCode(wardHospital) ?: return null
@@ -238,9 +211,6 @@ open class WardService (
                 wardName,
                 wardCode,
                 capacityThreshold,
-                corridorPenalty,
-                officePenalty,
-                corridorCapacity,
                 hospital,
                 floor
             )
@@ -293,9 +263,6 @@ open class WardService (
                     ward.wardName,
                     ward.wardCode,
                     ward.capacityThreshold,
-                    ward.corridorPenalty,
-                    ward.officePenalty,
-                    ward.corridorCapacity,
                     hospitalService.getHospitalByCode(ward.wardHospital.hospitalCode)!!,
                     floorService.getFloorByNumber(newFloorNumber)!!
                 )
