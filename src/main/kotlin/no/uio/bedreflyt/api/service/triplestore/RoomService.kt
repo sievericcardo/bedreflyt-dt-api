@@ -62,7 +62,7 @@ open class RoomService (
                 val monitoringCategory = monitoringCategoryService.getCategoryByDescription(request.categoryDescription) ?: return null
                 replConfig.regenerateSingleModel().invoke("rooms")
 
-                return TreatmentRoom(request.roomNumber, request.capacity, ward, hospital, monitoringCategory)
+                return TreatmentRoom(request.roomNumber, request.capacity, 0.0,ward, hospital, monitoringCategory)
             } catch (_: Exception) {
                 return null
             }
@@ -110,7 +110,7 @@ open class RoomService (
                 val hospital = hospitalService.getHospitalByCode(hospitalName) ?: continue
                 val monitoringCategory = monitoringCategoryService.getCategoryByDescription(category) ?: continue
 
-                val room = TreatmentRoom(roomNumber, capacity, ward, hospital, monitoringCategory)
+                val room = TreatmentRoom(roomNumber, capacity, 0.0, ward, hospital, monitoringCategory)
                 if (!rooms.any { it.roomNumber == room.roomNumber && it.treatmentWard.wardName == room.treatmentWard.wardName && it.hospital.hospitalCode == room.hospital.hospitalCode }) {
                     rooms.add(room)
                 }
@@ -159,7 +159,7 @@ open class RoomService (
             val hospital = hospitalService.getHospitalByCode(hospitalName) ?: return null
             val monitoringCategory = monitoringCategoryService.getCategoryByDescription(category) ?: return null
 
-            return TreatmentRoom(roomNumber, capacity, ward, hospital, monitoringCategory)
+            return TreatmentRoom(roomNumber, capacity, 0.0, ward, hospital, monitoringCategory)
         } finally {
             lock.readLock().unlock()
         }
@@ -199,7 +199,7 @@ open class RoomService (
             val hospital = hospitalService.getHospitalByCode(hospitalCode) ?: return null
             val monitoringCategory = monitoringCategoryService.getCategoryByDescription(category) ?: return null
 
-            return TreatmentRoom(roomNumber, capacity, ward, hospital, monitoringCategory)
+            return TreatmentRoom(roomNumber, capacity, 0.0, ward, hospital, monitoringCategory)
         } finally {
             lock.readLock().unlock()
         }
@@ -242,7 +242,7 @@ open class RoomService (
                 val hospital = hospitalService.getHospitalByCode(hospitalCode) ?: return null
                 val monitoringCategory = monitoringCategoryService.getCategoryByDescription(category) ?: return null
 
-                val room = TreatmentRoom(roomNumber, capacity, ward, hospital, monitoringCategory)
+                val room = TreatmentRoom(roomNumber, capacity, 0.0, ward, hospital, monitoringCategory)
                 if (!rooms.any { it.roomNumber == room.roomNumber && it.treatmentWard.wardName == room.treatmentWard.wardName && it.hospital.hospitalCode == room.hospital.hospitalCode }) {
                     rooms.add(room)
                 }
@@ -300,7 +300,7 @@ open class RoomService (
             try {
                 updateProcessor.execute()
                 replConfig.regenerateSingleModel().invoke("rooms")
-                val room = TreatmentRoom(room.roomNumber, newCapacity,
+                val room = TreatmentRoom(room.roomNumber, newCapacity, 0.0,
                     wardService.getWardByNameAndHospital(newWard, room.hospital.hospitalCode) ?: return room,
                     hospitalService.getHospitalByCode(room.hospital.hospitalCode) ?: return room,
                     monitoringCategoryService.getCategoryByDescription(newCategory) ?: return room)
