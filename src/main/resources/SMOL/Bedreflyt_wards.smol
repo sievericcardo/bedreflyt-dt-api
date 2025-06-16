@@ -4,14 +4,11 @@ class WardModel extends BaseModel ()
         PREFIX : <http://www.smolang.org/bedreflyt/>
         PREFIX brick: <https://brickschema.org/schema/Brick#>
 
-        SELECT DISTINCT ?wardName ?capacityThreshold ?corridorPenalty ?officePenalty ?corridorCapacity ?wardHospital ?wardFloor
+        SELECT DISTINCT ?wardName ?capacityThreshold ?wardHospital ?wardFloor
         WHERE {
             ?ward a :Ward ;
                 :wardName ?wardName ;
                 :capacityThreshold ?capacityThreshold ;
-                :corridorPenalty ?corridorPenalty ;
-                :officePenalty ?officePenalty ;
-                :corridorCapacity ?corridorCapacity ;
                 brick:hasHospital ?hospital ;
                 brick:hasFloor ?floor .
             ?hospital a brick:Hospital ;
@@ -42,9 +39,6 @@ class WardModel extends BaseModel ()
                 
                 print("RECONFIG> Adding ward " ++ newWard.wardName);
                 print("          Capacity threshold: " ++ newWard.capacityThreshold);
-                print("          Corridor penalty: " ++ newWard.corridorPenalty);
-                print("          Office penalty: " ++ newWard.officePenalty);
-                print("          Corridor capacity: " ++ newWard.corridorCapacity);
                 destroy(lx);
             end
 

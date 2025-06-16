@@ -50,6 +50,8 @@ class RoomModel extends BaseModel()
                 TreatingRoom newRoom = newRooms.content;
                 List<TreatingRoom> lx = newRooms;
                 newRooms = newRooms.next;
+
+                newRoom.penalty = 0;
                 
                 print("RECONFIG> Adding Room " ++ intToString(newRoom.roomNumber));
                 print("          Room Ward: " ++ newRoom.treatingWard.wardName);
