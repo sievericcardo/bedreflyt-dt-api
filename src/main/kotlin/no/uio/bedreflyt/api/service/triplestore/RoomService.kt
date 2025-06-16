@@ -35,10 +35,12 @@ open class RoomService (
     open fun createRoom(request: RoomRequest) : TreatmentRoom? {
         lock.writeLock().lock()
         try {
+            val penalty = request.penalty ?: 0.0
             val query = """
             PREFIX bedreflyt: <$prefix>
             PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
             PREFIX owl: <http://www.w3.org/2002/07/owl#>
+            PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
             
             INSERT DATA {
                 bedreflyt:Room${request.roomNumber}_${request.ward} rdf:type owl:NamedIndividual ,
@@ -47,6 +49,7 @@ open class RoomService (
                     bedreflyt:hasMonitoringStatus bedreflyt:${request.categoryDescription} ;
                     bedreflyt:isAssignWard bedreflyt:${request.ward} ;
                     bedreflyt:hasCapacityNrBeds ${request.capacity} ;
+                    bedreflyt:penalty "$penalty"^^xsd:double ;
                     bedreflyt:hasRoomNr ${request.roomNumber} .
             }
         """.trimIndent()
@@ -62,7 +65,7 @@ open class RoomService (
                 val monitoringCategory = monitoringCategoryService.getCategoryByDescription(request.categoryDescription) ?: return null
                 replConfig.regenerateSingleModel().invoke("rooms")
 
-                return TreatmentRoom(request.roomNumber, request.capacity, 0.0,ward, hospital, monitoringCategory)
+                return TreatmentRoom(request.roomNumber, request.capacity, penalty,ward, hospital, monitoringCategory)
             } catch (_: Exception) {
                 return null
             }
@@ -78,10 +81,11 @@ open class RoomService (
             val rooms: MutableList<TreatmentRoom> = mutableListOf()
 
             val query = """
-            SELECT DISTINCT ?roomNumber ?capacity ?wardName ?hospitalName ?category WHERE {
+            SELECT DISTINCT ?roomNumber ?capacity ?penalty ?wardName ?hospitalName ?category WHERE {
                 ?obj a prog:TreatingRoom ;
                     prog:TreatingRoom_roomNumber ?roomNumber ;
                     prog:TreatingRoom_capacity ?capacity ;
+                    prog:TreatingRoom_penalty ?penalty ;
                     prog:TreatingRoom_treatingWard ?ward ;
                     prog:TreatingRoom_hospital ?hospital ;
                     prog:TreatingRoom_monitoringCategory ?monitoringCategory .
@@ -102,6 +106,7 @@ open class RoomService (
                 val solution: QuerySolution = resultRooms.next()
                 val roomNumber = solution.get("?roomNumber").asLiteral().toString().split("^^")[0].toInt()
                 val capacity = solution.get("?capacity").asLiteral().toString().split("^^")[0].toInt()
+                val penalty = solution.get("?penalty")?.asLiteral()?.toString()?.split("^^")?.get(0)?.toDouble() ?: 0.0
                 val wardName = solution.get("?wardName").asLiteral().toString()
                 val hospitalName = solution.get("?hospitalName").asLiteral().toString()
                 val category = solution.get("?category").asLiteral().toString()
@@ -110,7 +115,7 @@ open class RoomService (
                 val hospital = hospitalService.getHospitalByCode(hospitalName) ?: continue
                 val monitoringCategory = monitoringCategoryService.getCategoryByDescription(category) ?: continue
 
-                val room = TreatmentRoom(roomNumber, capacity, 0.0, ward, hospital, monitoringCategory)
+                val room = TreatmentRoom(roomNumber, capacity, penalty, ward, hospital, monitoringCategory)
                 if (!rooms.any { it.roomNumber == room.roomNumber && it.treatmentWard.wardName == room.treatmentWard.wardName && it.hospital.hospitalCode == room.hospital.hospitalCode }) {
                     rooms.add(room)
                 }
@@ -132,6 +137,7 @@ open class RoomService (
                 ?obj a prog:TreatingRoom ;
                     prog:TreatingRoom_roomNumber $roomNumber ;
                     prog:TreatingRoom_capacity ?capacity ;
+                    prog:TreatingRoom_penalty ?penalty ;
                     prog:TreatingRoom_treatingWard ?ward ;
                     prog:TreatingRoom_hospital ?hospital ;
                     prog:TreatingRoom_monitoringCategory ?monitoringCategory .
@@ -151,6 +157,7 @@ open class RoomService (
 
             val solution: QuerySolution = resultRooms.next()
             val capacity = solution.get("?capacity").asLiteral().toString().split("^^")[0].toInt()
+            val penalty = solution.get("?penalty")?.asLiteral()?.toString()?.split("^^")?.get(0)?.toDouble() ?: 0.0
             val wardName = solution.get("?wardName").asLiteral().toString()
             val hospitalName = solution.get("?hospitalName").asLiteral().toString()
             val category = solution.get("?category").asLiteral().toString()
@@ -159,7 +166,7 @@ open class RoomService (
             val hospital = hospitalService.getHospitalByCode(hospitalName) ?: return null
             val monitoringCategory = monitoringCategoryService.getCategoryByDescription(category) ?: return null
 
-            return TreatmentRoom(roomNumber, capacity, 0.0, ward, hospital, monitoringCategory)
+            return TreatmentRoom(roomNumber, capacity, penalty, ward, hospital, monitoringCategory)
         } finally {
             lock.readLock().unlock()
         }
@@ -174,6 +181,7 @@ open class RoomService (
                 ?obj a prog:TreatingRoom ;
                     prog:TreatingRoom_roomNumber $roomNumber ;
                     prog:TreatingRoom_capacity ?capacity ;
+                    prog:TreatingRoom_penalty ?penalty ;
                     prog:TreatingRoom_treatingWard ?ward ;
                     prog:TreatingRoom_hospital ?hospital ;
                     prog:TreatingRoom_monitoringCategory ?monitoringCategory .
@@ -193,13 +201,14 @@ open class RoomService (
 
             val solution: QuerySolution = resultRooms.next()
             val capacity = solution.get("?capacity").asLiteral().toString().split("^^")[0].toInt()
+            val penalty = solution.get("?penalty")?.asLiteral()?.toString()?.split("^^")?.get(0)?.toDouble() ?: 0.0
             val category = solution.get("?category").asLiteral().toString()
 
             val ward = wardService.getWardByNameAndHospital(wardName, hospitalCode) ?: return null
             val hospital = hospitalService.getHospitalByCode(hospitalCode) ?: return null
             val monitoringCategory = monitoringCategoryService.getCategoryByDescription(category) ?: return null
 
-            return TreatmentRoom(roomNumber, capacity, 0.0, ward, hospital, monitoringCategory)
+            return TreatmentRoom(roomNumber, capacity, penalty, ward, hospital, monitoringCategory)
         } finally {
             lock.readLock().unlock()
         }
@@ -215,6 +224,7 @@ open class RoomService (
                     ?obj a prog:TreatingRoom ;
                         prog:TreatingRoom_roomNumber ?roomNumber ;
                         prog:TreatingRoom_capacity ?capacity ;
+                        prog:TreatingRoom_penalty ?penalty ;
                         prog:TreatingRoom_treatingWard ?ward ;
                         prog:TreatingRoom_hospital ?hospital ;
                         prog:TreatingRoom_monitoringCategory ?monitoringCategory .
@@ -236,13 +246,14 @@ open class RoomService (
                 val solution: QuerySolution = resultRooms.next()
                 val roomNumber = solution.get("?roomNumber").asLiteral().toString().split("^^")[0].toInt()
                 val capacity = solution.get("?capacity").asLiteral().toString().split("^^")[0].toInt()
+                val penalty = solution.get("?penalty")?.asLiteral()?.toString()?.split("^^")?.get(0)?.toDouble() ?: 0.0
                 val category = solution.get("?category").asLiteral().toString()
 
                 val ward = wardService.getWardByNameAndHospital(wardName, hospitalCode) ?: return null
                 val hospital = hospitalService.getHospitalByCode(hospitalCode) ?: return null
                 val monitoringCategory = monitoringCategoryService.getCategoryByDescription(category) ?: return null
 
-                val room = TreatmentRoom(roomNumber, capacity, 0.0, ward, hospital, monitoringCategory)
+                val room = TreatmentRoom(roomNumber, capacity, penalty, ward, hospital, monitoringCategory)
                 if (!rooms.any { it.roomNumber == room.roomNumber && it.treatmentWard.wardName == room.treatmentWard.wardName && it.hospital.hospitalCode == room.hospital.hospitalCode }) {
                     rooms.add(room)
                 }
