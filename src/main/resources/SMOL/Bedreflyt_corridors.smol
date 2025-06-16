@@ -11,8 +11,7 @@ class CorridorModel extends BaseModel()
                 :hasCapacityNrBeds ?capacity ;
                 :penalty ?penalty ;
                 :isAssignWard ?ward ;
-                :hasMonitoringStatus ?monitoringStatus ;
-                :available ?available .
+                :hasMonitoringStatus ?monitoringStatus .
             ?ward a :Ward ;
                 :wardName ?wardName ;
                 brick:hasHospital ?hospitalWard .
@@ -32,7 +31,6 @@ class CorridorModel extends BaseModel()
                     prog:Corridor_capacity ?capacity ;
                     prog:Corridor_corridorWard ?wardObj ;
                     prog:Corridor_hospital ?hospitalObj ;
-                    prog:Corridor_available ?available ;
                     prog:Corridor_monitoringCategory ?monitoringStatusObj .
                 ?wardObj a prog:Ward ;
                     prog:Ward_wardName ?wardName .
@@ -54,8 +52,6 @@ class CorridorModel extends BaseModel()
                 print("RECONFIG> Adding corridor");
                 print("          Monitoring status: " ++ newCorridor.monitoringCategory.description);
                 print("          Assigned ward: " ++ newCorridor.corridorWard.wardName);
-                // print("          Available: " ++ booleanToString(newCorridor.available));
-                print("          Available: " ++ booleanToString(newCorridor.available));
                 print("          Capacity number of beds: " ++ intToString(newCorridor.capacity));
                 print("          Room number: " ++ intToString(newCorridor.roomNumber));
                 destroy(lx);
@@ -88,8 +84,7 @@ class CorridorModel extends BaseModel()
                 ?corridor a :Corridor ;
                     :hasRoomNr ?roomNumber ;
                     :isAssignWard ?ward ;
-                    :hasMonitoringStatus ?monitoringStatus ;
-                    :available ?available .
+                    :hasMonitoringStatus ?monitoringStatus .
                 ?ward a :Ward ;
                     :wardName ?wardName ;
                     brick:hasHospital ?hospitalWard .
