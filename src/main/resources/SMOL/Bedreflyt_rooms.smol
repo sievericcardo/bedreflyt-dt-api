@@ -5,13 +5,14 @@ class RoomModel extends BaseModel()
         PREFIX : <http://www.smolang.org/bedreflyt/>
         PREFIX brick: <https://brickschema.org/schema/Brick#>
 
-        SELECT DISTINCT ?roomNumber ?capacity ?treatingWard ?hospital ?monitoringCategory
+        SELECT DISTINCT ?roomNumber ?capacity ?penalty ?treatingWard ?hospital ?monitoringCategory
         WHERE {
             ?room rdf:type <https://w3id.org/rec/building/TreatmentRoom> ;
                 :hasRoomNr ?roomNumber ;
                 :hasCapacityNrBeds ?capacity ;
                 :isAssignWard ?ward ;
                 :hasMonitoringStatus ?monitoringStatus .
+            OPTIONAL { ?room :penalty ?penalty . }
             ?ward a :Ward ;
                 :wardName ?wardName ;
                 brick:hasHospital ?hospitalWard .
@@ -51,7 +52,9 @@ class RoomModel extends BaseModel()
                 List<TreatingRoom> lx = newRooms;
                 newRooms = newRooms.next;
 
-                newRoom.penalty = 0;
+                if newRoom.penalty == null then
+                    newRoom.penalty = 0; // Default penalty if not specified
+                end
                 
                 print("RECONFIG> Adding Room " ++ intToString(newRoom.roomNumber));
                 print("          Room Ward: " ++ newRoom.treatingWard.wardName);
