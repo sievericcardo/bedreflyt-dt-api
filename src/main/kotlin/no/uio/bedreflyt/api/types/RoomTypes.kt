@@ -14,6 +14,10 @@ data class RoomRequest (
     @NotNull(message = "Room capacity is required")
     @Pattern(regexp = "^[0-9]+$", message = "Room capacity is invalid")
     val capacity: Int,
+    @NotNull(message = "Penalty is required")
+    @NotBlank(message = "Penalty is required")
+    @Pattern(regexp = "^[0-9]+(\\.[0-9]{1,2})?$", message = "Penalty must be a valid number with up to two decimal places")
+    val penalty: Double?,
     @NotBlank(message = "Ward is required")
     @NotNull(message = "Ward is required")
     @Pattern(regexp = "^[a-zA-Z]+(?:[\\s-][a-zA-Z]+)*$", message = "Ward is invalid")
@@ -32,6 +36,10 @@ data class UpdateRoomRequest (
     @Nullable
     @Pattern(regexp = "^[0-9]+$", message = "Room number is invalid")
     val newCapacity: Int?,
+    @NotNull(message = "Penalty is required")
+    @NotBlank(message = "Penalty is required")
+    @Pattern(regexp = "^[0-9]+(\\.[0-9]{1,2})?$", message = "Penalty must be a valid number with up to two decimal places")
+    val newPenalty: Double?,
     @Nullable
     @Pattern(regexp = "^[a-zA-Z]+(?:[\\s-][a-zA-Z]+)*$", message = "Ward is invalid")
     val newWard: String?,
