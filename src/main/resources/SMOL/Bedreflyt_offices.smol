@@ -54,7 +54,6 @@ class OfficeModel extends BaseModel()
                 print("RECONFIG> Adding office");
                 print("          Monitoring status: " ++ newOffice.monitoringCategory.description);
                 print("          Assigned ward: " ++ newOffice.officeWard.wardName);
-                // print("          Available: " ++ booleanToString(newOffice.available));
                 print("          Available: " ++ booleanToString(newOffice.available));
                 print("          Capacity number of beds: " ++ intToString(newOffice.capacity));
                 print("          Room number: " ++ intToString(newOffice.roomNumber));
