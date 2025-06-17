@@ -18,6 +18,10 @@ data class OfficeRequest (
     @NotBlank(message = "Available status is required")
     @Pattern(regexp = "^(true|false)$", message = "Available status must be true or false")
     val available: Boolean,
+    @NotNull(message = "Penalty is required")
+    @NotBlank(message = "Penalty is required")
+    @Pattern(regexp = "^[0-9]+(\\.[0-9]{1,2})?$", message = "Penalty must be a valid number with up to two decimal places")
+    val penalty: Double,
     @NotBlank(message = "Ward is required")
     @NotNull(message = "Ward is required")
     @Pattern(regexp = "^[a-zA-Z]+(?:[\\s-][a-zA-Z]+)*$", message = "Ward is invalid")
@@ -39,6 +43,9 @@ data class UpdateOfficeRequest (
     @Nullable
     @Pattern(regexp = "^(true|false)$", message = "Available status must be true or false")
     val newAvailable: Boolean?,
+    @Nullable
+    @Pattern(regexp = "^[0-9]+(\\.[0-9]{1,2})?$", message = "Penalty must be a valid number with up to two decimal places")
+    val newPenalty: Double?,
     @Nullable
     @Pattern(regexp = "^[a-zA-Z]+(?:[\\s-][a-zA-Z]+)*$", message = "Ward is invalid")
     val newWard: String?,

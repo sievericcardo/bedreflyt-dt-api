@@ -152,9 +152,6 @@ class Ward extends Twin (
     String wardName,
     String wardCode,
     Double capacityThreshold,
-    Double corridorPenalty,
-    Double officePenalty,
-    Int corridorCapacity,
     Hospital wardHospital,
     Floor wardFloor
 )
@@ -162,7 +159,16 @@ end
 
 class Room extends Twin (
     Int roomNumber,
-    Int capacity
+    Int capacity,
+    Double penalty
+)
+end
+
+class Corridor extends Room (
+    Ward corridorWard,
+    Hospital hospital,
+    Boolean available,
+    MonitoringCategory monitoringCategory
 )
 end
 

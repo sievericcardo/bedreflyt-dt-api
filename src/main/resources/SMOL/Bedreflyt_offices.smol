@@ -4,11 +4,12 @@ class OfficeModel extends BaseModel()
         PREFIX : <http://www.smolang.org/bedreflyt/>
         PREFIX brick: <https://brickschema.org/schema/Brick#>
 
-        SELECT DISTINCT ?roomNumber ?capacity ?officeWard ?hospital ?available ?monitoringCategory
+        SELECT DISTINCT ?roomNumber ?capacity ?penalty ?officeWard ?hospital ?available ?monitoringCategory
         WHERE {
             ?office a :Office ;
                 :hasRoomNr ?roomNumber ;
                 :hasCapacityNrBeds ?capacity ;
+                :penalty ?penalty ;
                 :isAssignWard ?ward ;
                 :hasMonitoringStatus ?monitoringStatus ;
                 :available ?available .
@@ -53,7 +54,6 @@ class OfficeModel extends BaseModel()
                 print("RECONFIG> Adding office");
                 print("          Monitoring status: " ++ newOffice.monitoringCategory.description);
                 print("          Assigned ward: " ++ newOffice.officeWard.wardName);
-                // print("          Available: " ++ booleanToString(newOffice.available));
                 print("          Available: " ++ booleanToString(newOffice.available));
                 print("          Capacity number of beds: " ++ intToString(newOffice.capacity));
                 print("          Room number: " ++ intToString(newOffice.roomNumber));

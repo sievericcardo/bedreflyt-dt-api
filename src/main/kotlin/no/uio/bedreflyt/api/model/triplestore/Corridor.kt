@@ -1,10 +1,9 @@
 package no.uio.bedreflyt.api.model.triplestore
 
-class Office (
+class Corridor (
     roomNumber: Int,
     capacity: Int,
     penalty: Double,
-    var available: Boolean,
     val treatmentWard: Ward,
     val hospital: Hospital,
     val monitoringCategory: MonitoringCategory

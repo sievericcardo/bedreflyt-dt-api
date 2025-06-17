@@ -196,9 +196,9 @@ class Simulator (
         val roomCategories: List<Long> = rooms.map { it.monitoringCategory.category.toLong() ?: 0 }
         val penalties: List<Int> = rooms.map {
             if (it.monitoringCategory.description == "Korridor") {
-                ward.corridorPenalty.toInt()
+                it.penalty.toInt()
             } else if (it.monitoringCategory.description == "Midlertidig") {
-                ward.officePenalty.toInt()
+                it.penalty.toInt()
             } else {
                 0
             }

@@ -5,7 +5,7 @@ import jakarta.validation.constraints.NotBlank
 import jakarta.validation.constraints.NotNull
 import jakarta.validation.constraints.Pattern
 
-data class RoomRequest (
+data class CorridorRequest (
     @NotBlank(message = "Room number is required")
     @NotNull(message = "Room number is required")
     @Pattern(regexp = "^[0-9]+$", message = "Room number is invalid")
@@ -17,7 +17,7 @@ data class RoomRequest (
     @NotNull(message = "Penalty is required")
     @NotBlank(message = "Penalty is required")
     @Pattern(regexp = "^[0-9]+(\\.[0-9]{1,2})?$", message = "Penalty must be a valid number with up to two decimal places")
-    val penalty: Double?,
+    val penalty: Double,
     @NotBlank(message = "Ward is required")
     @NotNull(message = "Ward is required")
     @Pattern(regexp = "^[a-zA-Z]+(?:[\\s-][a-zA-Z]+)*$", message = "Ward is invalid")
@@ -32,12 +32,11 @@ data class RoomRequest (
     val categoryDescription: String
 )
 
-data class UpdateRoomRequest (
+data class UpdateCorridorRequest (
     @Nullable
     @Pattern(regexp = "^[0-9]+$", message = "Room number is invalid")
     val newCapacity: Int?,
-    @NotNull(message = "Penalty is required")
-    @NotBlank(message = "Penalty is required")
+    @Nullable
     @Pattern(regexp = "^[0-9]+(\\.[0-9]{1,2})?$", message = "Penalty must be a valid number with up to two decimal places")
     val newPenalty: Double?,
     @Nullable
@@ -47,4 +46,3 @@ data class UpdateRoomRequest (
     @Pattern(regexp = "^[a-zA-Z]+(?:[\\s-][a-zA-Z]+)*$", message = "Monitoring category description is invalid")
     val newCategoryDescription: String?
 )
-

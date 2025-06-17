@@ -56,6 +56,7 @@ main
     // BedModel m3 = new BedModel("beds");
     RoomModel m4 = new RoomModel("rooms");
     OfficeModel m13 = new OfficeModel("offices");
+    CorridorModel m14 = new CorridorModel("corridors");
     // BathroomModel m5 = new BathroomModel("bathrooms");
     WardModel m6 = new WardModel("wards");
     FloorModel m7 = new FloorModel("floors");
@@ -70,6 +71,7 @@ main
     // assetModel.register(m3);
     assetModel.register(m4);
     assetModel.register(m13);
+    assetModel.register(m14);
     // assetModel.register(m5);
     assetModel.register(m6);
     assetModel.register(m7);
