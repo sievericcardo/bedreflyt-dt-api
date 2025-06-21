@@ -30,29 +30,40 @@ open class RoomService (
     private val ttlPrefix = triplestoreProperties.ttlPrefix
     private val repl = replConfig.repl()
     private val lock = ReentrantReadWriteLock()
+    private val prefixes = """
+        PREFIX bedreflyt: <$prefix>
+        PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+        PREFIX owl: <http://www.w3.org/2002/07/owl#>
+        PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+        
+    """.trimIndent()
 
-    @CachePut(value = ["rooms"], key = "#request.roomNumber + '_' + #request.ward + '_' + #request.hospital")
+    private fun createQuery (roomNumber: Int, wardName: String, categoryDescription: String, capacity: Int, penalty: Double) : String {
+        return """
+                bedreflyt:Room${roomNumber}_${wardName} rdf:type owl:NamedIndividual ,
+                           <https://w3id.org/rec/building/TreatmentRoom> ;
+                    bedreflyt:hasBathroom bedreflyt:Room${roomNumber}-1 ;
+                    bedreflyt:hasMonitoringStatus bedreflyt:${categoryDescription} ;
+                    bedreflyt:isAssignWard bedreflyt:${wardName} ;
+                    bedreflyt:hasCapacityNrBeds $capacity ;
+                    bedreflyt:penalty "$penalty"^^xsd:double ;
+                    bedreflyt:hasRoomNr $roomNumber .
+            
+        """
+    }
+
+//    @CachePut(value = ["rooms"], key = "#request.roomNumber + '_' + #request.ward + '_' + #request.hospital")
     open fun createRoom(request: RoomRequest) : TreatmentRoom? {
         lock.writeLock().lock()
         try {
             val penalty = request.penalty ?: 0.0
-            val query = """
-            PREFIX bedreflyt: <$prefix>
-            PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
-            PREFIX owl: <http://www.w3.org/2002/07/owl#>
-            PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
-            
-            INSERT DATA {
-                bedreflyt:Room${request.roomNumber}_${request.ward} rdf:type owl:NamedIndividual ,
-                           <https://w3id.org/rec/building/TreatmentRoom> ;
-                    bedreflyt:hasBathroom bedreflyt:Room${request.roomNumber}-1 ;
-                    bedreflyt:hasMonitoringStatus bedreflyt:${request.categoryDescription} ;
-                    bedreflyt:isAssignWard bedreflyt:${request.ward} ;
-                    bedreflyt:hasCapacityNrBeds ${request.capacity} ;
-                    bedreflyt:penalty "$penalty"^^xsd:double ;
-                    bedreflyt:hasRoomNr ${request.roomNumber} .
-            }
-        """.trimIndent()
+            val query = prefixes + "INSERT DATA {" + createQuery(
+                roomNumber = request.roomNumber,
+                wardName = request.ward,
+                categoryDescription = request.categoryDescription,
+                capacity = request.capacity,
+                penalty = penalty
+            ) + "}"
 
             val updateRequest: UpdateRequest = UpdateFactory.create(query)
             val fusekiEndpoint = "$tripleStore/update"
@@ -74,7 +85,52 @@ open class RoomService (
         }
     }
 
-    @Cacheable(value = ["rooms"], key = "'allRooms'")
+    open fun createMultiRooms(requests: List<RoomRequest>): List<TreatmentRoom>? {
+        lock.writeLock().lock()
+        try {
+            val rooms = mutableListOf<TreatmentRoom>()
+            val tripleStatements = StringBuilder()
+            for (request in requests) {
+                val penalty = request.penalty ?: 0.0
+
+                // Only add triples if all references are valid
+                val ward = wardService.getWardByNameAndHospital(request.ward, request.hospital) ?: continue
+                val hospital = hospitalService.getHospitalByCode(request.hospital) ?: continue
+                val monitoringCategory = monitoringCategoryService.getCategoryByDescription(request.categoryDescription) ?: continue
+
+                tripleStatements.append(
+                    createQuery(
+                        roomNumber = request.roomNumber,
+                        wardName = request.ward,
+                        categoryDescription = request.categoryDescription,
+                        capacity = request.capacity,
+                        penalty = penalty
+                    ).trim()
+                )
+
+                rooms.add(TreatmentRoom(request.roomNumber, request.capacity, penalty, ward, hospital, monitoringCategory))
+            }
+
+            if (rooms.isEmpty()) return null
+
+            val query = prefixes + "INSERT DATA {\n${tripleStatements}\n}"
+            val updateRequest: UpdateRequest = UpdateFactory.create(query)
+            val fusekiEndpoint = "$tripleStore/update"
+            val updateProcessor: UpdateProcessor = UpdateExecutionFactory.createRemote(updateRequest, fusekiEndpoint)
+
+            try {
+                updateProcessor.execute()
+                replConfig.regenerateSingleModel().invoke("rooms")
+                return rooms
+            } catch (_: Exception) {
+                return null
+            }
+        } finally {
+            lock.writeLock().unlock()
+        }
+    }
+
+//    @Cacheable(value = ["rooms"], key = "'allRooms'")
     open fun getAllRooms() : List<TreatmentRoom>? {
         lock.readLock().lock()
         try {
@@ -128,7 +184,7 @@ open class RoomService (
         }
     }
 
-    @Cacheable(value = ["rooms"], key = "#roomNumber")
+//    @Cacheable(value = ["rooms"], key = "#roomNumber")
     open fun getRoomByRoomNumber(roomNumber: Int): TreatmentRoom? {
         lock.readLock().lock()
         try {
@@ -172,12 +228,12 @@ open class RoomService (
         }
     }
 
-    @Cacheable(value = ["rooms"], key = "#roomNumber + '_' + #wardName + '_' + #hospitalCode")
+//    @Cacheable(value = ["rooms"], key = "#roomNumber + '_' + #wardName + '_' + #hospitalCode")
     open fun getRoomByRoomNumberWardHospital(roomNumber: Int, wardName: String, hospitalCode: String) : TreatmentRoom? {
         lock.readLock().lock()
         try {
             val query = """
-            SELECT DISTINCT ?capacity ?category WHERE {
+            SELECT DISTINCT ?capacity ?penalty ?category WHERE {
                 ?obj a prog:TreatingRoom ;
                     prog:TreatingRoom_roomNumber $roomNumber ;
                     prog:TreatingRoom_capacity ?capacity ;
@@ -214,7 +270,7 @@ open class RoomService (
         }
     }
 
-    @Cacheable(value = ["rooms"], key = "'roomsByWardHospital_' + #wardName + '_' + #hospitalCode")
+//    @Cacheable(value = ["rooms"], key = "'roomsByWardHospital_' + #wardName + '_' + #hospitalCode")
     open fun getRoomsByWardHospital(wardName: String, hospitalCode: String) : List<TreatmentRoom>? {
         lock.readLock().lock()
         try {
@@ -265,15 +321,13 @@ open class RoomService (
         }
     }
 
-    @CacheEvict(value = ["rooms"], key = "#room.roomNumber + '_' + #room.treatmentWard.wardName + '_' + #room.hospital.hospitalCode")
-    @CachePut(value = ["rooms"], key = "#room.roomNumber + '_' + #newWard + '_' + #room.hospital.hospitalCode")
+//    @CacheEvict(value = ["rooms"], key = "#room.roomNumber + '_' + #room.treatmentWard.wardName + '_' + #room.hospital.hospitalCode")
+//    @CachePut(value = ["rooms"], key = "#room.roomNumber + '_' + #newWard + '_' + #room.hospital.hospitalCode")
     open fun updateRoom(room: TreatmentRoom, newCapacity: Int, newWard: String, newCategory: String) : TreatmentRoom? {
         lock.writeLock().lock()
         try {
             val query = """
-            PREFIX bedreflyt: <$prefix>
-            PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
-            PREFIX owl: <http://www.w3.org/2002/07/owl#>
+            $prefixes
             
             DELETE {
                 bedreflyt:Room${room.roomNumber}_${room.treatmentWard.wardName} rdf:type owl:NamedIndividual ,
@@ -325,14 +379,12 @@ open class RoomService (
         }
     }
 
-    @CacheEvict(value = ["rooms"], allEntries = true)
+//    @CacheEvict(value = ["rooms"], allEntries = true)
     open fun deleteRoom(room: TreatmentRoom) : Boolean {
         lock.writeLock().lock()
         try {
             val query = """
-            PREFIX bedreflyt: <$prefix>
-            PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
-            PREFIX owl: <http://www.w3.org/2002/07/owl#>
+            $prefixes
             
             DELETE {
                 bedreflyt:Room${room.roomNumber}_${room.treatmentWard.wardName} rdf:type owl:NamedIndividual ,
