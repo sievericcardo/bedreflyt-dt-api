@@ -31,6 +31,7 @@ open class CityService (
     private val log: Logger = LoggerFactory.getLogger(CityService::class.java.name)
     private val lock = ReentrantReadWriteLock()
 
+    @CacheEvict(value = ["cities"], allEntries = true)
     @CachePut("cities", key = "#request.cityName")
     open fun createCity(request: CityRequest) : City? {
         lock.writeLock().lock()
@@ -62,7 +63,7 @@ open class CityService (
         }
     }
 
-    @Cacheable("cities", key = "'allCities'")
+    @Cacheable(value = ["cities"], key = "'allCities'")
     open fun getAllCities() : List<City>? {
         lock.readLock().lock()
         try {
@@ -119,7 +120,7 @@ open class CityService (
         }
     }
 
-    @CacheEvict("cities", key = "#cityName")
+    @CacheEvict(value = ["cities"], allEntries = true)
     @CachePut("cities", key = "#newCityName")
     open fun updateCity(cityName: String, newCityName: String) : City? {
         lock.writeLock().lock()
@@ -159,7 +160,7 @@ open class CityService (
         }
     }
 
-    @CacheEvict("cities", allEntries = true)
+    @CacheEvict(value = ["cities"], allEntries = true)
     open fun deleteCity(cityName: String) : Boolean {
         lock.writeLock().lock()
         try {

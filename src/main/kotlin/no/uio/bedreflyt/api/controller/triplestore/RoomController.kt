@@ -43,12 +43,34 @@ class RoomController(
     fun createRoom (@SwaggerRequestBody(description = "Request to add a new room") @Valid @RequestBody roomRequest: RoomRequest) : ResponseEntity<TreatmentRoom> {
         log.info("Creating room $roomRequest")
 
-        val ward = wardService.getWardByNameAndHospital(roomRequest.ward, roomRequest.hospital) ?: return ResponseEntity.badRequest().build()
-        val hospital = hospitalService.getHospitalByCode(roomRequest.hospital) ?: return ResponseEntity.badRequest().build()
-        val monitoringCategory = monitoringCategoryService.getCategoryByDescription(roomRequest.categoryDescription) ?: return ResponseEntity.badRequest().build()
+        wardService.getWardByNameAndHospital(roomRequest.ward, roomRequest.hospital) ?: return ResponseEntity.badRequest().build()
+        hospitalService.getHospitalByCode(roomRequest.hospital) ?: return ResponseEntity.badRequest().build()
+        monitoringCategoryService.getCategoryByDescription(roomRequest.categoryDescription) ?: return ResponseEntity.badRequest().build()
         val newRoom = roomService.createRoom(roomRequest) ?: return ResponseEntity.badRequest().build()
 
         return ResponseEntity.ok(newRoom)
+    }
+
+    @Operation(summary = "All rooms created")
+    @ApiResponses(value = [
+        ApiResponse(responseCode = "200", description = "Rooms added"),
+        ApiResponse(responseCode = "400", description = "Invalid request"),
+        ApiResponse(responseCode = "401", description = "Unauthorized"),
+        ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
+        ApiResponse(responseCode = "500", description = "Internal server error")
+    ])
+    @PostMapping("/multi", produces= ["application/json"])
+    fun createMultiRooms(@SwaggerRequestBody(description = "Request to add multiple rooms") @RequestBody roomRequests: List<RoomRequest>) : ResponseEntity<List<TreatmentRoom>> {
+        log.info("Creating multiple rooms $roomRequests")
+
+        roomRequests.forEach { request ->
+            wardService.getWardByNameAndHospital(request.ward, request.hospital) ?: return ResponseEntity.badRequest().build()
+            hospitalService.getHospitalByCode(request.hospital) ?: return ResponseEntity.badRequest().build()
+            monitoringCategoryService.getCategoryByDescription(request.categoryDescription) ?: return ResponseEntity.badRequest().build()
+        }
+        val createdRooms = roomService.createMultiRooms(roomRequests) ?: return ResponseEntity.badRequest().build()
+
+        return ResponseEntity.ok(createdRooms)
     }
 
     @Operation(summary = "Get all rooms")
@@ -63,7 +85,7 @@ class RoomController(
     fun retrieveRooms() : ResponseEntity<List<Room>> {
         log.info("Retrieving rooms")
 
-        val rooms = roomService.getAllRooms() ?: return ResponseEntity.badRequest().build()
+        val rooms = roomService.getAllRooms() ?: return ResponseEntity.noContent().build()
 
         return ResponseEntity.ok(rooms)
     }
@@ -146,9 +168,9 @@ class RoomController(
                    @ApiParam(value = "Hospital code", required = true) @Valid @PathVariable hospitalCode: String) : ResponseEntity<String> {
         log.info("Deleting room $roomNumber in ward $wardName")
 
-        val room = roomService.getRoomByRoomNumberWardHospital(roomNumber, wardName, hospitalCode) ?: return ResponseEntity.notFound().build()
+        val room = roomService.getRoomByRoomNumberWardHospital(roomNumber, wardName, hospitalCode) //?: return ResponseEntity.notFound().build()
 
-        if (!roomService.deleteRoom(room)) {
+        if (!roomService.deleteRoom(room!!)) {
             return ResponseEntity.badRequest().build()
         }
 

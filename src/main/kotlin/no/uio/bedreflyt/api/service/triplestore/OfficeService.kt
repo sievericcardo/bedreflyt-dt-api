@@ -33,7 +33,8 @@ open class OfficeService (
     private val log: Logger = LoggerFactory.getLogger(OfficeService::class.java.name)
     private val lock = ReentrantReadWriteLock()
 
-    @CachePut(value = ["offices"], key = "#officeRequest.roomNumber + '_' + #officeRequest.ward + '_' + #officeRequest.hospital")
+    @CacheEvict(value = ["offices"], allEntries = true)
+    @CachePut("offices", key = "#officeRequest.roomNumber + '_' + #officeRequest.ward + '_' + #officeRequest.hospital")
     open fun createOffice(officeRequest: OfficeRequest): Office? {
         lock.writeLock().lock()
         try {
@@ -140,7 +141,7 @@ open class OfficeService (
         }
     }
 
-    @Cacheable(value = ["offices"], key = "#roomNumber + '_' + #wardName + '_' + #hospitalCode")
+    @Cacheable("offices", key = "#roomNumber + '_' + #wardName + '_' + #hospitalCode")
     open fun getOfficeByRoonNumberWardHospital (roomNumber: Int, wardName: String, hospitalCode: String): Office? {
         lock.readLock().lock()
         try {
@@ -185,7 +186,7 @@ open class OfficeService (
         }
     }
 
-    @Cacheable(value = ["offices"], key = "'officesByWardHospital_' + #wardName + '_' + #hospitalCode")
+    @Cacheable("offices", key = "'officesByWardHospital_' + #wardName + '_' + #hospitalCode")
     open fun getOfficeByWardHospital (wardName: String, hospitalCode: String): List<Office>? {
         lock.readLock().lock()
         try {
@@ -236,8 +237,8 @@ open class OfficeService (
         }
     }
 
-    @CacheEvict(value = ["offices"], key = "#office.roomNumber + '_' + #office.treatmentWard.wardName + '_' + #office.hospital.hospitalCode")
-    @CachePut(value = ["offices"], key = "#office.roomNumber + '_' + #newWard + '_' + #office.hospital.hospitalCode")
+    @CacheEvict(value = ["offices"], allEntries = true)
+    @CachePut("offices", key = "#office.roomNumber + '_' + #newWard + '_' + #office.hospital.hospitalCode")
     open fun updateOffice(office: Office, newCapacity: Int, newPenalty: Double, newAvailable: Boolean, newWard: String, newCategory: String) : Office? {
         lock.writeLock().lock()
         try {

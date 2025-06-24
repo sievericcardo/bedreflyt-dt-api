@@ -27,6 +27,7 @@ open class TaskService (
     private val repl = replConfig.repl()
     private val lock = ReentrantReadWriteLock()
 
+    @CacheEvict(value = ["tasks"], allEntries = true)
     @CachePut("tasks", key = "#taskName")
     open fun createTask(taskName: String) : Task? {
         lock.writeLock().lock()
@@ -60,7 +61,7 @@ open class TaskService (
         }
     }
 
-    @Cacheable("tasks", key = "'allTasks'")
+    @Cacheable(value = ["tasks"], key = "'allTasks'")
     open fun getAllTasks() : List<Task>? {
         lock.readLock().lock()
         try {
@@ -117,7 +118,7 @@ open class TaskService (
         }
     }
 
-    @CacheEvict("tasks", key = "#task.taskName")
+    @CacheEvict(value = ["tasks"], allEntries = true)
     @CachePut("tasks", key = "#newTaskName")
     open fun updateTask(task: Task, newTaskName: String) : Task? {
         lock.writeLock().lock()
@@ -162,7 +163,7 @@ open class TaskService (
         }
     }
 
-    @CacheEvict("tasks", allEntries = true)
+    @CacheEvict(value = ["tasks"], allEntries = true)
     open fun deleteTask(task: Task) : Boolean {
         lock.writeLock().lock()
         try {

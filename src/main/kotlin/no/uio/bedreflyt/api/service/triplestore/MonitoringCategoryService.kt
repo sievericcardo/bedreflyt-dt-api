@@ -28,6 +28,7 @@ open class MonitoringCategoryService (
     private val repl = replConfig.repl()
     private val lock = ReentrantReadWriteLock()
 
+    @CacheEvict(value = ["monitoringCategories"], allEntries = true)
     @CachePut("monitoringCategories", key = "#monitoringCategoryRequest.description")
     open fun createCategory(monitoringCategoryRequest: MonitoringCategoryRequest): MonitoringCategory? {
         lock.writeLock().lock()
@@ -60,7 +61,7 @@ open class MonitoringCategoryService (
         }
     }
 
-    @Cacheable("monitoringCategories", key = "'allCategories'")
+    @Cacheable(value = ["monitoringCategories"], key = "'allCategories'")
     open fun getAllCategories() : List<MonitoringCategory>? {
         lock.readLock().lock()
         try {
@@ -145,7 +146,7 @@ open class MonitoringCategoryService (
         }
     }
 
-    @CacheEvict("monitoringCategories", key = "#monitoringCategory.description")
+    @CacheEvict(value = ["monitoringCategories"], allEntries = true)
     @CachePut("monitoringCategories", key = "#newDescription")
     open fun updateCategory(monitoringCategory: MonitoringCategory, newDescription: String) : MonitoringCategory? {
         lock.writeLock().lock()
@@ -189,7 +190,7 @@ open class MonitoringCategoryService (
         }
     }
 
-    @CacheEvict("monitoringCategories", allEntries = true)
+    @CacheEvict(value = ["monitoringCategories"], allEntries = true)
     open fun deleteCategory(monitoringCategory: MonitoringCategory) : Boolean {
         lock.writeLock().lock()
         try {
