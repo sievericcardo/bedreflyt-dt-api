@@ -31,6 +31,7 @@ open class TreatmentService(
     private val log: Logger = LoggerFactory.getLogger(TreatmentService::class.java.name)
     private val lock = ReentrantReadWriteLock()
 
+    @CacheEvict(value = ["treatments"], allEntries = true)
     @CachePut("treatments", key = "#request.treatmentName")
     open fun createTreatment (request: TreatmentRequest) : Treatment? {
         lock.writeLock().lock()
@@ -119,7 +120,7 @@ open class TreatmentService(
         }
     }
 
-    @Cacheable("treatments", key = "'allTreatments'")
+    @Cacheable(value = ["treatments"], key = "'allTreatments'")
     open fun getAllTreatments(): List<Pair<Treatment, List<TreatmentStep>>>? {
         lock.readLock().lock()
         try {

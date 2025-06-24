@@ -55,7 +55,8 @@ open class RoomService (
         """
     }
 
-//    @CachePut(value = ["rooms"], key = "#request.roomNumber + '_' + #request.ward + '_' + #request.hospital")
+    @CacheEvict(value = ["rooms"], allEntries = true)
+    @CachePut(value = ["rooms"], key = "#request.roomNumber + '_' + #request.ward + '_' + #request.hospital")
     open fun createRoom(request: RoomRequest) : TreatmentRoom? {
         lock.writeLock().lock()
         try {
@@ -88,6 +89,7 @@ open class RoomService (
         }
     }
 
+    @CacheEvict(value = ["rooms"], allEntries = true)
     open fun createMultiRooms(requests: List<RoomRequest>): List<TreatmentRoom>? {
         lock.writeLock().lock()
         try {
@@ -133,7 +135,7 @@ open class RoomService (
         }
     }
 
-//    @Cacheable(value = ["rooms"], key = "'allRooms'")
+    @Cacheable(value = ["rooms"], key = "'allRooms'")
     open fun getAllRooms() : List<TreatmentRoom>? {
         lock.readLock().lock()
         log.info("Retrieving all rooms")
@@ -189,7 +191,7 @@ open class RoomService (
         }
     }
 
-//    @Cacheable(value = ["rooms"], key = "#roomNumber")
+    @Cacheable(value = ["rooms"], key = "#roomNumber")
     open fun getRoomByRoomNumber(roomNumber: Int): TreatmentRoom? {
         lock.readLock().lock()
         try {
@@ -233,7 +235,7 @@ open class RoomService (
         }
     }
 
-//    @Cacheable(value = ["rooms"], key = "#roomNumber + '_' + #wardName + '_' + #hospitalCode")
+    @Cacheable(value = ["rooms"], key = "#roomNumber + '_' + #wardName + '_' + #hospitalCode")
     open fun getRoomByRoomNumberWardHospital(roomNumber: Int, wardName: String, hospitalCode: String) : TreatmentRoom? {
         lock.readLock().lock()
         try {
@@ -275,7 +277,7 @@ open class RoomService (
         }
     }
 
-//    @Cacheable(value = ["rooms"], key = "'roomsByWardHospital_' + #wardName + '_' + #hospitalCode")
+    @Cacheable(value = ["rooms"], key = "'roomsByWardHospital_' + #wardName + '_' + #hospitalCode")
     open fun getRoomsByWardHospital(wardName: String, hospitalCode: String) : List<TreatmentRoom>? {
         lock.readLock().lock()
         try {
@@ -326,8 +328,8 @@ open class RoomService (
         }
     }
 
-//    @CacheEvict(value = ["rooms"], key = "#room.roomNumber + '_' + #room.treatmentWard.wardName + '_' + #room.hospital.hospitalCode")
-//    @CachePut(value = ["rooms"], key = "#room.roomNumber + '_' + #newWard + '_' + #room.hospital.hospitalCode")
+    @CacheEvict(value = ["rooms"], allEntries = true)
+    @CachePut(value = ["rooms"], key = "#room.roomNumber + '_' + #newWard + '_' + #room.hospital.hospitalCode")
     open fun updateRoom(room: TreatmentRoom, newCapacity: Int, newWard: String, newCategory: String) : TreatmentRoom? {
         lock.writeLock().lock()
         try {
@@ -384,7 +386,7 @@ open class RoomService (
         }
     }
 
-//    @CacheEvict(value = ["rooms"], allEntries = true)
+    @CacheEvict(value = ["rooms"], allEntries = true)
     open fun deleteRoom(room: TreatmentRoom) : Boolean {
         lock.writeLock().lock()
         try {

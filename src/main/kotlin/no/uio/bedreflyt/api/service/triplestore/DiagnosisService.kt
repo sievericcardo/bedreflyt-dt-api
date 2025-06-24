@@ -27,6 +27,7 @@ open class DiagnosisService (
     private val repl = replConfig.repl()
     private val lock = ReentrantReadWriteLock()
 
+    @CacheEvict(value = ["diagnosis"], allEntries = true)
     @CachePut("diagnosis", key = "#diagnosisName")
     open fun createDiagnosis(diagnosisName: String) : Diagnosis? {
         lock.writeLock().lock()
@@ -55,7 +56,7 @@ open class DiagnosisService (
         }
     }
 
-    @Cacheable("diagnosis", key = "'allDiagnosis'")
+    @Cacheable(value = ["diagnosis"], key = "'allDiagnosis'")
     open fun getAllDiagnosis(): List<Diagnosis>? {
         lock.readLock().lock()
         try {
@@ -109,7 +110,7 @@ open class DiagnosisService (
         }
     }
 
-    @CacheEvict("diagnosis", key = "#oldDiagnosisName")
+    @CacheEvict(value = ["diagnosis"], allEntries = true)
     @CachePut("diagnosis", key = "#newDiagnosisName")
     open fun updateDiagnosis(oldDiagnosisName: String, newDiagnosisName: String) : Diagnosis? {
         lock.writeLock().lock()
@@ -149,7 +150,7 @@ open class DiagnosisService (
         }
     }
 
-    @CacheEvict("diagnosis", allEntries = true)
+    @CacheEvict(value = ["diagnosis"], allEntries = true)
     open fun deleteDiagnosis(diagnosisName: String) : Boolean {
         lock.writeLock().lock()
         try {

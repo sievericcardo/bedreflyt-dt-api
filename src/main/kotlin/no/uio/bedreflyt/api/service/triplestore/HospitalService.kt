@@ -29,6 +29,7 @@ open class HospitalService (
     private val repl = replConfig.repl()
     private val lock = ReentrantReadWriteLock()
 
+    @CacheEvict(value = ["hospitals"], allEntries = true)
     @CachePut("hospitals", key = "#request.hospitalCode")
     open fun createHospital(request: HospitalRequest) : Hospital? {
         lock.writeLock().lock()
@@ -62,7 +63,7 @@ open class HospitalService (
         }
     }
 
-    @Cacheable("hospitals", key = "'allHospitals'")
+    @Cacheable(value = ["hospitals"], key = "'allHospitals'")
     open fun getAllHospitals() : List<Hospital>? {
         lock.readLock().lock()
         try {
@@ -132,7 +133,7 @@ open class HospitalService (
         }
     }
 
-    @CacheEvict("hospitals", key = "#hospital.hospitalCode")
+    @CacheEvict(value = ["hospitals"], allEntries = true)
     @CachePut("hospitals", key = "#hospital.hospitalCode")
     open fun updateHospital (hospital: Hospital, newHospitalName: String) : Hospital? {
         lock.writeLock().lock()
@@ -180,7 +181,7 @@ open class HospitalService (
         }
     }
 
-    @CacheEvict("hospitals", allEntries = true)
+    @CacheEvict(value = ["hospitals"], allEntries = true)
     open fun deleteHospital (hospitalCode: String) : Boolean {
         lock.writeLock().lock()
         try {

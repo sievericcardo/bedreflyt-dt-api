@@ -29,6 +29,7 @@ open class WardService (
     private val repl = replConfig.repl()
     private val lock = ReentrantReadWriteLock()
 
+    @CacheEvict(value = ["wards"], allEntries = true)
     @CachePut("wards", key = "#request.wardName + '_' + #hospital.hospitalCode")
     open fun createWard (request: WardRequest, hospital: Hospital) : Ward? {
         lock.writeLock().lock()
@@ -75,7 +76,7 @@ open class WardService (
         }
     }
 
-    @Cacheable("wards", key = "'allWards'")
+    @Cacheable(value = ["wards"], key = "'allWards'")
     open fun getAllWards() : List<Ward>? {
         lock.readLock().lock()
         try {
@@ -221,7 +222,7 @@ open class WardService (
         }
     }
 
-    @CacheEvict("wards", key = "#ward.wardName + '_' + #ward.wardHospital.hospitalCode")
+    @CacheEvict(value = ["wards"], allEntries = true)
     @CachePut("wards", key = "#ward.wardName + '_' + #ward.wardHospital.hospitalCode")
     open fun updateWard (ward: Ward,  newFloorNumber: Int) : Ward? {
         lock.writeLock().lock()
@@ -276,7 +277,7 @@ open class WardService (
         }
     }
 
-    @CacheEvict("wards", allEntries = true)
+    @CacheEvict(value = ["wards"], allEntries = true)
     open fun deleteWard (ward: Ward) : Boolean {
         lock.writeLock().lock()
         try {

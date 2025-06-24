@@ -29,6 +29,7 @@ open class FloorService (
     private val repl = replConfig.repl()
     private val lock = ReentrantReadWriteLock()
 
+    @CacheEvict(value = ["floors"], allEntries = true)
     @CachePut("floors", key = "#request.floorNumber")
     open fun createFloor(request: FloorRequest) : Floor? {
         lock.writeLock().lock()
@@ -60,7 +61,7 @@ open class FloorService (
         }
     }
 
-    @Cacheable("floors", key = "'allFloors'")
+    @Cacheable(value = ["floors"], key = "'allFloors'")
     open fun getAllFloors() : List<Floor>? {
         lock.readLock().lock()
         try {

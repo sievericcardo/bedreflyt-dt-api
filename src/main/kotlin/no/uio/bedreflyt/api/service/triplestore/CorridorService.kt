@@ -33,6 +33,7 @@ open class CorridorService (
     private val log: Logger = LoggerFactory.getLogger(CorridorService::class.java.name)
     private val lock = ReentrantReadWriteLock()
 
+    @CacheEvict(value = ["corridors"], allEntries = true)
     @CachePut(value = ["corridors"], key = "#corridorRequest.roomNumber + '_' + #corridorRequest.ward + '_' + #corridorRequest.hospital")
     open fun createCorridor(corridorRequest: CorridorRequest): Corridor? {
         lock.writeLock().lock()
@@ -139,7 +140,7 @@ open class CorridorService (
         }
     }
 
-    @Cacheable(value = ["corridors"], key = "#roomNumber + '_' + #ward + '_' + #hospital")
+    @Cacheable("corridors", key = "#roomNumber + '_' + #ward + '_' + #hospital")
     open fun getCorridorByRoonNumberWardHospital (roomNumber: Int, wardName: String, hospitalCode: String): Corridor? {
         lock.readLock().lock()
         try {
@@ -181,6 +182,7 @@ open class CorridorService (
         }
     }
 
+    @Cacheable("corridors", key = "#wardName + '_' + #hospitalCode")
     open fun getCorridorByWardHospital (wardName: String, hospitalCode: String): List<Corridor>? {
         lock.readLock().lock()
         try {
@@ -232,7 +234,7 @@ open class CorridorService (
         }
     }
 
-    @CacheEvict(value = ["corridors"], key = "#corridor.roomNumber + '_' + #corridor.treatmentWard.wardName + '_' + #corridor.hospital.hospitalCode")
+    @CacheEvict(value = ["corridors"], allEntries = true)
     @CachePut(value = ["corridors"], key = "#corridor.roomNumber + '_' + #corridor.treatmentWard.wardName + '_' + #corridor.hospital.hospitalCode")
     open fun updateCorridor(corridor: Corridor, newCapacity: Int, newPenalty: Double, newWard: String, newCategory: String) : Corridor? {
         lock.writeLock().lock()
@@ -295,7 +297,7 @@ open class CorridorService (
         }
     }
 
-    @CacheEvict(value = ["corridors"], key = "#corridor.roomNumber + '_' + #corridor.treatmentWard.wardName + '_' + #corridor.hospital.hospitalCode")
+    @CacheEvict(value = ["corridors"], allEntries = true)
     open fun deleteCorridor(corridor: Corridor): Boolean {
         lock.writeLock().lock()
         try {
