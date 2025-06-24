@@ -10,6 +10,8 @@ import org.apache.jena.update.UpdateExecutionFactory
 import org.apache.jena.update.UpdateFactory
 import org.apache.jena.update.UpdateProcessor
 import org.apache.jena.update.UpdateRequest
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
 import org.springframework.cache.annotation.CacheEvict
 import org.springframework.cache.annotation.CachePut
 import org.springframework.cache.annotation.Cacheable
@@ -25,6 +27,7 @@ open class RoomService (
     private val monitoringCategoryService: MonitoringCategoryService
 ) {
 
+    private val log: Logger = LoggerFactory.getLogger(RoomService::class.java.name)
     private val tripleStore = triplestoreProperties.tripleStore
     private val prefix = triplestoreProperties.prefix
     private val ttlPrefix = triplestoreProperties.ttlPrefix
@@ -133,6 +136,7 @@ open class RoomService (
 //    @Cacheable(value = ["rooms"], key = "'allRooms'")
     open fun getAllRooms() : List<TreatmentRoom>? {
         lock.readLock().lock()
+        log.info("Retrieving all rooms")
         try {
             val rooms: MutableList<TreatmentRoom> = mutableListOf()
 
@@ -155,6 +159,7 @@ open class RoomService (
 
             val resultRooms: ResultSet = repl.interpreter!!.query(query)!!
             if (!resultRooms.hasNext()) {
+                log.info("No rooms found")
                 return null
             }
 
