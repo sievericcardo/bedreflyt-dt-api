@@ -85,7 +85,7 @@ class RoomController(
     fun retrieveRooms() : ResponseEntity<List<Room>> {
         log.info("Retrieving rooms")
 
-        val rooms = roomService.getAllRooms() ?: return ResponseEntity.badRequest().build()
+        val rooms = roomService.getAllRooms() ?: return ResponseEntity.noContent().build()
 
         return ResponseEntity.ok(rooms)
     }
