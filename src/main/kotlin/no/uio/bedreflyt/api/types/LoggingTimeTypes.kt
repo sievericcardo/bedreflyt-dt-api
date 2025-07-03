@@ -6,7 +6,7 @@ data class TimeLogging (
     val extraRoomTime: Long
 )
 
-data class completeTimeLogging (
+data class CompleteTimeLogging (
     val lifecycleManagerTime: TimeLogging,
     val componentsRetrievalTime: Long,
     val absTime: Long,
