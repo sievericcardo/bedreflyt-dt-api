@@ -23,8 +23,10 @@ import org.springframework.web.bind.annotation.RestController
 import no.uio.bedreflyt.api.types.AllocationRequest
 import no.uio.bedreflyt.api.types.AllocationResponse
 import no.uio.bedreflyt.api.types.AllocationSimulationRequest
+import no.uio.bedreflyt.api.types.CompleteTimeLogging
 import no.uio.bedreflyt.api.types.DailyNeeds
 import no.uio.bedreflyt.api.types.SimulationRequest
+import no.uio.bedreflyt.api.types.TimeLogging
 import no.uio.bedreflyt.api.types.TriggerAllocationRequest
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
@@ -80,6 +82,7 @@ class AllocationController (
         allocationLock.lock()
         try {
             log.info("Allocating rooms for ${allocationRequest.scenario.size} patients")
+            val startTime = System.currentTimeMillis()
 
             // Remove expired trajectories
             patientTrajectoryService.deleteExpiredTrajectory()
@@ -95,10 +98,12 @@ class AllocationController (
             if (incomingPatients.isEmpty()) return ResponseEntity.badRequest().build()
 
             // Check if we have enough space
-            if (!checkRoomOpening(allocationRequest.wardName, allocationRequest.hospitalCode, incomingPatients.size)) {
+            val lmResult = checkRoomOpening(allocationRequest.wardName, allocationRequest.hospitalCode, incomingPatients.size)
+            if (lmResult == null) {
                 log.warn("Not enough space in the ward ${allocationRequest.wardName} in hospital ${allocationRequest.hospitalCode}")
                 return ResponseEntity.badRequest().build()
             }
+            val endLifecycleManager = System.currentTimeMillis() - startTime
 
             val rooms = roomService.getRoomsByWardHospital(allocationRequest.wardName, allocationRequest.hospitalCode)
                 ?: return ResponseEntity.badRequest().build()
@@ -136,11 +141,14 @@ class AllocationController (
 
             databaseService.createAndPopulateTreatmentTables(bedreflytDB)
             databaseService.createTreatmentView(bedreflytDB)
+            val componentsRetrievalTime = System.currentTimeMillis() - startTime - endLifecycleManager
 
             log.info("Tables populated, invoking ABS with ${allocationRequest.scenario.size} requests")
 
             val simulationNeeds: MutableList<DailyNeeds> = simulator.computeDailyNeeds(tempDir)?.toMutableList()
                 ?: throw Exception("Could not compute daily needs")
+            val absTime = System.currentTimeMillis() - startTime - componentsRetrievalTime
+
             val patientNeeds = mutableMapOf<Patient, Long>()
             updatePatientNeeds(simulationNeeds, trajectories, patientNeeds, false)
             updateAllocations(patientNeeds, 0, false)
@@ -229,6 +237,13 @@ class AllocationController (
                         }
                     }
                 }
+                val endTime = System.currentTimeMillis() - startTime - absTime
+                allocationResponse.executions = CompleteTimeLogging (
+                    lifecycleManagerTime = lmResult,
+                    componentsRetrievalTime = componentsRetrievalTime,
+                    absTime = absTime,
+                    solverTime = endTime
+                )
                 ResponseEntity.ok(allocationResponse)
             } else {
                 handleEmptyAllocations(incomingPatients)
@@ -258,6 +273,7 @@ class AllocationController (
         try {
             log.info("Allocating rooms for ${allocationRequest.scenario.size} patients")
             log.info("Need to remove ${LocalDateTime.now().plusDays(allocationRequest.iteration)}")
+            val startTime = System.currentTimeMillis()
 
             // Remove expired trajectories with offset
             patientTrajectoryService.deleteExpiredTrajectoryWithOffset(allocationRequest.iteration)
@@ -283,10 +299,12 @@ class AllocationController (
             if (incomingPatients.isEmpty()) return ResponseEntity.badRequest().build()
 
             // Check if we have enough space
-            if (!checkRoomOpening(allocationRequest.wardName, allocationRequest.hospitalCode, incomingPatients.size)) {
+            val lmResult = checkRoomOpening(allocationRequest.wardName, allocationRequest.hospitalCode, incomingPatients.size)
+            if (lmResult == null) {
                 log.warn("Not enough space in the ward ${allocationRequest.wardName} in hospital ${allocationRequest.hospitalCode}")
                 return ResponseEntity.badRequest().build()
             }
+            val endLifecycleManager = System.currentTimeMillis() - startTime
 
             val rooms = roomService.getRoomsByWardHospital(allocationRequest.wardName, allocationRequest.hospitalCode)
                 ?: return ResponseEntity.badRequest().build()
@@ -326,9 +344,12 @@ class AllocationController (
             databaseService.createTreatmentView(bedreflytDB)
 
             log.info("Tables populated, invoking ABS with ${allocationRequest.scenario.size} requests")
+            val componentsRetrievalTime = System.currentTimeMillis() - startTime - endLifecycleManager
 
             val simulationNeeds: MutableList<DailyNeeds> = simulator.computeDailyNeeds(tempDir)?.toMutableList()
                 ?: throw Exception("Could not compute daily needs")
+            val absTime = System.currentTimeMillis() - startTime - componentsRetrievalTime
+
             val patientNeeds = mutableMapOf<Patient, Long>()
             updatePatientNeeds(simulationNeeds, trajectories, patientNeeds, true)
             updateAllocations(patientNeeds, allocationRequest.iteration, true)
@@ -418,6 +439,13 @@ class AllocationController (
                         }
                     }
                 }
+                val endTime = System.currentTimeMillis() - startTime - absTime
+                allocationResponse.executions = CompleteTimeLogging (
+                    lifecycleManagerTime = lmResult,
+                    componentsRetrievalTime = componentsRetrievalTime,
+                    absTime = absTime,
+                    solverTime = endTime
+                )
                 ResponseEntity.ok(allocationResponse)
             } else {
                 handleEmptyAllocations(incomingPatients)
@@ -428,7 +456,7 @@ class AllocationController (
         }
     }
 
-    private fun checkRoomOpening (wardName: String, hospitalCode: String, incomingPatients: Int) : Boolean {
+    private fun checkRoomOpening (wardName: String, hospitalCode: String, incomingPatients: Int) : TimeLogging? {
         val host = environmentConfig.getOrDefault("LM_HOST", "localhost")
         val port = environmentConfig.getOrDefault("LM_PORT", "8091")
         val endpoint = "http://$host:$port/api/v1/states/check/$wardName/$hospitalCode"
@@ -446,10 +474,15 @@ class AllocationController (
         }
 
         return if (connection.responseCode == HttpURLConnection.HTTP_OK) {
-            true
+            // If the status code was 200, I will have to parse the corresponding TimeLoggin passed as a json
+            val response = connection.inputStream.bufferedReader().use { it.readText() }
+            val objectMapper = jacksonObjectMapper()
+            objectMapper.readValue(response, TimeLogging::class.java).also {
+                log.info("Room opening check successful: $it")
+            }
         } else {
             log.warn("API returned status code ${connection.responseCode}")
-            false
+            null
         }
     }
 
