@@ -42,7 +42,8 @@ typealias AllocationResponse = SimulationResponse
 
 data class SimulationResponse(
     val allocations: List<List<Allocation>>,
-    val changes: Int
+    val changes: Int,
+    var executions: CompleteTimeLogging? = null
 )
 
 data class ScenarioRequest(
