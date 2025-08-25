@@ -272,13 +272,13 @@ class AllocationController (
         simulationLock.lock()
         try {
             log.info("Allocating rooms for ${allocationRequest.scenario.size} patients")
-            log.info("Need to remove ${LocalDateTime.now().plusDays(allocationRequest.iteration)}")
+            log.info("Need to remove ${LocalDateTime.now().plusDays(allocationRequest.timeStep)}")
             val startTime = System.currentTimeMillis()
 
             // Remove expired trajectories with offset
-            patientTrajectoryService.deleteExpiredTrajectoryWithOffset(allocationRequest.iteration)
+            patientTrajectoryService.deleteExpiredTrajectoryWithOffset(allocationRequest.timeStep)
             // Remove expired allocations with offset
-            patientAllocationService.deletePatientAllocationWithOffset(allocationRequest.iteration)
+            patientAllocationService.deletePatientAllocationWithOffset(allocationRequest.timeStep)
 
             val request = SimulationRequest(
                 scenario = allocationRequest.scenario,
@@ -352,7 +352,7 @@ class AllocationController (
 
             val patientNeeds = mutableMapOf<Patient, Long>()
             updatePatientNeeds(simulationNeeds, trajectories, patientNeeds, true)
-            updateAllocations(patientNeeds, allocationRequest.iteration, true)
+            updateAllocations(patientNeeds, allocationRequest.timeStep, true)
             val ward = wardService.getWardByNameAndHospital(allocationRequest.wardName, allocationRequest.hospitalCode)
                 ?: return ResponseEntity.badRequest().build()
 

@@ -20,7 +20,7 @@ data class AllocationSimulationRequest(
     val smtMode: String = "changes",
     val wardName: String,
     val hospitalCode: String,
-    val iteration: Long
+    val timeStep: Long
 )
 
 data class WardRoom(
