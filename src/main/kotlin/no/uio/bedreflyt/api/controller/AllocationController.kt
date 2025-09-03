@@ -33,6 +33,7 @@ import org.slf4j.LoggerFactory
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
+import java.io.File
 import java.net.HttpURLConnection
 import java.net.URI
 import java.nio.file.Files
@@ -97,11 +98,17 @@ class AllocationController (
             val incomingPatients = preparePatients(allocationRequest)
             if (incomingPatients.isEmpty()) return ResponseEntity.badRequest().build()
 
-            // Check if we have enough space
-            val lmResult = checkRoomOpening(allocationRequest.wardName, allocationRequest.hospitalCode, incomingPatients.size)
-            if (lmResult == null) {
-                log.warn("Not enough space in the ward ${allocationRequest.wardName} in hospital ${allocationRequest.hospitalCode}")
-                return ResponseEntity.badRequest().build()
+            var lmResult: TimeLogging? = null
+            if (allocationRequest.adaptative) {
+                // Check if we have enough space
+                lmResult =
+                    checkRoomOpening(allocationRequest.wardName, allocationRequest.hospitalCode, incomingPatients.size)
+                if (lmResult == null) {
+                    log.warn("Not enough space in the ward ${allocationRequest.wardName} in hospital ${allocationRequest.hospitalCode}")
+                    return ResponseEntity.badRequest().build()
+                }
+            } else {
+                lmResult = TimeLogging(0,0,0)
             }
             val endLifecycleManager = System.currentTimeMillis() - startTime
 
@@ -295,14 +302,25 @@ class AllocationController (
                 patientTrajectoryService.findByPatientId(patient.patientId)
             }?.flatten() ?: listOf()
 
+//            log.info("Wrote current patient to file")
+//            File("current.json").bufferedWriter().use { out ->
+//                jacksonObjectMapper().writeValue(out, currentPatients)
+//            }
+
             val incomingPatients = preparePatients(request)
             if (incomingPatients.isEmpty()) return ResponseEntity.badRequest().build()
 
-            // Check if we have enough space
-            val lmResult = checkRoomOpening(allocationRequest.wardName, allocationRequest.hospitalCode, incomingPatients.size)
-            if (lmResult == null) {
-                log.warn("Not enough space in the ward ${allocationRequest.wardName} in hospital ${allocationRequest.hospitalCode}")
-                return ResponseEntity.badRequest().build()
+            var lmResult: TimeLogging? = null
+            if (allocationRequest.adaptiveCapacity) {
+                // Check if we have enough space
+                lmResult =
+                    checkRoomOpening(allocationRequest.wardName, allocationRequest.hospitalCode, incomingPatients.size)
+                if (lmResult == null) {
+                    log.warn("Not enough space in the ward ${allocationRequest.wardName} in hospital ${allocationRequest.hospitalCode}")
+                    return ResponseEntity.badRequest().build()
+                }
+            } else {
+                lmResult = TimeLogging(0,0,0)
             }
             val endLifecycleManager = System.currentTimeMillis() - startTime
 
@@ -350,6 +368,14 @@ class AllocationController (
                 ?: throw Exception("Could not compute daily needs")
             val absTime = System.currentTimeMillis() - startTime - componentsRetrievalTime
 
+//            log.info("Wrote need to file")
+//            File("abs_output.json").bufferedWriter().use { out ->
+//                jacksonObjectMapper().apply {
+//                    registerModule(com.fasterxml.jackson.datatype.jsr310.JavaTimeModule())
+//                    disable(com.fasterxml.jackson.databind.SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
+//                }.writeValue(out, simulationNeeds)
+//            }
+
             val patientNeeds = mutableMapOf<Patient, Long>()
             updatePatientNeeds(simulationNeeds, trajectories, patientNeeds, true)
             updateAllocations(patientNeeds, allocationRequest.timeStep, true)
@@ -386,6 +412,15 @@ class AllocationController (
             removeUnusedAllocations(simulationNeeds[0])
             simulator.setRoomMap(roomMapSim)
             simulator.setIndexRoomMap(indexRoomMapSim)
+
+//            log.info("Wrote new needs to file")
+//            File("needs-sim.json").bufferedWriter().use { out ->
+//                jacksonObjectMapper().apply {
+//                    registerModule(com.fasterxml.jackson.datatype.jsr310.JavaTimeModule())
+//                    disable(com.fasterxml.jackson.databind.SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
+//                }.writeValue(out, patientsNeeds)
+//            }
+
             val allocationResponse = simulator.simulate(
                 patientsNeeds,
                 patients,

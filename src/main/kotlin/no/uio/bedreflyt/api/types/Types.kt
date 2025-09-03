@@ -7,7 +7,8 @@ data class SimulationRequest(
     val mode: String,
     val smtMode: String = "changes",
     val wardName: String,
-    val hospitalCode: String
+    val hospitalCode: String,
+    val adaptative: Boolean = true
 )
 
 data class TriggerAllocationRequest (
@@ -20,7 +21,8 @@ data class AllocationSimulationRequest(
     val smtMode: String = "changes",
     val wardName: String,
     val hospitalCode: String,
-    val timeStep: Long
+    val timeStep: Long,
+    val adaptiveCapacity: Boolean = true
 )
 
 data class WardRoom(
@@ -49,7 +51,8 @@ data class SimulationResponse(
 data class ScenarioRequest(
     val batch: Int,
     val patientId: String,
-    val diagnosis: String
+    val diagnosis: String,
+    val treatmentName: String?
 )
 
 data class SolverRequest(
