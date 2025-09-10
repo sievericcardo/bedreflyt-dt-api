@@ -192,8 +192,10 @@ class AllocationController (
             removeUnusedAllocations(simulationNeeds[0])
             simulator.setRoomMap(roomMap)
             simulator.setIndexRoomMap(indexRoomMap)
+
+            val filteredPatients = patientsNeeds[0].distinctBy { it.first } as DailyNeeds
             val allocationResponse = simulator.simulate(
-                patientsNeeds,
+                mutableListOf(filteredPatients),
                 patients,
                 patientAllocations,
                 rooms,
