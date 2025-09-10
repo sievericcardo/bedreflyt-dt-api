@@ -422,7 +422,7 @@ class AllocationController (
 //            }
 
             val allocationResponse = simulator.simulate(
-                patientsNeeds,
+                mutableListOf(patientsNeeds[0]),
                 patients,
                 patientAllocations,
                 rooms,

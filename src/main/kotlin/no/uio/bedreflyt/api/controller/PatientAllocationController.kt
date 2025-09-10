@@ -230,9 +230,11 @@ class PatientAllocationController (
             return ResponseEntity.ok("Patient allocation deleted")
         }
 
-        for (trajectory in trajectories) {
-            patientTrajectoryService.deletePatientTrajectory(trajectory)
-        }
+        patientTrajectoryService.deleteSimulatedPatientTrajectories()
+
+//        for (trajectory in trajectories) {
+//            patientTrajectoryService.deletePatientTrajectory(trajectory)
+//        }
 
         return ResponseEntity.ok("Patient allocation deleted")
     }
