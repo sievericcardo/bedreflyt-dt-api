@@ -421,8 +421,9 @@ class AllocationController (
 //                }.writeValue(out, patientsNeeds)
 //            }
 
+            val filteredPatients = patientsNeeds[0].distinctBy { it.first } as DailyNeeds
             val allocationResponse = simulator.simulate(
-                mutableListOf(patientsNeeds[0]),
+                mutableListOf(filteredPatients),
                 patients,
                 patientAllocations,
                 rooms,
