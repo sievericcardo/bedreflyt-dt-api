@@ -11,6 +11,7 @@ import org.springframework.context.annotation.Configuration
 import java.io.File
 import java.net.HttpURLConnection
 import java.net.URI
+import java.security.MessageDigest
 
 @Configuration
 open class REPLConfig (
@@ -18,6 +19,7 @@ open class REPLConfig (
 ) {
 
     private lateinit var repl: REPL
+    private val md = MessageDigest.getInstance("MD5")
 
     private fun makePostRequest(url: String, headers: Map<String, String>, body: String): String {
         val connection = URI(url).toURL().openConnection() as HttpURLConnection
@@ -68,10 +70,12 @@ open class REPLConfig (
     @PostConstruct
     fun initRepl() {
         val verbose = false
-        val materialize = false
-        val liftedStateOutputPath = environmentConfig.getOrDefault("LIFTED_STATE_OUTPUT_PATH", "")
+        val materialize = true
+        val liftedStateOutputPath = environmentConfig.getOrDefault("LIFTED_STATE_OUTPUT_PATH", "./")
         val progPrefix = "https://github.com/Edkamb/SemanticObjects/Program#"
-        val runPrefix = "https://github.com/Edkamb/SemanticObjects/Run" + System.currentTimeMillis() + "#"
+        // Use the md5 of "BedreFlytDT" as run ID to ensure it remains the same across runs
+        val runId = md.digest("BedreFlytDT".toByteArray()).joinToString("") { String.format("%02x", it) }
+        val runPrefix = "https://github.com/Edkamb/SemanticObjects/Run$runId#"
         val langPrefix = "https://github.com/Edkamb/SemanticObjects#"
         val extraPrefixes = HashMap<String, String>()
         val useQueryType = false

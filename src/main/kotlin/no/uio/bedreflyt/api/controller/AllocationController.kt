@@ -154,7 +154,7 @@ class AllocationController (
 
             val simulationNeeds: MutableList<DailyNeeds> = simulator.computeDailyNeeds(tempDir)?.toMutableList()
                 ?: throw Exception("Could not compute daily needs")
-            val absTime = System.currentTimeMillis() - startTime - componentsRetrievalTime
+            val absTime = System.currentTimeMillis() - startTime - componentsRetrievalTime - endLifecycleManager
 
             val patientNeeds = mutableMapOf<Patient, Long>()
             updatePatientNeeds(simulationNeeds, trajectories, patientNeeds, false)
@@ -194,7 +194,7 @@ class AllocationController (
             simulator.setIndexRoomMap(indexRoomMap)
 
             val filteredPatients = patientsNeeds[0].distinctBy { it.first } as DailyNeeds
-            val allocationResponse = simulator.simulate(
+            val res = simulator.simulate(
                 mutableListOf(filteredPatients),
                 patients,
                 patientAllocations,
@@ -203,6 +203,8 @@ class AllocationController (
                 tempDir,
                 allocationRequest.smtMode
             )
+            val allocationResponse = res.first
+            val allocationTimes = res.second
 //        if (allocationResponse.allocations.isEmpty()) {
 //            val otherWards = wardService.getAllWardsExcept(allocationRequest.wardName, allocationRequest.hospitalCode)!!
 //            for (otherWard in otherWards) {
@@ -251,7 +253,7 @@ class AllocationController (
                     lifecycleManagerTime = lmResult,
                     componentsRetrievalTime = componentsRetrievalTime,
                     absTime = absTime,
-                    solverTime = endTime
+                    solverTime = allocationTimes
                 )
                 ResponseEntity.ok(allocationResponse)
             } else {
@@ -368,7 +370,7 @@ class AllocationController (
 
             val simulationNeeds: MutableList<DailyNeeds> = simulator.computeDailyNeeds(tempDir)?.toMutableList()
                 ?: throw Exception("Could not compute daily needs")
-            val absTime = System.currentTimeMillis() - startTime - componentsRetrievalTime
+            val absTime = System.currentTimeMillis() - startTime - componentsRetrievalTime - endLifecycleManager
 
 //            log.info("Wrote need to file")
 //            File("abs_output.json").bufferedWriter().use { out ->
@@ -424,7 +426,7 @@ class AllocationController (
 //            }
 
             val filteredPatients = patientsNeeds[0].distinctBy { it.first } as DailyNeeds
-            val allocationResponse = simulator.simulate(
+            val res = simulator.simulate(
                 mutableListOf(filteredPatients),
                 patients,
                 patientAllocations,
@@ -433,6 +435,8 @@ class AllocationController (
                 tempDir,
                 allocationRequest.smtMode
             )
+            val allocationResponse = res.first
+            val allocationTimes = res.second
             log.info("Allocation response size: ${allocationResponse.allocations.size}")
 //        if (allocationResponse.allocations.isEmpty()) {
 //            val otherWards = wardService.getAllWardsExcept(allocationRequest.wardName, allocationRequest.hospitalCode)!!
@@ -482,7 +486,7 @@ class AllocationController (
                     lifecycleManagerTime = lmResult,
                     componentsRetrievalTime = componentsRetrievalTime,
                     absTime = absTime,
-                    solverTime = endTime
+                    solverTime = allocationTimes
                 )
                 ResponseEntity.ok(allocationResponse)
             } else {
@@ -589,7 +593,7 @@ class AllocationController (
         simulationNeeds.forEachIndexed { index, dailyNeeds ->
             dailyNeeds.forEach { (patient, need) ->
                 patientNeeds[patient] = patientNeeds.getOrDefault(patient, 0L) + need.toLong()
-                val trajectory = PatientTrajectory(patientId = patient, date = LocalDateTime.now(), need = need, simulated =  simulation)
+                val trajectory = PatientTrajectory(patientId = patient, date = LocalDateTime.now().withMinute(0).withSecond(0).withNano(0), need = need, simulated =  simulation)
                 if (simulation) {
                     trajectory.date = trajectory.setDate(index*24)
                 } else {
@@ -635,16 +639,18 @@ class AllocationController (
         val allocation = patientAllocationService.findAll()
         allocation?.forEach { patientAllocation ->
             if (patientAllocation.diagnosisCode == "" && patientAllocation.diagnosisName == "") {
-                cleanTrajectories(patientAllocation.patientId)
+                cleanTrajectories(patientAllocation.patientId, patientAllocation.simulated)
                 patientAllocationService.deletePatientAllocation(patientAllocation)
             }
         }
     }
 
-    private fun cleanTrajectories(patientId: Patient) {
-        val trajectories = patientTrajectoryService.findByPatientId(patientId)
-        trajectories?.forEach { trajectory ->
-            patientTrajectoryService.deletePatientTrajectory(trajectory)
-        }
+    private fun cleanTrajectories(patientId: Patient, simulated: Boolean) {
+//        val trajectories = patientTrajectoryService.findByPatientId(patientId)
+        patientTrajectoryService.deleteTrajectoryByPatient(patientId)
+//        trajectories?.forEach { trajectory ->
+//            patientTrajectoryService.deletePatientTrajectory(trajectory)
+//        }
     }
 }
+

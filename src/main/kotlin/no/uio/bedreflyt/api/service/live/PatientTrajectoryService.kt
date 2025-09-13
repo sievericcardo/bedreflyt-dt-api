@@ -59,4 +59,12 @@ open class PatientTrajectoryService (
         val trajectoriesToDelete = patientTrajectoryRepository.findByDateBefore(cutoffTime)
         patientTrajectoryRepository.deleteAll(trajectoriesToDelete)
     }
+
+    @Transactional
+    open fun deleteTrajectoryByPatient(patient: Patient) {
+        val trajectoriesToDelete = patientTrajectoryRepository.findByPatientId(patient)
+        if (trajectoriesToDelete != null) {
+            patientTrajectoryRepository.deleteAll(trajectoriesToDelete)
+        }
+    }
 }

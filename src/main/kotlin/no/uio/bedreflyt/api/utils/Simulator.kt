@@ -11,6 +11,7 @@ import no.uio.bedreflyt.api.service.live.PatientAllocationService
 import no.uio.bedreflyt.api.service.live.PatientService
 import no.uio.bedreflyt.api.service.triplestore.RoomService
 import no.uio.bedreflyt.api.types.*
+import org.apache.jena.ext.com.google.common.hash.Hasher
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
@@ -142,7 +143,7 @@ class Simulator (
         solverRequest: SolverRequest,
         patientMap: Map<Int, Patient>, // Map of patient based on the order that is passed to the solver
         rooms: List<TreatmentRoom>
-    ) : SolverResponse {
+    ) : Pair<SolverResponse, MutableMap<String, Long>> {
         val solverEndpoint = environmentConfig.getOrDefault("SOLVER_ENDPOINT", "localhost")
         val solverUrl = "http://$solverEndpoint:8000/api/solve"
         val connection = URI(solverUrl).toURL().openConnection() as HttpURLConnection
@@ -152,6 +153,7 @@ class Simulator (
         connection.doOutput = true
 
         val jsonBody = jacksonObjectMapper().writeValueAsString(solverRequest)
+        val time = System.currentTimeMillis()
 
         log.info("Invoking solver with request")
         OutputStreamWriter(connection.outputStream).use {
@@ -160,14 +162,25 @@ class Simulator (
 
         if (connection.responseCode != 200) {
             log.warn("Solver returned status code ${connection.responseCode}")
-            return SolverResponse(listOf(), -1)
+            val errorTime = System.currentTimeMillis() - time
+            return Pair(SolverResponse(listOf(), -1), mutableMapOf(
+                "solverTime" to errorTime,
+                "postProcessTime" to 0
+            ))
         }
 
         val response = connection.inputStream.bufferedReader().use { it.readText() }
 
         if (response.contains("Model is unsat")) {
-            return SolverResponse(listOf(), -1)
+            val unsatTime = System.currentTimeMillis() - time
+            log.info("Solver returned UNSAT")
+            Pair(SolverResponse(listOf(), -1), mutableMapOf(
+                "solverTime" to unsatTime.toInt(),
+                "postProcessTime" to 0
+            ))
         }
+
+        val elapsedTime = System.currentTimeMillis() - time
 
         val mapper = jacksonObjectMapper()
         val responseMap: Map<String, Any> = mapper.readValue(response)
@@ -178,9 +191,13 @@ class Simulator (
 
         // Transform the allocations into the desired structure
         val transformedData: List<Allocation> = processSolverOutput(patientMap, allocations, rooms)
+        val postProcessTime = System.currentTimeMillis() - time - elapsedTime
 
         // Return the transformed data along with the changes
-        return SolverResponse(transformedData, changes)
+        return Pair(SolverResponse(transformedData, changes), mutableMapOf(
+            "solverTime" to elapsedTime,
+            "postProcessTime" to postProcessTime
+        ))
     }
 
     private fun solve(
@@ -190,7 +207,8 @@ class Simulator (
         rooms: List<TreatmentRoom>,
         ward: Ward,
         smtMode: String
-    ): SolverResponse {
+    ): Pair<SolverResponse, MutableMap<String, Long>> {
+        val currentTime = System.currentTimeMillis()
         val numberOfRooms = rooms.size
         val capacities = rooms.map { it.capacity ?: 0 }
         val roomCategories: List<Long> = rooms.map { it.monitoringCategory.category.toLong() ?: 0 }
@@ -250,12 +268,22 @@ class Simulator (
             allowContagious
         )
 
+        val times = HashMap<String, Long>()
+        val elapsedTime = System.currentTimeMillis() - currentTime
+        times["prepareDataForSolve"] = elapsedTime
+
         log.info("Invoking solver with  ${solverRequest.no_rooms} rooms, ${solverRequest.no_patients} patients in mode ${solverRequest.mode}")
 
-        return if (patientNumbers > 0) {
-            invokeSolver(solverRequest, patientMap, rooms)
+        if (patientNumbers > 0) {
+            val res = invokeSolver(solverRequest, patientMap, rooms)
+            times["solverTime"] = res.second["solverTime"] ?: 0
+            times["postProcessTime"] = res.second["postProcessTime"] ?: 0
+            return Pair(res.first, times)
         } else {
-            SolverResponse(listOf(), -1)
+            times["solverTime"] = 0
+            times["postProcessTime"] = 0
+            log.info("No patients to simulate for ward ${ward.wardName}")
+            return Pair(SolverResponse(listOf(), -1), times)
         }
     }
 
@@ -287,29 +315,48 @@ class Simulator (
         ward: Ward,
         tempDir: Path,
         smtMode: String
-    ): SimulationResponse {
+    ): Pair<SimulationResponse, SolverTimeLogging> {
         val scenarios = mutableListOf<List<Map<WardRoom, RoomInfo>>>()
         try {
             var totalChanges = 0
+            var totalPrepareDataTime = 0L
+            var totalSolverTime = 0L
+            var totalPostProcessTime = 0L
+
             needs.forEach { group ->
                 // Solve each day
                 val response = solve(group, patients, allocations, rooms, ward, smtMode)
-                log.info("Solved day with ${response.changes} changes")
-                if (response.changes != -1) {totalChanges += response.changes}
-                val solveData = response.allocations
+                log.info("Solved day with ${response.first.changes} changes")
+                if (response.first.changes != -1) {totalChanges += response.first.changes}
+                val solveData = response.first.allocations
                 // We ignore the day that had an unsat model
                 if (solveData.isNotEmpty()) {
                     processPatientMap(patients, allocations, solveData)
                 }
                 scenarios.add(solveData as List<Map<WardRoom, RoomInfo>>)
                 log.info(solveData.toString())
+
+                // Accumulate timing data
+                totalPrepareDataTime += response.second["prepareDataForSolve"] ?: 0L
+                totalSolverTime += response.second["solverTime"] ?: 0L
+                totalPostProcessTime += response.second["postProcessTime"] ?: 0L
             }
 
-            return SimulationResponse(scenarios, totalChanges)
+            val SolverTimeLogging = SolverTimeLogging(
+                prepareDataForSolve = totalPrepareDataTime,
+                solverTime = totalSolverTime,
+                postProcessTime = totalPostProcessTime
+            )
+
+            return Pair(SimulationResponse(scenarios, totalChanges), SolverTimeLogging)
         } catch (e: Exception) {
-            "Error executing Solver: ${e.message}"
             log.error("Error executing solver", e)
-            return SimulationResponse(listOf(), -1)
+            val errorLogging = SolverTimeLogging(
+                prepareDataForSolve = 0,
+                solverTime = 0,
+                postProcessTime = 0
+            )
+            return Pair(SimulationResponse(listOf(), -1), errorLogging)
         }
     }
 

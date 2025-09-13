@@ -6,9 +6,15 @@ data class TimeLogging (
     val extraRoomTime: Long
 )
 
+data class SolverTimeLogging (
+    val prepareDataForSolve: Long,
+    val solverTime: Long,
+    val postProcessTime: Long
+)
+
 data class CompleteTimeLogging (
     val lifecycleManagerTime: TimeLogging,
     val componentsRetrievalTime: Long,
     val absTime: Long,
-    val solverTime: Long
+    val solverTime: SolverTimeLogging
 )
