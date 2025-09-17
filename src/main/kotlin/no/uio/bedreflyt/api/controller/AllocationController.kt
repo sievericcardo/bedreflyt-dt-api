@@ -379,12 +379,16 @@ class AllocationController (
 //                    disable(com.fasterxml.jackson.databind.SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
 //                }.writeValue(out, simulationNeeds)
 //            }
+            val now = System.currentTimeMillis()
 
             val patientNeeds = mutableMapOf<Patient, Long>()
             updatePatientNeeds(simulationNeeds, trajectories, patientNeeds, true)
             updateAllocations(patientNeeds, allocationRequest.timeStep, true)
             val ward = wardService.getWardByNameAndHospital(allocationRequest.wardName, allocationRequest.hospitalCode)
                 ?: return ResponseEntity.badRequest().build()
+
+            val update = System.currentTimeMillis()
+            log.info("Updated patient needs in ${update - now}ms")
 
             // Create a complete allocations with both allocations and the addition of the currentPatients
             val patientAllocations = mutableMapOf<Patient, PatientAllocation>()
@@ -412,10 +416,16 @@ class AllocationController (
                 }
             }
 
+            val afterNeeds = System.currentTimeMillis()
+            log.info("Prepared patient needs in ${afterNeeds - update}ms")
+
             cleanAllocations()
             removeUnusedAllocations(simulationNeeds[0])
             simulator.setRoomMap(roomMapSim)
             simulator.setIndexRoomMap(indexRoomMapSim)
+
+            val cleaned = System.currentTimeMillis()
+            log.info("Cleaned allocations in ${cleaned - afterNeeds}ms")
 
 //            log.info("Wrote new needs to file")
 //            File("needs-sim.json").bufferedWriter().use { out ->
