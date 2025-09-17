@@ -28,6 +28,15 @@ open class PatientAllocationService (
         return allocations.firstOrNull { it.simulated == simulated }
     }
 
+    open fun findByPatientIds(patientIds: List<Patient>, simulated : Boolean = false): List<PatientAllocation>? {
+        val allocations = patientAllocationRepository.findByPatientIdIn(patientIds)
+
+        if (allocations == null) {
+            return null
+        }
+        return allocations.filter { it.simulated == simulated }
+    }
+
     open fun findByWardNameAndHospitalCode(wardName: String, hospitalCode: String): List<PatientAllocation>? {
         return patientAllocationRepository.findByWardNameAndHospitalCode(wardName, hospitalCode)
     }
@@ -43,6 +52,11 @@ open class PatientAllocationService (
     @Transactional
     open fun updatePatientAllocation(patientAllocation: PatientAllocation): PatientAllocation {
         return patientAllocationRepository.save(patientAllocation)
+    }
+
+    @Transactional
+    open fun updateAllPatientAllocations(patientAllocations: List<PatientAllocation>): List<PatientAllocation> {
+        return patientAllocationRepository.saveAll(patientAllocations)
     }
 
     open fun deletePatientAllocation(patientAllocation: PatientAllocation) {

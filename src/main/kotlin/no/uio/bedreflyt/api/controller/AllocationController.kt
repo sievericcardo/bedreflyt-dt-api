@@ -41,6 +41,8 @@ import java.nio.file.Path
 import java.time.LocalDateTime
 import java.util.*
 import java.util.concurrent.locks.ReentrantLock
+import kotlin.text.contains
+import kotlin.text.toLong
 
 @RestController
 @RequestMapping("/api/v1/allocation")
@@ -589,38 +591,88 @@ class AllocationController (
         return Pair(patients, trajectories)
     }
 
-    private fun updatePatientNeeds(simulationNeeds: MutableList<DailyNeeds>, trajectories: List<PatientTrajectory>, patientNeeds: MutableMap<Patient, Long>, simulation: Boolean) {
+    private fun updatePatientNeeds(
+        simulationNeeds: MutableList<DailyNeeds>,
+        trajectories: List<PatientTrajectory>,
+        patientNeeds: MutableMap<Patient, Long>,
+        simulation: Boolean
+    ) {
+        // Pre-calculate maximum batch day to avoid list growth in loop
+        val maxBatchDay = trajectories.maxOfOrNull { it.getBatchDay() } ?: -1
+
+        // Ensure simulationNeeds has sufficient capacity upfront
+        while (simulationNeeds.size <= maxBatchDay) {
+            simulationNeeds.add(mutableListOf())
+        }
+
+        // Build existing entries map for faster lookup
+        val existingEntries = simulationNeeds.flatMapIndexed { index, dailyNeeds ->
+            dailyNeeds.map { (patientId, _) -> "${index}_${patientId.patientId}" }
+        }.toSet()
+
+        // Process trajectories and collect new trajectories for batch insert
+        val newTrajectories = mutableListOf<PatientTrajectory>()
+
         trajectories.forEach { trajectory ->
             val batchDay = trajectory.getBatchDay()
-            while (simulationNeeds.size <= batchDay) {
-                simulationNeeds.add(mutableListOf())
-            }
-            if (!simulationNeeds[batchDay].any { it.first == trajectory.patientId }) {
+            val key = "${batchDay}_${trajectory.patientId.patientId}"
+
+            if (key !in existingEntries) {
                 simulationNeeds[batchDay].add(Pair(trajectory.patientId, trajectory.need))
             }
         }
 
+        // Batch process simulation needs and collect new trajectories
         simulationNeeds.forEachIndexed { index, dailyNeeds ->
             dailyNeeds.forEach { (patient, need) ->
                 patientNeeds[patient] = patientNeeds.getOrDefault(patient, 0L) + need.toLong()
-                val trajectory = PatientTrajectory(patientId = patient, date = LocalDateTime.now().withMinute(0).withSecond(0).withNano(0), need = need, simulated =  simulation)
-                if (simulation) {
-                    trajectory.date = trajectory.setDate(index*24)
+
+                val trajectory = PatientTrajectory(
+                    patientId = patient,
+                    date = LocalDateTime.now().withMinute(0).withSecond(0).withNano(0),
+                    need = need,
+                    simulated = simulation
+                )
+
+                trajectory.date = if (simulation) {
+                    trajectory.setDate(index * 24).withMinute(0).withSecond(0).withNano(0)
                 } else {
-                    trajectory.date = trajectory.setDate(index)
+                    trajectory.setDate(index).withMinute(0).withSecond(0).withNano(0)
                 }
-                patientTrajectoryService.savePatientTrajectory(trajectory)
+
+                newTrajectories.add(trajectory)
             }
+        }
+
+        // Batch save all trajectories at once
+        if (newTrajectories.isNotEmpty()) {
+            patientTrajectoryService.saveAllPatientTrajectories(newTrajectories)
         }
     }
 
-    private fun updateAllocations(patientNeeds: Map<Patient, Long>, offset:Long = 0, simulation: Boolean) {
-        patientNeeds.forEach { (patient, need) ->
-            val allocation = patientAllocationService.findByPatientId(patient, simulation)
-            allocation?.dueDate = LocalDateTime.now().plusDays((need/24).toInt()+offset)
-            allocation?.let { patientAllocationService.updatePatientAllocation(it) }
+    private fun updateAllocations(patientNeeds: Map<Patient, Long>, offset: Long = 0, simulation: Boolean) {
+        if (patientNeeds.isEmpty()) return
+
+        // Batch fetch all relevant allocations
+        val patientIds = patientNeeds.keys.toList()
+        val allocations = patientAllocationService.findByPatientIds(patientIds, simulation) ?: return
+
+        // Update allocations in memory
+        val updatedAllocations = allocations.mapNotNull { allocation ->
+            val need = patientNeeds[allocation.patientId]
+            if (need != null) {
+                allocation.apply {
+                    dueDate = LocalDateTime.now().plusDays((need / 24).toInt() + offset).withMinute(0).withSecond(0).withNano(0)
+                }
+            } else null
+        }
+
+        // Batch update all allocations
+        if (updatedAllocations.isNotEmpty()) {
+            patientAllocationService.updateAllPatientAllocations(updatedAllocations)
         }
     }
+
 
     private fun handleEmptyAllocations(incomingPatients: MutableList<Pair<Patient, String>>) {
         incomingPatients.forEach { patient ->

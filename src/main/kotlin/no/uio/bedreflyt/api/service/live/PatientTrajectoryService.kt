@@ -28,6 +28,10 @@ open class PatientTrajectoryService (
         return patientTrajectoryRepository.save(patientTrajectory)
     }
 
+    open fun saveAllPatientTrajectories(patientTrajectories: List<PatientTrajectory>): List<PatientTrajectory> {
+        return patientTrajectoryRepository.saveAll(patientTrajectories)
+    }
+
     open fun updatePatientTrajectory(patientTrajectory: PatientTrajectory): PatientTrajectory {
         return patientTrajectoryRepository.save(patientTrajectory)
     }
