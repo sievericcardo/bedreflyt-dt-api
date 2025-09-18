@@ -123,6 +123,32 @@ class AllocationController (
             // Execute simulation
             allocationHelper.cleanAllocations()
             allocationHelper.removeUnusedAllocations(simulationResult.simulationNeeds[0])
+            
+            // Add existing allocated patients (roomNumber != -1) and their trajectories
+            val existingAllocatedPatients = patientAllocationService.findAll()
+                ?.filter { it.wardName == context.wardName && it.hospitalCode == context.hospitalCode }
+                ?.filter { it.simulated == context.isSimulated }
+                ?.filter { it.roomNumber != -1 }
+            
+            existingAllocatedPatients?.forEach { allocation ->
+                // Add to patient allocations if not already present
+                if (!simulationResult.patientAllocations.containsKey(allocation.patientId)) {
+                    simulationResult.patientAllocations[allocation.patientId] = allocation
+                }
+                
+                // Add trajectories for these patients
+                val trajectories = patientTrajectoryService.findByPatientId(allocation.patientId, context.isSimulated)
+                trajectories?.forEach { trajectory ->
+                    val batchDay = trajectory.getBatchDay()
+                    while (simulationResult.patientsNeeds.size <= batchDay) {
+                        simulationResult.patientsNeeds.add(mutableListOf())
+                    }
+                    if (!simulationResult.patientsNeeds[batchDay].any { it.first == trajectory.patientId }) {
+                        simulationResult.patientsNeeds[batchDay].add(Pair(trajectory.patientId, trajectory.need))
+                    }
+                }
+            }
+            
             simulator.setRoomMap(roomMap)
             simulator.setIndexRoomMap(indexRoomMap)
 
@@ -205,6 +231,32 @@ class AllocationController (
             // Execute simulation
             allocationHelper.cleanAllocations()
             allocationHelper.removeUnusedAllocations(simulationResult.simulationNeeds[0])
+            
+            // Add existing allocated patients (roomNumber != -1) and their trajectories
+            val existingAllocatedPatients = patientAllocationService.findAll()
+                ?.filter { it.wardName == context.wardName && it.hospitalCode == context.hospitalCode }
+                ?.filter { it.simulated == context.isSimulated }
+                ?.filter { it.roomNumber != -1 }
+            
+            existingAllocatedPatients?.forEach { allocation ->
+                // Add to patient allocations if not already present
+                if (!simulationResult.patientAllocations.containsKey(allocation.patientId)) {
+                    simulationResult.patientAllocations[allocation.patientId] = allocation
+                }
+                
+                // Add trajectories for these patients
+                val trajectories = patientTrajectoryService.findByPatientId(allocation.patientId, context.isSimulated)
+                trajectories?.forEach { trajectory ->
+                    val batchDay = trajectory.getBatchDay()
+                    while (simulationResult.patientsNeeds.size <= batchDay) {
+                        simulationResult.patientsNeeds.add(mutableListOf())
+                    }
+                    if (!simulationResult.patientsNeeds[batchDay].any { it.first == trajectory.patientId }) {
+                        simulationResult.patientsNeeds[batchDay].add(Pair(trajectory.patientId, trajectory.need))
+                    }
+                }
+            }
+            
             simulator.setRoomMap(roomMapSim)
             simulator.setIndexRoomMap(indexRoomMapSim)
 
@@ -463,6 +515,23 @@ class AllocationController (
             }
 
             val endTime = System.currentTimeMillis() - startTime - simulationResult.absTime
+            
+            // Clean up patients with roomNumber == -1 and their trajectories
+            val allocationsToDelete = patientAllocationService.findAll()
+                ?.filter { it.wardName == context.wardName && it.hospitalCode == context.hospitalCode }
+                ?.filter { it.simulated == context.isSimulated }
+                ?.filter { it.roomNumber == -1 }
+            
+            allocationsToDelete?.forEach { allocation ->
+                // Delete trajectories first
+                val trajectories = patientTrajectoryService.findByPatientId(allocation.patientId, context.isSimulated)
+                trajectories?.forEach { trajectory ->
+                    patientTrajectoryService.deletePatientTrajectory(trajectory)
+                }
+                // Delete allocation
+                patientAllocationService.deletePatientAllocation(allocation)
+            }
+            
             allocationResponse.executions = CompleteTimeLogging(
                 lifecycleManagerTime = setupResult.lmResult,
                 componentsRetrievalTime = simulationResult.componentsRetrievalTime,
