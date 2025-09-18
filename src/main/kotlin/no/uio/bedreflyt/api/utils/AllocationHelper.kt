@@ -182,7 +182,7 @@ class AllocationHelper (
         setupResult: AllocationSetupResult,
         databaseResult: DatabaseSetupResult,
         allocations: MutableMap<Patient, PatientAllocation>,
-        scenario: List<no.uio.bedreflyt.api.types.ScenarioRequest>,
+        scenario: List<ScenarioRequest>,
         startTime: Long
     ): SimulationResult? {
         // Create and populate treatment tables
