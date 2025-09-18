@@ -1,23 +1,25 @@
 package no.uio.bedreflyt.api.utils
 
 import no.uio.bedreflyt.api.model.live.Patient
+import no.uio.bedreflyt.api.model.live.PatientAllocation
 import no.uio.bedreflyt.api.model.live.PatientTrajectory
 import no.uio.bedreflyt.api.service.live.PatientAllocationService
 import no.uio.bedreflyt.api.service.live.PatientTrajectoryService
-import no.uio.bedreflyt.api.types.DailyNeeds
+import no.uio.bedreflyt.api.service.simulation.DatabaseService
+import no.uio.bedreflyt.api.service.triplestore.WardService
+import no.uio.bedreflyt.api.types.*
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import java.time.LocalDateTime
-import kotlin.collections.forEach
-import kotlin.text.contains
-import kotlin.text.toLong
-import kotlin.times
 
 @Service
 class AllocationHelper (
     private val patientTrajectoryService: PatientTrajectoryService,
-    private val patientAllocationService: PatientAllocationService
+    private val patientAllocationService: PatientAllocationService,
+    private val databaseService: DatabaseService,
+    private val simulator: Simulator,
+    private val wardService: WardService,
 ) {
 
     val logger: Logger = LoggerFactory.getLogger(AllocationHelper::class.java)
@@ -140,5 +142,107 @@ class AllocationHelper (
 //        trajectories?.forEach { trajectory ->
 //            patientTrajectoryService.deletePatientTrajectory(trajectory)
 //        }
+    }
+
+    fun createPatientAllocations(
+        context: AllocationContext,
+        incomingPatients: MutableList<Pair<Patient, String>>
+    ): MutableMap<Patient, PatientAllocation> {
+        val allocations: MutableMap<Patient, PatientAllocation> = mutableMapOf()
+        incomingPatients.forEach { (patient, diagnosis) ->
+            val patientAllocation = patientAllocationService.findByPatientId(patient)
+            if (patientAllocation == null) {
+                val newPatientAllocation = PatientAllocation(
+                    patientId = patient,
+                    acute = false,
+                    diagnosisCode = diagnosis,
+                    diagnosisName = diagnosis,
+                    acuteCategory = 0,
+                    careCategory = 0,
+                    monitoringCategory = 0,
+                    careId = 0,
+                    contagious = false,
+                    wardName = context.wardName,
+                    hospitalCode = context.hospitalCode,
+                    roomNumber = -1,
+                    dueDate = LocalDateTime.now().plusDays(1),
+                    simulated = context.isSimulated
+                )
+                patientAllocationService.savePatientAllocation(newPatientAllocation)
+                allocations[patient] = newPatientAllocation
+            } else {
+                allocations[patient] = patientAllocation
+            }
+        }
+        return allocations
+    }
+
+    fun prepareSimulation(
+        context: AllocationContext,
+        setupResult: AllocationSetupResult,
+        databaseResult: DatabaseSetupResult,
+        allocations: MutableMap<Patient, PatientAllocation>,
+        scenario: List<no.uio.bedreflyt.api.types.ScenarioRequest>,
+        startTime: Long
+    ): SimulationResult? {
+        // Create and populate treatment tables
+        if (context.isSimulated) {
+            databaseService.createAndPopulateTreatmentTables(databaseResult.bedreflytDB, true)
+        } else {
+            databaseService.createAndPopulateTreatmentTables(databaseResult.bedreflytDB)
+        }
+        databaseService.createTreatmentView(databaseResult.bedreflytDB)
+
+        val componentsRetrievalTime = System.currentTimeMillis() - startTime - setupResult.endLifecycleManager
+
+        logger.info("Tables populated, invoking ABS with ${scenario.size} requests")
+
+        val simulationNeeds: MutableList<DailyNeeds> = simulator.computeDailyNeeds(databaseResult.tempDir)?.toMutableList()
+            ?: throw Exception("Could not compute daily needs")
+
+        val absTime = System.currentTimeMillis() - startTime - componentsRetrievalTime - setupResult.endLifecycleManager
+
+        val patientNeeds = mutableMapOf<Patient, Long>()
+        updatePatientNeeds(simulationNeeds, databaseResult.trajectories, patientNeeds, context.isSimulated)
+        updateAllocations(patientNeeds, context.timeStep, context.isSimulated)
+
+        val ward = wardService.getWardByNameAndHospital(context.wardName, context.hospitalCode)
+            ?: return null
+
+        // Create complete patient allocations map
+        val patientAllocations = mutableMapOf<Patient, PatientAllocation>()
+        setupResult.currentPatients?.forEach { patient ->
+            val patientAllocation = patientAllocationService.findByPatientId(patient.patientId)
+            if (patientAllocation != null) {
+                patientAllocations[patient.patientId] = patientAllocation
+            }
+        }
+        allocations.forEach { (patient, allocation) ->
+            patientAllocations[patient] = allocation
+        }
+
+        // Prepare patient needs
+        val patientsNeeds = mutableListOf<DailyNeeds>()
+        simulationNeeds.forEach { dailyNeeds ->
+            patientsNeeds.add(dailyNeeds)
+        }
+        setupResult.patientTrajectories.forEach { trajectory ->
+            val batchDay = trajectory.getBatchDay()
+            while (patientsNeeds.size <= batchDay) {
+                patientsNeeds.add(mutableListOf())
+            }
+            if (!patientsNeeds[batchDay].any { it.first == trajectory.patientId }) {
+                patientsNeeds[batchDay].add(Pair(trajectory.patientId, trajectory.need))
+            }
+        }
+
+        return SimulationResult(
+            simulationNeeds = simulationNeeds,
+            patientAllocations = patientAllocations,
+            patientsNeeds = patientsNeeds,
+            ward = ward,
+            componentsRetrievalTime = componentsRetrievalTime,
+            absTime = absTime
+        )
     }
 }
