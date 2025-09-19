@@ -5,7 +5,7 @@ class RoomModel extends BaseModel()
         PREFIX : <http://www.smolang.org/bedreflyt/>
         PREFIX brick: <https://brickschema.org/schema/Brick#>
 
-        SELECT DISTINCT ?roomNumber ?capacity ?penalty ?treatingWard ?hospital ?monitoringCategory
+        SELECT ?roomNumber ?capacity ?penalty ?treatingWard ?hospital ?monitoringCategory
         WHERE {
             ?room rdf:type <https://w3id.org/rec/building/TreatmentRoom> ;
                 :hasRoomNr ?roomNumber ;
@@ -43,6 +43,9 @@ class RoomModel extends BaseModel()
                     prog:MonitoringCategory_description ?monitoringCode .
             }
         }");
+
+        Int length = newRooms.length();
+        print("Length " ++ intToString(length));
 
         if newRooms != null then
             print("RECONFIG> Adding new Room(s)...");
