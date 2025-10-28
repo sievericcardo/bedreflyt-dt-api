@@ -4,6 +4,7 @@ import no.uio.bedreflyt.api.model.live.Patient
 import no.uio.bedreflyt.api.model.live.PatientTrajectory
 import no.uio.bedreflyt.api.repository.live.PatientTrajectoryRepository
 import org.springframework.stereotype.Service
+import org.springframework.transaction.annotation.Transactional
 import java.time.LocalDate
 import java.time.LocalDateTime
 
@@ -27,6 +28,10 @@ open class PatientTrajectoryService (
         return patientTrajectoryRepository.save(patientTrajectory)
     }
 
+    open fun saveAllPatientTrajectories(patientTrajectories: List<PatientTrajectory>): List<PatientTrajectory> {
+        return patientTrajectoryRepository.saveAll(patientTrajectories)
+    }
+
     open fun updatePatientTrajectory(patientTrajectory: PatientTrajectory): PatientTrajectory {
         return patientTrajectoryRepository.save(patientTrajectory)
     }
@@ -35,23 +40,35 @@ open class PatientTrajectoryService (
         patientTrajectoryRepository.delete(patientTrajectory)
     }
 
-    open fun deleteExpiredTrajectory() {
-        val trajectories = findAll() ?: emptyList()
-        // for each check if the date is expired
-        trajectories.forEach { trajectory ->
-            if (trajectory.date.isBefore(LocalDateTime.now())) {
-                patientTrajectoryRepository.delete(trajectory)
-            }
-        }
+    @Transactional
+    open fun deleteAllPatientTrajectories() {
+        patientTrajectoryRepository.deleteAll()
     }
 
+    @Transactional
+    open fun deleteSimulatedPatientTrajectories() {
+        val simulatedTrajectories = patientTrajectoryRepository.findBySimulated(true)
+        patientTrajectoryRepository.deleteAll(simulatedTrajectories)
+    }
+
+    @Transactional
+    open fun deleteExpiredTrajectory() {
+        val expiredTrajectories = patientTrajectoryRepository.findByDateBefore(LocalDateTime.now())
+        patientTrajectoryRepository.deleteAll(expiredTrajectories)
+    }
+
+    @Transactional
     open fun deleteExpiredTrajectoryWithOffset(offset: Long) {
-        val trajectories = findAllSimulated() ?: emptyList()
-        // for each check if the date is expired
-        trajectories.forEach { trajectory ->
-            if (trajectory.date.isBefore(LocalDateTime.now().plusDays(offset))) {
-                patientTrajectoryRepository.delete(trajectory)
-            }
+        val cutoffTime = LocalDateTime.now().plusDays(offset)
+        val trajectoriesToDelete = patientTrajectoryRepository.findByDateBefore(cutoffTime)
+        patientTrajectoryRepository.deleteAll(trajectoriesToDelete)
+    }
+
+    @Transactional
+    open fun deleteTrajectoryByPatient(patient: Patient) {
+        val trajectoriesToDelete = patientTrajectoryRepository.findByPatientId(patient)
+        if (trajectoriesToDelete != null) {
+            patientTrajectoryRepository.deleteAll(trajectoriesToDelete)
         }
     }
 }

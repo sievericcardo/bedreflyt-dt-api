@@ -8,4 +8,5 @@ interface PatientAllocationRepository  : JpaRepository<PatientAllocation, Long> 
     fun findByPatientId(patientId: Patient): List<PatientAllocation>?
     fun findByWardNameAndHospitalCode(wardName: String, hospitalCode: String): List<PatientAllocation>?
     fun findBySimulatedTrue(): List<PatientAllocation>?
+    fun findByPatientIdIn(patientIds: List<Patient>): List<PatientAllocation>?
 }

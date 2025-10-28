@@ -4,10 +4,12 @@ import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.responses.ApiResponses
 import jakarta.validation.Valid
+import no.uio.bedreflyt.api.config.CacheConfig
 import no.uio.bedreflyt.api.config.EnvironmentConfig
 import no.uio.bedreflyt.api.config.REPLConfig
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
+import org.springframework.data.redis.core.RedisTemplate
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.GetMapping
 import io.swagger.v3.oas.annotations.parameters.RequestBody as SwaggerRequestBody
@@ -24,7 +26,9 @@ import java.net.URI
 @RequestMapping("/api/v1/fuseki")
 class FusekiController (
     private val environmentConfig: EnvironmentConfig,
-    private val replConfig: REPLConfig
+    private val replConfig: REPLConfig,
+    private val cacheConfig: CacheConfig,
+    private val redisTemplate: RedisTemplate<String, Any>
 ) {
 
     private val log : Logger = LoggerFactory.getLogger(FusekiController::class.java.name)
@@ -133,6 +137,19 @@ class FusekiController (
 
         val path = "bedreflyt.ttl"
         modelFile.transferTo(File(path))
+
+        // Clear all Redis cache
+        try {
+            val keys = redisTemplate.keys("*")
+            if (keys.isNotEmpty()) {
+                redisTemplate.delete(keys)
+                log.info("Cleared ${keys.size} cache entries from Redis")
+            } else {
+                log.info("No cache entries found in Redis")
+            }
+        } catch (e: Exception) {
+            log.error("Failed to clear Redis cache: ${e.message}")
+        }
 
         return ResponseEntity.ok("Model uploaded")
     }
