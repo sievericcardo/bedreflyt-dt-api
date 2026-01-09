@@ -10,6 +10,9 @@ import io.swagger.v3.oas.annotations.parameters.RequestBody as SwaggerRequestBod
 import no.uio.bedreflyt.api.service.live.PatientAllocationService
 import no.uio.bedreflyt.api.service.live.PatientService
 import no.uio.bedreflyt.api.service.live.PatientTrajectoryService
+import no.uio.bedreflyt.api.service.triplestore.MonitoringCategoryService
+import no.uio.bedreflyt.api.service.triplestore.RoomService
+import no.uio.bedreflyt.api.types.AllocationResponse
 import no.uio.bedreflyt.api.types.PatientAllocationRequest
 import no.uio.bedreflyt.api.types.UpdatePatientAllocationRequest
 import org.slf4j.Logger
@@ -24,7 +27,9 @@ import org.springframework.web.bind.annotation.RestController
 class PatientAllocationController (
     private val patientService : PatientService,
     private val patientAllocationService : PatientAllocationService,
-    private val patientTrajectoryService: PatientTrajectoryService
+    private val patientTrajectoryService: PatientTrajectoryService,
+    private val roomService: RoomService,
+    private val monitoringCategoryService: MonitoringCategoryService
 ) {
 
     private val log : Logger = LoggerFactory.getLogger(PatientAllocationController::class.java.name)
@@ -237,5 +242,102 @@ class PatientAllocationController (
 //        }
 
         return ResponseEntity.ok("Patient allocation deleted")
+    }
+
+    @Operation(summary = "Update allocations from modified AllocationResponse")
+    @ApiResponses(value = [
+        ApiResponse(responseCode = "200", description = "Allocations updated successfully"),
+        ApiResponse(responseCode = "400", description = "Invalid allocation response"),
+        ApiResponse(responseCode = "401", description = "Unauthorized"),
+        ApiResponse(responseCode = "403", description = "Accessing the resource you were trying to reach is forbidden"),
+        ApiResponse(responseCode = "500", description = "Internal server error")
+    ])
+    @PutMapping("/update-from-allocation", produces = ["application/json"])
+    fun updateFromAllocationResponse(
+        @SwaggerRequestBody(description = "Modified allocation response from /allocate endpoint") 
+        @Valid @RequestBody allocationResponse: AllocationResponse
+    ): ResponseEntity<String> {
+        log.info("Updating patient allocations from modified AllocationResponse!")
+
+        try {
+            // Extract ward and hospital from the first allocation to identify the context
+            if (allocationResponse.allocations.isEmpty() || 
+                allocationResponse.allocations[0].isEmpty() || 
+                allocationResponse.allocations[0][0].isEmpty()) {
+                return ResponseEntity.badRequest().body("AllocationResponse is empty")
+            }
+
+            // Get the first room to extract ward and hospital information
+            val firstRoom = allocationResponse.allocations[0][0].keys.first()
+            val wardName = firstRoom.wardName
+            val hospitalCode = firstRoom.hospitalCode
+
+            // Track all room numbers present in the AllocationResponse
+            val roomNumbersInResponse = mutableSetOf<Int>()
+
+            // Update patient allocations based on the AllocationResponse
+            allocationResponse.allocations.forEach { allocationList ->
+                allocationList.forEach { allocation ->
+                    allocation.forEach { (room, roomInfo) ->
+                        roomNumbersInResponse.add(room.roomNumber)
+                        
+                        val allocatedPatients = roomInfo?.patients
+                        if (!allocatedPatients.isNullOrEmpty()) {
+                            allocatedPatients.forEach { patient ->
+                                // Find existing allocation or create new one
+                                val existingAllocation = patientAllocationService.findByPatientId(patient)
+                                
+                                if (existingAllocation != null) {
+                                    // Update existing allocation
+                                    existingAllocation.roomNumber = room.roomNumber
+                                    existingAllocation.wardName = wardName
+                                    existingAllocation.hospitalCode = hospitalCode
+                                    patientAllocationService.updatePatientAllocation(existingAllocation)
+                                    log.info("Updated allocation for patient ${patient.patientId} to room ${room.roomNumber}")
+                                } else {
+                                    log.warn("No existing allocation found for patient ${patient.patientId}")
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Now find and remove temporary rooms that are not in the AllocationResponse
+            val midlertidigCategory = monitoringCategoryService.getCategoryByDescription("Midlertidig")
+            
+            if (midlertidigCategory != null) {
+                // Get all rooms in the ward/hospital with Midlertidig category
+                val allRoomsInWard = roomService.getRoomsByWardHospital(wardName, hospitalCode)
+                
+                val tempRoomsToDelete = allRoomsInWard?.filter { room ->
+                    room.monitoringCategory.description == "Midlertidig" && 
+                    !roomNumbersInResponse.contains(room.roomNumber)
+                } ?: emptyList()
+
+                // Delete the temporary rooms not in the response
+                tempRoomsToDelete.forEach { room ->
+                    log.info("Deleting temporary room ${room.roomNumber} in ward $wardName as it's not in AllocationResponse")
+                    roomService.deleteRoom(room)
+                }
+
+                val message = buildString {
+                    append("Successfully updated allocations. ")
+                    if (tempRoomsToDelete.isNotEmpty()) {
+                        append("Removed ${tempRoomsToDelete.size} temporary room(s): ${tempRoomsToDelete.map { it.roomNumber }.joinToString(", ")}")
+                    } else {
+                        append("No temporary rooms to remove.")
+                    }
+                }
+
+                return ResponseEntity.ok(message)
+            } else {
+                return ResponseEntity.ok("Successfully updated allocations. No Midlertidig category found.")
+            }
+
+        } catch (e: Exception) {
+            log.error("Error updating allocations from AllocationResponse", e)
+            return ResponseEntity.status(500).body("Error updating allocations: ${e.message}")
+        }
     }
 }
