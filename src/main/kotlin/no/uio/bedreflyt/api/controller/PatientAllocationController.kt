@@ -275,6 +275,28 @@ class PatientAllocationController (
             // Track all room numbers present in the AllocationResponse
             val roomNumbersInResponse = mutableSetOf<Int>()
 
+            // Check if there are allocations in the database that are not present in the AllocationResponse and remove if so
+            val existingAllocations = patientAllocationService.findByWardNameAndHospitalCode(wardName, hospitalCode)
+                ?.filter {
+                    !it.simulated
+                } ?: emptyList()
+
+            for (allocation in existingAllocations) {
+                if (!allocationResponse.allocations.any { dayAllocations ->
+                        dayAllocations.any { roomAllocations ->
+                            roomAllocations.any { roomAllocation ->
+                                roomAllocation.patients.any { patient ->
+                                    patient.patientId == allocation.patientId.patientId &&
+                                    roomAllocation.roomNumber == allocation.roomNumber
+                                }
+                            }
+                        }
+                    }) {
+                    log.info("Deleting allocation for patient ${allocation.patientId.patientId} in room ${allocation.roomNumber} as it's not in AllocationResponse")
+                    patientAllocationService.deletePatientAllocation(allocation)
+                }
+            }
+
             // Update patient allocations based on the AllocationResponse
             allocationResponse.allocations.forEach { allocationList ->
                 allocationList.forEach { allocation ->
