@@ -12,7 +12,7 @@ import no.uio.bedreflyt.api.service.live.PatientService
 import no.uio.bedreflyt.api.service.live.PatientTrajectoryService
 import no.uio.bedreflyt.api.service.triplestore.MonitoringCategoryService
 import no.uio.bedreflyt.api.service.triplestore.RoomService
-import no.uio.bedreflyt.api.types.AllocationResponse
+import no.uio.bedreflyt.api.types.AllocationResponseDTO
 import no.uio.bedreflyt.api.types.PatientAllocationRequest
 import no.uio.bedreflyt.api.types.UpdatePatientAllocationRequest
 import org.slf4j.Logger
@@ -255,9 +255,9 @@ class PatientAllocationController (
     @PutMapping("/update-from-allocation", produces = ["application/json"])
     fun updateFromAllocationResponse(
         @SwaggerRequestBody(description = "Modified allocation response from /allocate endpoint") 
-        @Valid @RequestBody allocationResponse: AllocationResponse
+        @Valid @RequestBody allocationResponse: AllocationResponseDTO
     ): ResponseEntity<String> {
-        log.info("Updating patient allocations from modified AllocationResponse!")
+        log.info("Updating patient allocations from modified AllocationResponseDTO!")
 
         try {
             // Extract ward and hospital from the first allocation to identify the context
@@ -268,7 +268,7 @@ class PatientAllocationController (
             }
 
             // Get the first room to extract ward and hospital information
-            val firstRoom = allocationResponse.allocations[0][0].keys.first()
+            val firstRoom = allocationResponse.allocations[0][0][0]
             val wardName = firstRoom.wardName
             val hospitalCode = firstRoom.hospitalCode
 
@@ -278,22 +278,22 @@ class PatientAllocationController (
             // Update patient allocations based on the AllocationResponse
             allocationResponse.allocations.forEach { allocationList ->
                 allocationList.forEach { allocation ->
-                    allocation.forEach { (room, roomInfo) ->
-                        roomNumbersInResponse.add(room.roomNumber)
+                    allocation.forEach { roomAllocation ->
+                        roomNumbersInResponse.add(roomAllocation.roomNumber)
                         
-                        val allocatedPatients = roomInfo?.patients
-                        if (!allocatedPatients.isNullOrEmpty()) {
+                        val allocatedPatients = roomAllocation.patients
+                        if (allocatedPatients.isNotEmpty()) {
                             allocatedPatients.forEach { patient ->
                                 // Find existing allocation or create new one
                                 val existingAllocation = patientAllocationService.findByPatientId(patient)
                                 
                                 if (existingAllocation != null) {
                                     // Update existing allocation
-                                    existingAllocation.roomNumber = room.roomNumber
+                                    existingAllocation.roomNumber = roomAllocation.roomNumber
                                     existingAllocation.wardName = wardName
                                     existingAllocation.hospitalCode = hospitalCode
                                     patientAllocationService.updatePatientAllocation(existingAllocation)
-                                    log.info("Updated allocation for patient ${patient.patientId} to room ${room.roomNumber}")
+                                    log.info("Updated allocation for patient ${patient.patientId} to room ${roomAllocation.roomNumber}")
                                 } else {
                                     log.warn("No existing allocation found for patient ${patient.patientId}")
                                 }

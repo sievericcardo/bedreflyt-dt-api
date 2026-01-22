@@ -23,6 +23,7 @@ import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
 import no.uio.bedreflyt.api.types.AllocationRequest
 import no.uio.bedreflyt.api.types.AllocationResponse
+import no.uio.bedreflyt.api.types.AllocationResponseDTO
 import no.uio.bedreflyt.api.types.AllocationSetupResult
 import no.uio.bedreflyt.api.types.AllocationSimulationRequest
 import no.uio.bedreflyt.api.types.CompleteTimeLogging
@@ -89,7 +90,7 @@ class AllocationController (
         ]
     )
     @PostMapping("/allocate")
-    fun allocateRooms(@SwaggerRequestBody(description = "Request to allocate rooms for patients") @Valid @RequestBody allocationRequest: AllocationRequest): ResponseEntity<AllocationResponse> {
+    fun allocateRooms(@SwaggerRequestBody(description = "Request to allocate rooms for patients") @Valid @RequestBody allocationRequest: AllocationRequest): ResponseEntity<AllocationResponseDTO> {
         allocationLock.lock()
         try {
             log.info("Allocating rooms for ${allocationRequest.scenario.size} patients")
@@ -189,7 +190,7 @@ class AllocationController (
         ]
     )
     @PostMapping("/simulate")
-    fun simulateRooms(@SwaggerRequestBody(description = "Request to allocate rooms for patients") @Valid @RequestBody allocationRequest: AllocationSimulationRequest): ResponseEntity<AllocationResponse> {
+    fun simulateRooms(@SwaggerRequestBody(description = "Request to allocate rooms for patients") @Valid @RequestBody allocationRequest: AllocationSimulationRequest): ResponseEntity<AllocationResponseDTO> {
         simulationLock.lock()
         try {
             log.info("Allocating rooms for ${allocationRequest.scenario.size} patients")
@@ -483,7 +484,7 @@ class AllocationController (
         simulationResult: SimulationResult,
         incomingPatients: MutableList<Pair<Patient, String>>,
         startTime: Long
-    ): ResponseEntity<AllocationResponse> {
+    ): ResponseEntity<AllocationResponseDTO> {
         return if (allocationResponse.allocations.isNotEmpty()) {
             // Save allocation results to database
             allocationResponse.allocations.forEach { allocationList ->
@@ -538,7 +539,7 @@ class AllocationController (
                 absTime = simulationResult.absTime,
                 solverTime = allocationTimes
             )
-            ResponseEntity.ok(allocationResponse)
+            ResponseEntity.ok(allocationResponse.toDTO())
         } else {
             allocationHelper.handleEmptyAllocations(incomingPatients)
             ResponseEntity.badRequest().build()
