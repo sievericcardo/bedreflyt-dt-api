@@ -36,6 +36,21 @@ data class RoomInfo(
     val gender: String
 )
 
+// DTO for JSON serialization
+data class RoomAllocationDTO(
+    val roomNumber: Int,
+    val wardName: String,
+    val hospitalCode: String,
+    val patients: List<Patient>,
+    val gender: String
+)
+
+data class AllocationResponseDTO(
+    val allocations: List<List<List<RoomAllocationDTO>>>,
+    val changes: Int,
+    val executions: CompleteTimeLogging? = null
+)
+
 typealias Allocation = Map<WardRoom, RoomInfo?>
 typealias DailyNeeds = MutableList<Pair<Patient, Int>>
 typealias SimulationNeeds = List<DailyNeeds>
@@ -46,7 +61,24 @@ data class SimulationResponse(
     val allocations: List<List<Allocation>>,
     val changes: Int,
     var executions: CompleteTimeLogging? = null
-)
+) {
+    fun toDTO(): AllocationResponseDTO {
+        val dtoAllocations = allocations.map { dayAllocations ->
+            dayAllocations.map { allocation ->
+                allocation.map { (wardRoom, roomInfo) ->
+                    RoomAllocationDTO(
+                        roomNumber = wardRoom.roomNumber,
+                        wardName = wardRoom.wardName,
+                        hospitalCode = wardRoom.hospitalCode,
+                        patients = roomInfo?.patients ?: emptyList(),
+                        gender = roomInfo?.gender ?: ""
+                    )
+                }
+            }
+        }
+        return AllocationResponseDTO(dtoAllocations, changes, executions)
+    }
+}
 
 data class ScenarioRequest(
     val batch: Int,
